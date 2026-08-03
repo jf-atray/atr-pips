@@ -1,0 +1,7 @@
+[package]
+name = "atr-pips"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+atr-plex = { version = "0.2.0", features = ["inherent_associated_types"] }

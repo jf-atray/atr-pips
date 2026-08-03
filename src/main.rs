@@ -1,0 +1,19 @@
+mod anims;
+mod appscope;
+mod brushes;
+mod canvases;
+mod clip;
+mod gamescope;
+mod gather;
+mod gpuscope;
+mod libscope;
+mod physics;
+mod query;
+mod scripting;
+mod seek;
+mod tables;
+mod windowing;
+
+fn main() {
+    
+}
