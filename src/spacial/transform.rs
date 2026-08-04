@@ -6,7 +6,7 @@ pub struct Transform {
     pub rot: Quat,
 }
 impl Transform {
-    pub fn with_xyz(&mut self, xyz: Vec3) -> &mut Self {
+    pub fn xyz(&mut self, xyz: Vec3) -> &mut Self {
         self.xyz = xyz;
         self
     }
