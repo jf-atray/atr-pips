@@ -1,9 +1,9 @@
 use wgpu::{Device, Queue};
 
-//wip move in from You First
-pub struct CanvasRenderer;
+//wip
+pub struct TextureCache;
 
-impl CanvasRenderer {
+impl TextureCache {
     pub fn new(_device: &Device, _queue: &Queue) -> Self {
         Self
     }
