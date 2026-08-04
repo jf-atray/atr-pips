@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut};
 
 use atr_plex::{Duplex, duplex};
-use slotmap::{SecondaryMap, SparseSecondaryMap, secondary, sparse_secondary};
+use slotmap::{SecondaryMap, SparseSecondaryMap};
 
 use crate::tables::{ClassId, ClassRowPtr, class_strategy::{ClassRarity, GrowthStrategy}};
 
@@ -13,15 +13,15 @@ pub struct Class<T> {
 impl<T> Class<T> {
     pub fn new(rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
         let data = match rarity {
-            Duplex::T(t) => Duplex::T(SecondaryMap::new()),
-            Duplex::K(k) => Duplex::K(SparseSecondaryMap::new()),
+            Duplex::T(_t) => Duplex::T(SecondaryMap::new()),
+            Duplex::K(_k) => Duplex::K(SparseSecondaryMap::new()),
         };
         Self { growth, data }
     }
     pub fn with_capacity(capacity: usize, rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
         let data = match rarity {
-            Duplex::T(t) => Duplex::T(SecondaryMap::with_capacity(capacity)),
-            Duplex::K(k) => Duplex::K(SparseSecondaryMap::with_capacity(capacity)),
+            Duplex::T(_t) => Duplex::T(SecondaryMap::with_capacity(capacity)),
+            Duplex::K(_k) => Duplex::K(SparseSecondaryMap::with_capacity(capacity)),
         };
         Self { growth, data }
     }
@@ -66,7 +66,7 @@ impl<T: Default> Class<T> {
 impl<T> Class<Vec<T>> {
     pub fn row_ptr_is_valid(&self, ptr: &ClassRowPtr) -> bool {
         self.get_col(ptr.class_id)
-            .map_or(false, |col| ptr.row_idx < col.len())
+            .is_some_and(|col| ptr.row_idx < col.len())
     }
 
     pub fn get_row(&self, id: &ClassRowPtr) -> Option<&T> {

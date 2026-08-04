@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 use wgpu::{
     Color, CommandEncoder, LoadOp, Operations, Queue, RenderPass, RenderPassColorAttachment,
