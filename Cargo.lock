@@ -110,6 +110,8 @@ version = "0.1.0"
 dependencies = [
  "atr-plex",
  "glam",
+ "log",
+ "serde",
  "slotmap",
  "wgpu",
  "winit",

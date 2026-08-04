@@ -6,6 +6,8 @@ edition = "2024"
 [dependencies]
 atr-plex = { version = "0.2.0", features = ["inherent_associated_types"] }
 glam = "0.33.3"
+log = "0.4.33"
+serde = "1.0.229"
 slotmap = "1.1.1"
 wgpu = "30.0.0"
 winit = "0.30.13"
