@@ -13,6 +13,8 @@ mod scripting;
 mod seek;
 mod tables;
 mod windowing;
+mod babel;
+mod spacial;
 
 fn main() {
     

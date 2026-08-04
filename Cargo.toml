@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 atr-plex = { version = "0.2.0", features = ["inherent_associated_types"] }
+glam = "0.33.3"
+slotmap = "1.1.1"
