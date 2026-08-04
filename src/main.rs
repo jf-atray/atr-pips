@@ -1,3 +1,6 @@
+#![feature(inherent_associated_types)]
+#![allow(incomplete_features)]
+
 mod anims;
 mod appscope;
 mod brushes;

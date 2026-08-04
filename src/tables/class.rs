@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut};
 
 use atr_plex::{Duplex, duplex};
-use slotmap::{SecondaryMap, SparseSecondaryMap};
+use slotmap::{SecondaryMap, SparseSecondaryMap, secondary, sparse_secondary};
 
 use crate::tables::{ClassId, ClassRowPtr, class_strategy::{ClassRarity, GrowthStrategy}};
 
@@ -38,9 +38,37 @@ impl<T> Class<T> {
     pub unsafe fn get_col_unchecked(&self, id: ClassId) -> &T {
         duplex!(&self.data => |x| { unsafe{ x.get_unchecked(id) } } -> unwrap)
     }
+
+    pub fn len(&self) -> usize {
+        duplex!(&self.data => { len() } -> unwrap)
+    }
+}
+
+impl<T: Default> Class<T> {
+    pub fn get_col_or_insert(&mut self, id: ClassId) -> &mut T {
+        match &mut self.data {
+            Duplex::T(m) => {
+                if !m.contains_key(id) {
+                    m.insert(id, T::default());
+                }
+                m.get_mut(id).unwrap()
+            }
+            Duplex::K(m) => {
+                if !m.contains_key(id) {
+                    m.insert(id, T::default());
+                }
+                m.get_mut(id).unwrap()
+            }
+        }
+    }
 }
 
 impl<T> Class<Vec<T>> {
+    pub fn row_ptr_is_valid(&self, ptr: &ClassRowPtr) -> bool {
+        self.get_col(ptr.class_id)
+            .map_or(false, |col| ptr.row_idx < col.len())
+    }
+
     pub fn get_row(&self, id: &ClassRowPtr) -> Option<&T> {
         let col = self.get_col(id.class_id)?;
         Some(&col[id.row_idx])
