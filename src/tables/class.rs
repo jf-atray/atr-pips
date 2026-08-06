@@ -64,18 +64,28 @@ impl<T, K> Class<T, K> {
     }
 }
 
-impl<T, K: Default> Class<T, K> {
-    pub fn get_col_or_insert(&mut self, id: ClassId) -> &mut Columnar<T, K> {
+impl<T, K: PartialEq> Class<T, K> {
+    pub fn get_col_or_insert_with_key(&mut self, id: ClassId, k: K) -> &mut Columnar<T, K> {
         match &mut self.data {
             Duplex::T(m) => {
-                if !m.contains_key(id) {
-                    m.insert(id, Columnar::default());
+                if m.contains_key(id) {
+                    debug_assert!(
+                        m.get(id).unwrap().key == k,
+                        "Columnar key mismatch for ClassId"
+                    );
+                } else {
+                    m.insert(id, Columnar::new(k));
                 }
                 m.get_mut(id).unwrap()
             }
             Duplex::K(m) => {
-                if !m.contains_key(id) {
-                    m.insert(id, Columnar::default());
+                if m.contains_key(id) {
+                    debug_assert!(
+                        m.get(id).unwrap().key == k,
+                        "Columnar key mismatch for ClassId"
+                    );
+                } else {
+                    m.insert(id, Columnar::new(k));
                 }
                 m.get_mut(id).unwrap()
             }
@@ -83,23 +93,9 @@ impl<T, K: Default> Class<T, K> {
     }
 }
 
-impl<T, K> Class<T, K> {
-    pub fn get_col_or_insert_with_key(&mut self, id: ClassId, k: K) -> &mut Columnar<T, K> {
-        match &mut self.data {
-            //todo duplex
-            Duplex::T(m) => {
-                if !m.contains_key(id) {
-                    m.insert(id, Columnar::new(k));
-                }
-                m.get_mut(id).unwrap()
-            }
-            Duplex::K(m) => {
-                if !m.contains_key(id) {
-                    m.insert(id, Columnar::new(k));
-                }
-                m.get_mut(id).unwrap()
-            }
-        }
+impl<T, K: Default + PartialEq> Class<T, K> {
+    pub fn get_col_or_insert(&mut self, id: ClassId) -> &mut Columnar<T, K> {
+        self.get_col_or_insert_with_key(id, K::default())
     }
 }
 

@@ -2,10 +2,9 @@ use atr_plex::Duplex;
 use atr_plex::duplex;
 use slotmap::{secondary, sparse_secondary};
 
+use crate::tables::ClassId;
 use crate::tables::class::{Class, Columnar};
 use crate::tables::class_strategy::ClassRarity;
-use crate::tables::ClassId;
-
 
 type ClassIterRef<'a, T, K = ()> = Duplex<
     secondary::Iter<'a, ClassId, Columnar<T, K>>,
@@ -38,6 +37,7 @@ where
         None
     }
 }
+
 
 type ClassIterMut<'a, T, K = ()> = Duplex<
     secondary::IterMut<'a, ClassId, Columnar<T, K>>,
@@ -79,20 +79,18 @@ where
     K: 'a,
 {
     let mut columns = duplex!(&class.data => values());
-    std::iter::from_fn(move || {
-        duplex!(&mut columns => { next() } -> unwrap)
-    })
+    std::iter::from_fn(move || duplex!(&mut columns => { next() } -> unwrap))
 }
 
-pub fn query_mut<'a, T, K>(class: &'a mut Class<T, K>) -> impl Iterator<Item = &'a mut Columnar<T, K>>
+pub fn query_mut<'a, T, K>(
+    class: &'a mut Class<T, K>,
+) -> impl Iterator<Item = &'a mut Columnar<T, K>>
 where
     T: 'a,
     K: 'a,
 {
     let mut columns = duplex!(&mut class.data => values_mut());
-    std::iter::from_fn(move || {
-        duplex!(&mut columns => { next() } -> unwrap)
-    })
+    std::iter::from_fn(move || duplex!(&mut columns => { next() } -> unwrap))
 }
 
 pub fn query_ref_ref<'a, T, K, TKey, KKey>(
@@ -100,7 +98,7 @@ pub fn query_ref_ref<'a, T, K, TKey, KKey>(
     t_key: &'a TKey,
     k: &'a Class<K, KKey>,
     k_key: &'a KKey,
-) -> Duplex<QueryRefRefIter<'a, T, K, TKey, KKey>, QueryRefRefIter<'a, K, T, KKey, TKey>>
+) -> impl Iterator<Item = (&'a Columnar<T, TKey>, &'a Columnar<K, KKey>)>
 where
     T: 'a,
     K: 'a,
@@ -109,7 +107,7 @@ where
 {
     let t_len = duplex!(&t.data => { len() } -> unwrap);
     let k_len = duplex!(&k.data => { len() } -> unwrap);
-    if t_len <= k_len {
+    let mut duplex = if t_len <= k_len {
         let smallest_source = duplex!(&t.data => iter());
         let k_source = k.data.as_ref();
         Duplex::T(QueryRefRefIter {
@@ -127,7 +125,11 @@ where
             t_key: k_key,
             k_key: t_key,
         })
-    }
+    };
+    std::iter::from_fn(move || match &mut duplex {
+        Duplex::T(t) => t.next(),
+        Duplex::K(k) => k.next().map(|(k, t)| (t, k)),
+    })
 }
 
 pub fn query_mut_mut<'a, T, K, TKey, KKey>(
@@ -135,7 +137,7 @@ pub fn query_mut_mut<'a, T, K, TKey, KKey>(
     t_key: &'a TKey,
     k: &'a mut Class<K, KKey>,
     k_key: &'a KKey,
-) -> Duplex<QueryMutMutIter<'a, T, K, TKey, KKey>, QueryMutMutIter<'a, K, T, KKey, TKey>>
+) -> impl Iterator<Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>)>
 where
     T: 'a,
     K: 'a,
@@ -144,7 +146,7 @@ where
 {
     let t_len = duplex!(&t.data => { len() } -> unwrap);
     let k_len = duplex!(&k.data => { len() } -> unwrap);
-    if t_len <= k_len {
+    let mut duplex = if t_len <= k_len {
         let smallest_source = duplex!(&mut t.data => iter_mut());
         let k_source = k.data.as_mut();
         Duplex::T(QueryMutMutIter {
@@ -162,5 +164,9 @@ where
             t_key: k_key,
             k_key: t_key,
         })
-    }
+    };
+    std::iter::from_fn(move || match &mut duplex {
+        Duplex::T(t) => t.next(),
+        Duplex::K(k) => k.next().map(|(k, t)| (t, k)),
+    })
 }
