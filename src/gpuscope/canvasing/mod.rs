@@ -2,12 +2,13 @@ use slotmap::{SlotMap, SparseSecondaryMap, new_key_type};
 use wgpu::{Device, Queue, RenderPass};
 
 new_key_type! {
+    //should we define classes with canvas ID since it can affect the kinds of queries we want to run?
     pub struct CanvasId;
     pub struct MaterialId;
 }
 
-// canvas ID probably just points to solid resources
-// all the "instance download" and "calling things" logic _belongs_ to the solver
+//canvas ID probably just points to solid resources
+//all the "instance download" and "calling things" logic _belongs_ to the solver
 pub struct SimpleCanvasDesign {
     
 }
