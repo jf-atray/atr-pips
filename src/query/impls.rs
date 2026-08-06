@@ -2,21 +2,22 @@ use atr_plex::Duplex;
 use atr_plex::duplex;
 use slotmap::{secondary, sparse_secondary};
 
+use crate::tables::class::{Class, Columnar};
 use crate::tables::class_strategy::ClassRarity;
-use crate::tables::{ClassId, class::Class};
+use crate::tables::ClassId;
 
 
-type ClassIterRef<'a, T> = Duplex<
-    secondary::Iter<'a, ClassId, Vec<T>>,
-    sparse_secondary::Iter<'a, ClassId, Vec<T>>,
+type ClassIterRef<'a, T, K = ()> = Duplex<
+    secondary::Iter<'a, ClassId, Columnar<T, K>>,
+    sparse_secondary::Iter<'a, ClassId, Columnar<T, K>>,
 >;
-pub struct QueryRefRefIter<'a, T: 'a, K: 'a> {
-    smallest_source: ClassIterRef<'a, T>,
-    k_source: ClassRarity<Vec<K>>::Ref<'a>,
+pub struct QueryRefRefIter<'a, T: 'a, K: 'a, TKey: 'a, KKey: 'a> {
+    smallest_source: ClassIterRef<'a, T, TKey>,
+    k_source: ClassRarity<Columnar<K, KKey>>::Ref<'a>,
 }
 
-impl<'a, T: 'a, K: 'a> Iterator for QueryRefRefIter<'a, T, K> {
-    type Item = (&'a Vec<T>, &'a Vec<K>);
+impl<'a, T: 'a, K: 'a, TKey: 'a, kKey: 'a> Iterator for QueryRefRefIter<'a, T, K, TKey, kKey> {
+    type Item = (&'a Columnar<T, TKey>, &'a Columnar<K, kKey>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
@@ -28,23 +29,23 @@ impl<'a, T: 'a, K: 'a> Iterator for QueryRefRefIter<'a, T, K> {
     }
 }
 
-type ClassIterMut<'a, T> = Duplex<
-    secondary::IterMut<'a, ClassId, Vec<T>>,
-    sparse_secondary::IterMut<'a, ClassId, Vec<T>>,
+type ClassIterMut<'a, T, K = ()> = Duplex<
+    secondary::IterMut<'a, ClassId, Columnar<T, K>>,
+    sparse_secondary::IterMut<'a, ClassId, Columnar<T, K>>,
 >;
 
-pub struct QueryMutMutIter<'a, T: 'a, K: 'a> {
-    smallest_source: ClassIterMut<'a, T>,
-    k_source: ClassRarity<Vec<K>>::Mut<'a>,
+pub struct QueryMutMutIter<'a, T: 'a, K: 'a, TKey: 'a, kKey: 'a> {
+    smallest_source: ClassIterMut<'a, T, TKey>,
+    k_source: ClassRarity<Columnar<K, kKey>>::Mut<'a>,
 }
 
-impl<'a, T: 'a, K: 'a> Iterator for QueryMutMutIter<'a, T, K> {
-    type Item = (&'a mut Vec<T>, &'a mut Vec<K>);
+impl<'a, T: 'a, K: 'a, TKey: 'a, KKey: 'a> Iterator for QueryMutMutIter<'a, T, K, TKey, KKey> {
+    type Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
             if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap) {
-                let k = unsafe { &mut *(k as *mut Vec<K>) };
+                let k = unsafe { &mut *(k as *mut Columnar<K, KKey>) };
                 return Some((t, k));
             }
         }
@@ -52,27 +53,37 @@ impl<'a, T: 'a, K: 'a> Iterator for QueryMutMutIter<'a, T, K> {
     }
 }
 
-pub fn query_ref<'a, T: 'a>(class: &'a Class<Vec<T>>) -> impl Iterator<Item = &'a Vec<T>> {
-    let mut columns = duplex!(&class.data => iter());
-    std::iter::from_fn(move || {
-        duplex!(&mut columns => { next() } -> unwrap).map(|(_, col)| col)
-    })
-}
-
-pub fn query_mut<'a, T: 'a>(class: &'a mut Class<Vec<T>>) -> impl Iterator<Item = &'a mut Vec<T>> {
-    let mut columns = duplex!(&mut class.data => iter_mut());
-    std::iter::from_fn(move || {
-        duplex!(&mut columns => { next() } -> unwrap).map(|(_, col)| col)
-    })
-}
-
-pub fn query_ref_ref<'a, T, K>(
-    t: &'a Class<Vec<T>>,
-    k: &'a Class<Vec<K>>,
-) -> Duplex<QueryRefRefIter<'a, T, K>, QueryRefRefIter<'a, K, T>>
+pub fn query_ref<'a, T, K>(class: &'a Class<T, K>) -> impl Iterator<Item = &'a Columnar<T, K>>
 where
     T: 'a,
     K: 'a,
+{
+    let mut columns = duplex!(&class.data => values());
+    std::iter::from_fn(move || {
+        duplex!(&mut columns => { next() } -> unwrap)
+    })
+}
+
+pub fn query_mut<'a, T, K>(class: &'a mut Class<T, K>) -> impl Iterator<Item = &'a mut Columnar<T, K>>
+where
+    T: 'a,
+    K: 'a,
+{
+    let mut columns = duplex!(&mut class.data => values_mut());
+    std::iter::from_fn(move || {
+        duplex!(&mut columns => { next() } -> unwrap)
+    })
+}
+
+pub fn query_ref_ref<'a, T, K, TKey, KKey>(
+    t: &'a Class<T, TKey>,
+    k: &'a Class<K, KKey>,
+) -> Duplex<QueryRefRefIter<'a, T, K, TKey, KKey>, QueryRefRefIter<'a, K, T, KKey, TKey>>
+where
+    T: 'a,
+    K: 'a,
+    TKey: 'a,
+    KKey: 'a,
 {
     let t_len = duplex!(&t.data => { len() } -> unwrap);
     let k_len = duplex!(&k.data => { len() } -> unwrap);
@@ -93,13 +104,15 @@ where
     }
 }
 
-pub fn query_mut_mut<'a, T, K>(
-    t: &'a mut Class<Vec<T>>,
-    k: &'a mut Class<Vec<K>>,
-) -> Duplex<QueryMutMutIter<'a, T, K>, QueryMutMutIter<'a, K, T>>
+pub fn query_mut_mut<'a, T, K, TKey, kKey>(
+    t: &'a mut Class<T, TKey>,
+    k: &'a mut Class<K, kKey>,
+) -> Duplex<QueryMutMutIter<'a, T, K, TKey, kKey>, QueryMutMutIter<'a, K, T, kKey, TKey>>
 where
     T: 'a,
     K: 'a,
+    TKey: 'a,
+    kKey: 'a,
 {
     let t_len = duplex!(&t.data => { len() } -> unwrap);
     let k_len = duplex!(&k.data => { len() } -> unwrap);
