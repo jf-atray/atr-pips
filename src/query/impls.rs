@@ -14,15 +14,25 @@ type ClassIterRef<'a, T, K = ()> = Duplex<
 pub struct QueryRefRefIter<'a, T: 'a, K: 'a, TKey: 'a, KKey: 'a> {
     smallest_source: ClassIterRef<'a, T, TKey>,
     k_source: ClassRarity<Columnar<K, KKey>>::Ref<'a>,
+    t_key: &'a TKey,
+    k_key: &'a KKey,
 }
 
-impl<'a, T: 'a, K: 'a, TKey: 'a, kKey: 'a> Iterator for QueryRefRefIter<'a, T, K, TKey, kKey> {
-    type Item = (&'a Columnar<T, TKey>, &'a Columnar<K, kKey>);
+impl<'a, T, K, TKey, KKey> Iterator for QueryRefRefIter<'a, T, K, TKey, KKey>
+where
+    T: 'a,
+    K: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
+{
+    type Item = (&'a Columnar<T, TKey>, &'a Columnar<K, KKey>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
             if let Some(k) = duplex!(&self.k_source => { get(class_id) } -> unwrap) {
-                return Some((t, k));
+                if &t.key == self.t_key && &k.key == self.k_key {
+                    return Some((t, k));
+                }
             }
         }
         None
@@ -34,19 +44,29 @@ type ClassIterMut<'a, T, K = ()> = Duplex<
     sparse_secondary::IterMut<'a, ClassId, Columnar<T, K>>,
 >;
 
-pub struct QueryMutMutIter<'a, T: 'a, K: 'a, TKey: 'a, kKey: 'a> {
+pub struct QueryMutMutIter<'a, T: 'a, K: 'a, TKey: 'a, KKey: 'a> {
     smallest_source: ClassIterMut<'a, T, TKey>,
-    k_source: ClassRarity<Columnar<K, kKey>>::Mut<'a>,
+    k_source: ClassRarity<Columnar<K, KKey>>::Mut<'a>,
+    t_key: &'a TKey,
+    k_key: &'a KKey,
 }
 
-impl<'a, T: 'a, K: 'a, TKey: 'a, KKey: 'a> Iterator for QueryMutMutIter<'a, T, K, TKey, KKey> {
+impl<'a, T, K, TKey, KKey> Iterator for QueryMutMutIter<'a, T, K, TKey, KKey>
+where
+    T: 'a,
+    K: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
+{
     type Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
             if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap) {
-                let k = unsafe { &mut *(k as *mut Columnar<K, KKey>) };
-                return Some((t, k));
+                if &t.key == self.t_key && &k.key == self.k_key {
+                    let k = unsafe { &mut *(k as *mut Columnar<K, KKey>) };
+                    return Some((t, k));
+                }
             }
         }
         None
@@ -77,13 +97,15 @@ where
 
 pub fn query_ref_ref<'a, T, K, TKey, KKey>(
     t: &'a Class<T, TKey>,
+    t_key: &'a TKey,
     k: &'a Class<K, KKey>,
+    k_key: &'a KKey,
 ) -> Duplex<QueryRefRefIter<'a, T, K, TKey, KKey>, QueryRefRefIter<'a, K, T, KKey, TKey>>
 where
     T: 'a,
     K: 'a,
-    TKey: 'a,
-    KKey: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
 {
     let t_len = duplex!(&t.data => { len() } -> unwrap);
     let k_len = duplex!(&k.data => { len() } -> unwrap);
@@ -93,6 +115,8 @@ where
         Duplex::T(QueryRefRefIter {
             smallest_source,
             k_source,
+            t_key,
+            k_key,
         })
     } else {
         let smallest_source = duplex!(&k.data => iter());
@@ -100,19 +124,23 @@ where
         Duplex::K(QueryRefRefIter {
             smallest_source,
             k_source,
+            t_key: k_key,
+            k_key: t_key,
         })
     }
 }
 
-pub fn query_mut_mut<'a, T, K, TKey, kKey>(
+pub fn query_mut_mut<'a, T, K, TKey, KKey>(
     t: &'a mut Class<T, TKey>,
-    k: &'a mut Class<K, kKey>,
-) -> Duplex<QueryMutMutIter<'a, T, K, TKey, kKey>, QueryMutMutIter<'a, K, T, kKey, TKey>>
+    t_key: &'a TKey,
+    k: &'a mut Class<K, KKey>,
+    k_key: &'a KKey,
+) -> Duplex<QueryMutMutIter<'a, T, K, TKey, KKey>, QueryMutMutIter<'a, K, T, KKey, TKey>>
 where
     T: 'a,
     K: 'a,
-    TKey: 'a,
-    kKey: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
 {
     let t_len = duplex!(&t.data => { len() } -> unwrap);
     let k_len = duplex!(&k.data => { len() } -> unwrap);
@@ -122,6 +150,8 @@ where
         Duplex::T(QueryMutMutIter {
             smallest_source,
             k_source,
+            t_key,
+            k_key,
         })
     } else {
         let smallest_source = duplex!(&mut k.data => iter_mut());
@@ -129,6 +159,8 @@ where
         Duplex::K(QueryMutMutIter {
             smallest_source,
             k_source,
+            t_key: k_key,
+            k_key: t_key,
         })
     }
 }
