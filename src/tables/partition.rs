@@ -17,11 +17,11 @@ pub trait Addition: Any {
 macro_rules! partition {
     (
         $vis:vis struct $addition:ident as $view:ident {
-            $($fvis:vis $fname:ident : Class<$ftype:ty>,)+
+            $($fvis:vis $fname:ident : Class<$ftype:ty $(, $ktype:ty)?>,)+
         }
     ) => {
         $vis struct $addition {
-            $($fvis $fname: $crate::tables::class::Class<$ftype>, )+
+            $($fvis $fname: $crate::tables::class::Class<$ftype $(, $ktype)?>, )+
         }
 
         #[derive(Default)]
