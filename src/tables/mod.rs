@@ -5,9 +5,13 @@ pub mod domain;
 pub mod partition;
 pub mod scope;
 pub mod tables;
+pub mod demo;
 
 slotmap::new_key_type! {
     pub struct ClassId;
+    //put these in canvassing mod
+    pub struct CanvasId;
+    pub struct CanvasSolverId;
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

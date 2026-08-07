@@ -117,7 +117,7 @@ impl Gpu {
 
         let surface_scope = SurfaceScope { surface, cfg };
 
-        let canvas_renderer = CanvasRenderer::new(&device, &queue);
+        let canvas_renderer = CanvasRenderer::make(device.clone());
         let texture_cache = TextureCache::new(&device, &queue);
 
         let device_context = DeviceContext {

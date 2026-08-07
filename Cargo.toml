@@ -5,13 +5,14 @@ edition = "2024"
 
 [dependencies]
 atr-plex = { version = "0.2.0", features = ["inherent_associated_types"] }
-glam = "0.33.3"
+glam = { version = "0.33.3", features = ["zerocopy"] }
 log = "0.4.33"
 serde = "1.0.229"
 slotmap = "1.1.1"
 web-time = "1.1.0"
 wgpu = "30.0.0"
 winit = "0.30.13"
+zerocopy = "0.8.56"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11.10"
