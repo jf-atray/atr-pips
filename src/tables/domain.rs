@@ -11,7 +11,7 @@ pub struct Domain {
 }
 
 impl Domain {
-    pub fn make(&mut self, maker: &mut dyn Maker) -> ClassRowPtr {
+    pub fn make<M: Maker>(&mut self, maker: M) -> ClassRowPtr {
         let mut scope = Scope::default();
 
         for (addition_id, addition) in &self.tables.additions {

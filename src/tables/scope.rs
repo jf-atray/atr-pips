@@ -57,5 +57,5 @@ impl Scope {
 
 
 pub trait Maker: Any {
-    fn make_into(&mut self, scope: &mut Scope);
+    fn make_into(self, scope: &mut Scope);
 }

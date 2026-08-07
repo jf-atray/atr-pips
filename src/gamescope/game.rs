@@ -18,14 +18,14 @@ pub struct Game {
 }
 
 struct PipMaker {
-    xform: Option<Transform>,
-    brush: Option<Brush>,
+    xform: Transform,
+    brush: Brush,
 }
 
 impl Maker for PipMaker {
-    fn make_into(&mut self, scope: &mut Scope) {
-        scope.core.xforms = self.xform.take();
-        scope.core.brushes = self.brush.take();
+    fn make_into(self, scope: &mut Scope) {
+        scope.core.xforms = Some(self.xform);
+        scope.core.brushes = Some(self.brush);
     }
 }
 
@@ -46,23 +46,23 @@ impl Game {
             heading: SlotMap::with_key(),
         };
 
-        let mut maker = PipMaker {
-            xform: Some(Transform {
+        let maker = PipMaker {
+            xform: Transform {
                 xyz: Vec3::new(-0.5, 0.0, 0.0),
                 rot: Quat::IDENTITY,
-            }),
-            brush: Some(Brush { canvas: canvas_id }),
+            },
+            brush: Brush { canvas: canvas_id },
         };
-        domain.make(&mut maker);
+        domain.make(maker);
 
-        let mut maker = PipMaker {
-            xform: Some(Transform {
+        let maker = PipMaker {
+            xform: Transform {
                 xyz: Vec3::new(0.5, 0.1, 0.0),
                 rot: Quat::IDENTITY,
-            }),
-            brush: Some(Brush { canvas: canvas_id }),
+            },
+            brush: Brush { canvas: canvas_id },
         };
-        domain.make(&mut maker);
+        domain.make(maker);
 
         Self { domain }
     }
