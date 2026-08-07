@@ -8,6 +8,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
 use crate::gamescope::game::Game;
+use crate::gpuscope::canvasing::{Canvas, SimpleCanvasSolver};
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -135,7 +136,22 @@ impl ApplicationHandler<GpuReady> for App {
             gpu.reconfigure(windowing.width, windowing.height);
 
             //todo, gamedata invariant should not be tied to the device driver.
-            let game = Game::new();
+            let canvas = Canvas::new(
+                &gpu.device.device,
+                gpu.surface.cfg.format,
+                gpu.targets.sample_count(),
+                gpu.targets
+                    .depth_enabled()
+                    .then(|| wgpu::TextureFormat::Depth32Float),
+            );
+            let canvas_id = gpu.device.canvas_renderer.canvases.insert(canvas);
+            let _solver_id = gpu
+                .device
+                .canvas_renderer
+                .solvers
+                .insert(Box::new(SimpleCanvasSolver::new()));
+
+            let game = Game::new(canvas_id);
             self.state = AppState::Ready {
                 windowing,
                 gpu,
@@ -156,7 +172,12 @@ impl ApplicationHandler<GpuReady> for App {
             game.update(0.016);
 
             if let Some(mut frame) = gpu.begin_frame() {
-                frame.with_render_pass(wgpu::Color::GREEN, |_pass| {});
+                gpu.device
+                    .canvas_renderer
+                    .prepare(&game.domain.tables, &mut frame.encoder);
+                frame.with_render_pass(wgpu::Color::BLACK, |pass| {
+                    gpu.device.canvas_renderer.render(pass);
+                });
                 frame.finish(gpu.queue());
             }
         }

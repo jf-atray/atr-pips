@@ -7,17 +7,18 @@ use slotmap::SlotMap;
 use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, RenderPass,
 };
+use wgpu::util::DeviceExt as _;
 
 use crate::query::impls::query_ref_ref;
 use crate::tables::{CanvasId, CanvasSolverId};
-use crate::tables::demo::DemoTables;
+use crate::tables::tables::Tables;
 
 pub trait CanvasSolver {
     fn instance_size(&self) -> u32;
 
     fn solve(
         &mut self,
-        tables: &DemoTables,
+        tables: &Tables,
         encoder: &mut CommandEncoder,
         belt: &mut wgpu::util::StagingBelt,
         instance_buffer: &Buffer,
@@ -35,8 +36,132 @@ pub struct CanvasDraw {
     pub count: u32,
 }
 
+pub struct Canvas {
+    pipeline: wgpu::RenderPipeline,
+    quad_buffer: wgpu::Buffer,
+}
+
+impl Canvas {
+    pub fn new(
+        device: &Device,
+        format: wgpu::TextureFormat,
+        sample_count: u32,
+        depth_format: Option<wgpu::TextureFormat>,
+    ) -> Self {
+        const SHADER: &str = r#"
+            @vertex
+            fn vs_main(
+                @location(0) local: vec2<f32>,
+                @location(1) pos: vec3<f32>,
+                @location(2) _rot: vec4<f32>,
+            ) -> @builtin(position) vec4<f32> {
+                return vec4<f32>(local * 0.1 + pos.xy, 0.0, 1.0);
+            }
+
+            @fragment
+            fn fs_main() -> @location(0) vec4<f32> {
+                return vec4<f32>(0.0, 1.0, 0.0, 1.0);
+            }
+        "#;
+
+        let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("green rect"),
+            source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+        });
+
+        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("green rect"),
+            bind_group_layouts: &[],
+            ..Default::default()
+        });
+
+        let quad: [[f32; 2]; 6] = [
+            [-1.0, -1.0],
+            [ 1.0, -1.0],
+            [ 1.0,  1.0],
+            [ 1.0,  1.0],
+            [-1.0,  1.0],
+            [-1.0, -1.0],
+        ];
+        let quad_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("quad"),
+            contents: quad.as_bytes(),
+            usage: BufferUsages::VERTEX,
+        });
+
+        let instance_stride = size_of::<SimpleCanvasInstance>() as u64;
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("green rect"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &module,
+                entry_point: Some("vs_main".into()),
+                buffers: &[
+                    Some(wgpu::VertexBufferLayout {
+                        array_stride: 8,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[wgpu::VertexAttribute {
+                            format: wgpu::VertexFormat::Float32x2,
+                            offset: 0,
+                            shader_location: 0,
+                        }],
+                    }),
+                    Some(wgpu::VertexBufferLayout {
+                        array_stride: instance_stride,
+                        step_mode: wgpu::VertexStepMode::Instance,
+                        attributes: &[
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x3,
+                                offset: 0,
+                                shader_location: 1,
+                            },
+                            wgpu::VertexAttribute {
+                                format: wgpu::VertexFormat::Float32x4,
+                                offset: 16,
+                                shader_location: 2,
+                            },
+                        ],
+                    }),
+                ],
+                compilation_options: Default::default(),
+            },
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: depth_format.map(|f| wgpu::DepthStencilState {
+                format: f,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::Always),
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: wgpu::MultisampleState {
+                count: sample_count,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &module,
+                entry_point: Some("fs_main".into()),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            multiview_mask: None,
+            cache: None,
+        });
+
+        Self {
+            pipeline,
+            quad_buffer,
+        }
+    }
+}
+
 pub struct CanvasRenderer {
     pub solvers: SlotMap<CanvasSolverId, Box<dyn CanvasSolver>>,
+    pub canvases: SlotMap<CanvasId, Canvas>,
 
     //todo, gift to gpu-mem mod
     staging_belt: wgpu::util::StagingBelt,
@@ -59,6 +184,7 @@ impl CanvasRenderer {
         
         Self {
             solvers: SlotMap::with_key(),
+            canvases: SlotMap::with_key(),
             staging_belt,
             instance_buffer,
             draws: Vec::new(),
@@ -67,7 +193,7 @@ impl CanvasRenderer {
 
     pub fn prepare(
         &mut self,
-        tables: &DemoTables,
+        tables: &Tables,
         encoder: &mut CommandEncoder,
     ) -> &[CanvasDraw] {
         self.draws.clear();
@@ -88,9 +214,14 @@ impl CanvasRenderer {
         &self.draws
     }
 
-    pub fn render(&self, _pass: &mut RenderPass<'_>) {
-        for _draw in &self.draws {
-            // Set pipeline/bind group per (canvas, material), then draw(adr, count).
+    pub fn render(&self, pass: &mut RenderPass<'_>) {
+        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        for draw in &self.draws {
+            if let Some(canvas) = self.canvases.get(draw.canvas) {
+                pass.set_pipeline(&canvas.pipeline);
+                pass.set_vertex_buffer(0, canvas.quad_buffer.slice(..));
+                pass.draw(0..6, draw.adr..draw.adr + draw.count);
+            }
         }
     }
 
@@ -112,11 +243,11 @@ impl SimpleCanvasSolver {
         }
     }
 
-    fn collect_from(&mut self, tables: &DemoTables, my_id: CanvasSolverId) {
+    fn collect_from(&mut self, tables: &Tables, _my_id: CanvasSolverId) {
         self.sort.clear();
         //our first real query!
         //next up, macro-assist this vec-of-vecs iteration
-        for (xforms, brushes) in query_ref_ref(&tables.xforms, &(), &tables.brushes, &my_id)
+        for (xforms, brushes) in query_ref_ref(&tables.core.xforms, &(), &tables.core.brushes, &())
         {
             for (xform, brush) in iter::zip(xforms, brushes) {
                 let instance = SimpleCanvasInstance {
@@ -188,7 +319,7 @@ impl CanvasSolver for SimpleCanvasSolver {
 
     fn solve(
         &mut self,
-        tables: &DemoTables,
+        tables: &Tables,
         encoder: &mut CommandEncoder,
         belt: &mut wgpu::util::StagingBelt,
         instance_buffer: &Buffer,
