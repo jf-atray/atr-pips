@@ -135,7 +135,7 @@ impl ApplicationHandler<GpuReady> for App {
             let mut gpu = Gpu::make(event.0, &GpuSettings::default());
             gpu.reconfigure(windowing.width, windowing.height);
 
-            //todo, gamedata invariant should not be tied to the device driver.
+
             let canvas = Canvas::new(
                 &gpu.device.device,
                 gpu.surface.cfg.format,
@@ -150,8 +150,10 @@ impl ApplicationHandler<GpuReady> for App {
                 .canvas_renderer
                 .solvers
                 .insert(Box::new(SimpleCanvasSolver::new()));
-
-            let game = Game::new(canvas_id);
+            
+            //todo, gamedata invariant should not be tied to the device driver.
+            let mut game = Game::new();
+            game.populate(canvas_id);
             self.state = AppState::Ready {
                 windowing,
                 gpu,
@@ -173,8 +175,8 @@ impl ApplicationHandler<GpuReady> for App {
 
             if let Some(mut frame) = gpu.begin_frame() {
                 gpu.device
-                    .canvas_renderer
-                    .prepare(&game.domain.tables, &mut frame.encoder);
+                    .canvas_renderer //create some transient thin scope structs
+                    .prepare(&game.domain.tables, &game.camera, &mut frame.encoder);
                 frame.with_render_pass(wgpu::Color::BLACK, |pass| {
                     gpu.device.canvas_renderer.render(pass);
                 });

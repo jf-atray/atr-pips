@@ -10,6 +10,7 @@ use wgpu::{
 use wgpu::util::DeviceExt as _;
 
 use crate::query::impls::query_ref_ref;
+use crate::spacial::camera::Camera;
 use crate::tables::{CanvasId, CanvasSolverId};
 use crate::tables::tables::Tables;
 
@@ -39,6 +40,7 @@ pub struct CanvasDraw {
 pub struct Canvas {
     pipeline: wgpu::RenderPipeline,
     quad_buffer: wgpu::Buffer,
+    uniform_buffer: wgpu::Buffer,
 }
 
 impl Canvas {
@@ -87,6 +89,13 @@ impl Canvas {
             label: Some("quad"),
             contents: quad.as_bytes(),
             usage: BufferUsages::VERTEX,
+        });
+
+        let uniform_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("canvas camera"),
+            size: 64,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let instance_stride = size_of::<SimpleCanvasInstance>() as u64;
@@ -155,6 +164,7 @@ impl Canvas {
         Self {
             pipeline,
             quad_buffer,
+            uniform_buffer,
         }
     }
 }
@@ -194,9 +204,25 @@ impl CanvasRenderer {
     pub fn prepare(
         &mut self,
         tables: &Tables,
+        camera: &Camera,
         encoder: &mut CommandEncoder,
     ) -> &[CanvasDraw] {
         self.draws.clear();
+
+        //gl vs glam style mat4s. todo, double check
+        let array = camera.view_proj.to_cols_array();
+        let bytes = array.as_bytes();
+        for canvas in self.canvases.values() {
+            //todo, each canvas may interpret the camera differently
+            let mut view = self.staging_belt.write_buffer(
+                encoder,
+                &canvas.uniform_buffer,
+                0,
+                wgpu::BufferSize::new(64).unwrap(),
+            );
+            view.copy_from_slice(bytes);
+        }
+
         let mut adr: u32 = 0;
         for (id, solver) in self.solvers.iter_mut() {
             let count = solver.as_mut().solve(
