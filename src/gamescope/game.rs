@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use glam::{Mat4, Quat, Vec3};
+use glam::{Quat, Vec3};
 use slotmap::SlotMap;
 
 use crate::brushes::Brush;
@@ -50,9 +50,7 @@ impl Game {
 
         Self {
             domain,
-            camera: Camera {
-                view_proj: Mat4::IDENTITY,
-            },
+            camera: Camera::new(),
         }
     }
 
@@ -74,5 +72,7 @@ impl Game {
         });
     }
 
-    pub fn update(&mut self, _dt: f32) {}
+    pub fn update(&mut self, _dt: f32, aspect: f32) {
+        self.camera.update(aspect);
+    }
 }

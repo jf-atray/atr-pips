@@ -166,12 +166,13 @@ impl ApplicationHandler<GpuReady> for App {
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         if let AppState::Ready {
-            windowing: _,
+            windowing,
             gpu,
             game,
         } = &mut self.state
         {
-            game.update(0.016);
+            let aspect = windowing.width as f32 / windowing.height as f32;
+            game.update(0.016, aspect);
 
             if let Some(mut frame) = gpu.begin_frame() {
                 gpu.device

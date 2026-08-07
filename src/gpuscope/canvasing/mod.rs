@@ -5,7 +5,9 @@ use zerocopy::IntoBytes as _;
 use glam::{Quat, Vec3A};
 use slotmap::SlotMap;
 use wgpu::{
-    Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, RenderPass,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor,
+    BufferSize, BufferUsages, CommandEncoder, Device, RenderPass, ShaderStages,
 };
 use wgpu::util::DeviceExt as _;
 
@@ -41,6 +43,7 @@ pub struct Canvas {
     pipeline: wgpu::RenderPipeline,
     quad_buffer: wgpu::Buffer,
     uniform_buffer: wgpu::Buffer,
+    bind_group: BindGroup,
 }
 
 impl Canvas {
@@ -51,13 +54,18 @@ impl Canvas {
         depth_format: Option<wgpu::TextureFormat>,
     ) -> Self {
         const SHADER: &str = r#"
+            @group(0) @binding(0)
+            var<uniform> view_proj: mat4x4<f32>;
+
             @vertex
             fn vs_main(
                 @location(0) local: vec2<f32>,
                 @location(1) pos: vec3<f32>,
                 @location(2) _rot: vec4<f32>,
             ) -> @builtin(position) vec4<f32> {
-                return vec4<f32>(local * 0.1 + pos.xy, 0.0, 1.0);
+                let offset = vec3<f32>(local * 0.5, 0.0);
+                let world = pos + offset;
+                return view_proj * vec4<f32>(world, 1.0);
             }
 
             @fragment
@@ -71,9 +79,23 @@ impl Canvas {
             source: wgpu::ShaderSource::Wgsl(SHADER.into()),
         });
 
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("canvas camera"),
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::VERTEX,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: BufferSize::new(64),
+                },
+                count: None,
+            }],
+        });
+
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("green rect"),
-            bind_group_layouts: &[],
+            bind_group_layouts: &[Some(&bind_group_layout)],
             ..Default::default()
         });
 
@@ -96,6 +118,15 @@ impl Canvas {
             size: 64,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             mapped_at_creation: false,
+        });
+
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("canvas camera"),
+            layout: &bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
         });
 
         let instance_stride = size_of::<SimpleCanvasInstance>() as u64;
@@ -165,6 +196,7 @@ impl Canvas {
             pipeline,
             quad_buffer,
             uniform_buffer,
+            bind_group,
         }
     }
 }
@@ -245,6 +277,7 @@ impl CanvasRenderer {
         for draw in &self.draws {
             if let Some(canvas) = self.canvases.get(draw.canvas) {
                 pass.set_pipeline(&canvas.pipeline);
+                pass.set_bind_group(0, &canvas.bind_group, &[]);
                 pass.set_vertex_buffer(0, canvas.quad_buffer.slice(..));
                 pass.draw(0..6, draw.adr..draw.adr + draw.count);
             }
