@@ -8,7 +8,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
 use crate::gamescope::game::Game;
-use crate::gpuscope::canvasing::{Canvas, SimpleCanvasSolver};
+use crate::gpuscope::canvasing::{GreenRectCanvas, SimpleCanvasSolver};
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -136,7 +136,7 @@ impl ApplicationHandler<GpuReady> for App {
             gpu.reconfigure(windowing.width, windowing.height);
 
 
-            let canvas = Canvas::new(
+            let (every, canvas) = GreenRectCanvas::new(
                 &gpu.device.device,
                 gpu.surface.cfg.format,
                 gpu.targets.sample_count(),
@@ -144,7 +144,7 @@ impl ApplicationHandler<GpuReady> for App {
                     .depth_enabled()
                     .then(|| wgpu::TextureFormat::Depth32Float),
             );
-            let canvas_id = gpu.device.canvas_renderer.canvases.insert(canvas);
+            let canvas_id = gpu.device.canvas_renderer.canvases.insert((every, canvas));
             let _solver_id = gpu
                 .device
                 .canvas_renderer

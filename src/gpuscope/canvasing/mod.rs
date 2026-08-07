@@ -5,9 +5,10 @@ use zerocopy::IntoBytes as _;
 use glam::{Quat, Vec3A};
 use slotmap::SlotMap;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor,
-    BufferSize, BufferUsages, CommandEncoder, Device, RenderPass, ShaderStages,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer,
+    BufferBindingType, BufferDescriptor, BufferSize, BufferUsages, CommandEncoder,
+    Device, RenderPass, ShaderStages,
 };
 use wgpu::util::DeviceExt as _;
 
@@ -39,44 +40,23 @@ pub struct CanvasDraw {
     pub count: u32,
 }
 
-pub struct Canvas {
-    pipeline: wgpu::RenderPipeline,
-    quad_buffer: wgpu::Buffer,
-    uniform_buffer: wgpu::Buffer,
-    bind_group: BindGroup,
+pub struct EveryCanvas {
+    pub bind_group_layout: BindGroupLayout,
+    pub pipeline: wgpu::RenderPipeline,
+    pub quad_buffer: Buffer,
 }
 
-impl Canvas {
+impl EveryCanvas {
     pub fn new(
         device: &Device,
         format: wgpu::TextureFormat,
         sample_count: u32,
         depth_format: Option<wgpu::TextureFormat>,
+        shader_source: &str,
     ) -> Self {
-        const SHADER: &str = r#"
-            @group(0) @binding(0)
-            var<uniform> view_proj: mat4x4<f32>;
-
-            @vertex
-            fn vs_main(
-                @location(0) local: vec2<f32>,
-                @location(1) pos: vec3<f32>,
-                @location(2) _rot: vec4<f32>,
-            ) -> @builtin(position) vec4<f32> {
-                let offset = vec3<f32>(local * 0.5, 0.0);
-                let world = pos + offset;
-                return view_proj * vec4<f32>(world, 1.0);
-            }
-
-            @fragment
-            fn fs_main() -> @location(0) vec4<f32> {
-                return vec4<f32>(0.0, 1.0, 0.0, 1.0);
-            }
-        "#;
-
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("green rect"),
-            source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+            label: Some("canvas shader"),
+            source: wgpu::ShaderSource::Wgsl(shader_source.into()),
         });
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -94,7 +74,7 @@ impl Canvas {
         });
 
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("green rect"),
+            label: Some("canvas"),
             bind_group_layouts: &[Some(&bind_group_layout)],
             ..Default::default()
         });
@@ -113,25 +93,9 @@ impl Canvas {
             usage: BufferUsages::VERTEX,
         });
 
-        let uniform_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("canvas camera"),
-            size: 64,
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("canvas camera"),
-            layout: &bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-        });
-
         let instance_stride = size_of::<SimpleCanvasInstance>() as u64;
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("green rect"),
+            label: Some("canvas"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &module,
@@ -193,17 +157,81 @@ impl Canvas {
         });
 
         Self {
+            bind_group_layout,
             pipeline,
             quad_buffer,
+        }
+    }
+}
+
+pub trait CanvasTrait {
+    fn prepare(&mut self, camera: &Camera, encoder: &mut CommandEncoder, belt: &mut wgpu::util::StagingBelt);
+    fn render(&self, pass: &mut RenderPass<'_>, instances: std::ops::Range<u32>, every: &EveryCanvas);
+}
+
+pub struct GreenRectCanvas {
+    uniform_buffer: Buffer,
+    bind_group: BindGroup,
+}
+
+impl GreenRectCanvas {
+    pub fn new(
+        device: &Device,
+        format: wgpu::TextureFormat,
+        sample_count: u32,
+        depth_format: Option<wgpu::TextureFormat>,
+    ) -> (EveryCanvas, Box<dyn CanvasTrait>) {
+        let shader = include_str!("green_rect.wgsl");
+        let every = EveryCanvas::new(device, format, sample_count, depth_format, shader);
+
+        let uniform_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("green rect camera"),
+            size: 64,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("green rect camera"),
+            layout: &every.bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+        });
+
+        let canvas = Self {
             uniform_buffer,
             bind_group,
-        }
+        };
+        (every, Box::new(canvas))
+    }
+}
+
+impl CanvasTrait for GreenRectCanvas {
+    fn prepare(&mut self, camera: &Camera, encoder: &mut CommandEncoder, belt: &mut wgpu::util::StagingBelt) {
+        let array = camera.view_proj.to_cols_array();
+        let bytes = array.as_bytes();
+        let mut view = belt.write_buffer(
+            encoder,
+            &self.uniform_buffer,
+            0,
+            wgpu::BufferSize::new(64).unwrap(),
+        );
+        view.copy_from_slice(bytes);
+    }
+
+    fn render(&self, pass: &mut RenderPass<'_>, instances: std::ops::Range<u32>, every: &EveryCanvas) {
+        pass.set_pipeline(&every.pipeline);
+        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_vertex_buffer(0, every.quad_buffer.slice(..));
+        pass.draw(0..6, instances);
     }
 }
 
 pub struct CanvasRenderer {
     pub solvers: SlotMap<CanvasSolverId, Box<dyn CanvasSolver>>,
-    pub canvases: SlotMap<CanvasId, Canvas>,
+    pub canvases: SlotMap<CanvasId, (EveryCanvas, Box<dyn CanvasTrait>)>,
 
     //todo, gift to gpu-mem mod
     staging_belt: wgpu::util::StagingBelt,
@@ -241,18 +269,8 @@ impl CanvasRenderer {
     ) -> &[CanvasDraw] {
         self.draws.clear();
 
-        //gl vs glam style mat4s. todo, double check
-        let array = camera.view_proj.to_cols_array();
-        let bytes = array.as_bytes();
-        for canvas in self.canvases.values() {
-            //todo, each canvas may interpret the camera differently
-            let mut view = self.staging_belt.write_buffer(
-                encoder,
-                &canvas.uniform_buffer,
-                0,
-                wgpu::BufferSize::new(64).unwrap(),
-            );
-            view.copy_from_slice(bytes);
+        for (_every, canvas) in self.canvases.values_mut() {
+            canvas.prepare(camera, encoder, &mut self.staging_belt);
         }
 
         let mut adr: u32 = 0;
@@ -275,11 +293,8 @@ impl CanvasRenderer {
     pub fn render(&self, pass: &mut RenderPass<'_>) {
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         for draw in &self.draws {
-            if let Some(canvas) = self.canvases.get(draw.canvas) {
-                pass.set_pipeline(&canvas.pipeline);
-                pass.set_bind_group(0, &canvas.bind_group, &[]);
-                pass.set_vertex_buffer(0, canvas.quad_buffer.slice(..));
-                pass.draw(0..6, draw.adr..draw.adr + draw.count);
+            if let Some((every, canvas)) = self.canvases.get(draw.canvas) {
+                canvas.render(pass, draw.adr..draw.adr + draw.count, every);
             }
         }
     }
