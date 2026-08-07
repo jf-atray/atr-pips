@@ -8,7 +8,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
 use crate::gamescope::game::Game;
-use crate::gpuscope::canvasing::{GreenRectCanvas, SimpleCanvasSolver};
+use crate::gamescope::green_rect::{GreenRectCanvas, GreenRectSolver};
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -149,7 +149,7 @@ impl ApplicationHandler<GpuReady> for App {
                 .device
                 .canvas_renderer
                 .solvers
-                .insert(Box::new(SimpleCanvasSolver::new()));
+                .insert(Box::new(GreenRectSolver::new()));
             
             //todo, gamedata invariant should not be tied to the device driver.
             let mut game = Game::new();
