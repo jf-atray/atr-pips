@@ -9,6 +9,9 @@ use winit::window::WindowAttributes;
 
 use crate::gamescope::game::Game;
 use crate::gamescope::green_rect::{GreenRectCanvas, GreenRectSolver};
+use crate::gamescope::scene::{Scene, SceneAccess};
+use crate::gpuscope::canvasing::CanvasTrait;
+use rand::Rng;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -136,7 +139,7 @@ impl ApplicationHandler<GpuReady> for App {
             gpu.reconfigure(windowing.width, windowing.height);
 
 
-            let (every, canvas, default_material) = GreenRectCanvas::new(
+            let (mut every, mut canvas, default_material) = GreenRectCanvas::new(
                 &gpu.device.device,
                 gpu.surface.cfg.format,
                 gpu.targets.sample_count(),
@@ -144,16 +147,25 @@ impl ApplicationHandler<GpuReady> for App {
                     .depth_enabled()
                     .then(|| wgpu::TextureFormat::Depth32Float),
             );
-            let canvas_id = gpu.device.canvas_renderer.canvases.insert((every, canvas));
             let _solver_id = gpu
                 .device
                 .canvas_renderer
                 .solvers
                 .insert(Box::new(GreenRectSolver::new()));
-            
-            //todo, gamedata invariant should not be tied to the device driver.
-            let mut game = Game::new();
-            game.populate(canvas_id, default_material);
+
+            let mut rng = rand::rng();
+            let mut materials = vec![default_material];
+            for _ in 0..3 {
+                let color = [rng.random::<f32>(), rng.random::<f32>(), rng.random::<f32>(), 1.0];
+                materials.push(canvas.add_material(&gpu.device.device, &mut every, color));
+            }
+
+            let canvas: Box<dyn CanvasTrait> = Box::new(canvas);
+            let canvas_id = gpu.device.canvas_renderer.canvases.insert((every, canvas));
+
+            let scene = Scene::demo(canvas_id, &materials);
+            let mut game = Game::new(SceneAccess { current: scene });
+            game.load();
             self.state = AppState::Ready {
                 windowing,
                 gpu,

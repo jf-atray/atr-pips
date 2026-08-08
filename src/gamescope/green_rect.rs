@@ -39,7 +39,7 @@ impl GreenRectCanvas {
         format: TextureFormat,
         sample_count: u32,
         depth_format: Option<TextureFormat>,
-    ) -> (EveryCanvas, Box<dyn CanvasTrait>, MaterialId) {
+    ) -> (EveryCanvas, GreenRectCanvas, MaterialId) {
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("green rect camera"),
             entries: &[BindGroupLayoutEntry {
@@ -159,34 +159,14 @@ impl GreenRectCanvas {
             }],
         });
 
-        let mut materials = SecondaryMap::new();
-        let default_id = every.material_ids.insert(());
-        let color = [0.0f32, 1.0, 0.0, 1.0];
-        let material_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("green rect default material"),
-            contents: color.as_bytes(),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-        let material_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("green rect default material"),
-            layout: &material_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: material_buffer.as_entire_binding(),
-            }],
-        });
-        materials.insert(default_id, SpriteMaterial {
-            buffer: material_buffer,
-            bind_group: material_bind_group,
-        });
-
         let quad: [[f32; 2]; 6] = [
             [-1.0, -1.0],
             [ 1.0, -1.0],
             [ 1.0,  1.0],
-            [ 1.0,  1.0],
+
             [-1.0,  1.0],
             [-1.0, -1.0],
+            [ 1.0,  1.0],
         ];
         let quad_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("quad"),
@@ -194,15 +174,37 @@ impl GreenRectCanvas {
             usage: BufferUsages::VERTEX,
         });
 
-        let canvas = Self {
+        let mut canvas = Self {
             uniform_buffer,
             bind_group,
             material_layout,
-            materials,
+            materials: SecondaryMap::new(),
             quad_buffer,
         };
-        let canvas: Box<dyn CanvasTrait> = Box::new(canvas);
+        let default_id = canvas.add_material(device, &mut every, [0.0f32, 1.0, 0.0, 1.0]);
         (every, canvas, default_id)
+    }
+
+    pub fn add_material(&mut self, device: &Device, every: &mut EveryCanvas, color: [f32; 4]) -> MaterialId {
+        let id = every.material_ids.insert(());
+        let material_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("green rect material"),
+            contents: color.as_bytes(),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        let material_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("green rect material"),
+            layout: &self.material_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: material_buffer.as_entire_binding(),
+            }],
+        });
+        self.materials.insert(id, SpriteMaterial {
+            buffer: material_buffer,
+            bind_group: material_bind_group,
+        });
+        id
     }
 }
 

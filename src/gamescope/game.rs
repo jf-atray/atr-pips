@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use glam::{Quat, Vec3};
 use slotmap::SlotMap;
 
 use crate::brushes::Brush;
+use crate::gamescope::scene::SceneAccess;
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
-use crate::tables::{CanvasId, MaterialId};
 use crate::tables::class::Class;
 use crate::tables::class_strategy::{GrowthStrategy, rarity};
 use crate::tables::core::CoreAddition;
@@ -17,11 +16,13 @@ use crate::tables::tables::Tables;
 pub struct Game {
     pub domain: Domain,
     pub camera: Camera,
+    pub scene: SceneAccess,
 }
 
-struct PipMaker {
-    xform: Transform,
-    brush: Brush,
+#[derive(Clone)]
+pub struct PipMaker {
+    pub xform: Transform,
+    pub brush: Brush,
 }
 
 impl Maker for PipMaker {
@@ -32,7 +33,7 @@ impl Maker for PipMaker {
 }
 
 impl Game {
-    pub fn new() -> Self {
+    pub fn new(scene: SceneAccess) -> Self {
         let tables = Tables {
             core: CoreAddition {
                 xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
@@ -51,25 +52,11 @@ impl Game {
         Self {
             domain,
             camera: Camera::new(),
+            scene,
         }
     }
-
-    pub fn populate(&mut self, canvas_id: CanvasId, material_id: MaterialId) {
-        self.domain.make(PipMaker {
-            xform: Transform {
-                xyz: Vec3::new(-0.5, 0.0, 0.0),
-                rot: Quat::IDENTITY,
-            },
-            brush: Brush { canvas: canvas_id, material: material_id },
-        });
-
-        self.domain.make(PipMaker {
-            xform: Transform {
-                xyz: Vec3::new(0.5, 0.1, 0.0),
-                rot: Quat::IDENTITY,
-            },
-            brush: Brush { canvas: canvas_id, material: material_id },
-        });
+    pub fn load(&mut self) {
+        self.scene.current.load(&mut self.domain);
     }
 
     pub fn update(&mut self, _dt: f32, aspect: f32) {
