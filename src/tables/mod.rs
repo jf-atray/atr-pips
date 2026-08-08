@@ -11,6 +11,7 @@ slotmap::new_key_type! {
     //put these in canvassing mod
     pub struct CanvasId;
     pub struct CanvasSolverId;
+    pub struct MaterialId;
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

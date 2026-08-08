@@ -136,7 +136,7 @@ impl ApplicationHandler<GpuReady> for App {
             gpu.reconfigure(windowing.width, windowing.height);
 
 
-            let (every, canvas) = GreenRectCanvas::new(
+            let (every, canvas, default_material) = GreenRectCanvas::new(
                 &gpu.device.device,
                 gpu.surface.cfg.format,
                 gpu.targets.sample_count(),
@@ -153,7 +153,7 @@ impl ApplicationHandler<GpuReady> for App {
             
             //todo, gamedata invariant should not be tied to the device driver.
             let mut game = Game::new();
-            game.populate(canvas_id);
+            game.populate(canvas_id, default_material);
             self.state = AppState::Ready {
                 windowing,
                 gpu,

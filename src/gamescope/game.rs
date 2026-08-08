@@ -6,7 +6,7 @@ use slotmap::SlotMap;
 use crate::brushes::Brush;
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
-use crate::tables::CanvasId;
+use crate::tables::{CanvasId, MaterialId};
 use crate::tables::class::Class;
 use crate::tables::class_strategy::{GrowthStrategy, rarity};
 use crate::tables::core::CoreAddition;
@@ -54,13 +54,13 @@ impl Game {
         }
     }
 
-    pub fn populate(&mut self, canvas_id: CanvasId) {
+    pub fn populate(&mut self, canvas_id: CanvasId, material_id: MaterialId) {
         self.domain.make(PipMaker {
             xform: Transform {
                 xyz: Vec3::new(-0.5, 0.0, 0.0),
                 rot: Quat::IDENTITY,
             },
-            brush: Brush { canvas: canvas_id },
+            brush: Brush { canvas: canvas_id, material: material_id },
         });
 
         self.domain.make(PipMaker {
@@ -68,7 +68,7 @@ impl Game {
                 xyz: Vec3::new(0.5, 0.1, 0.0),
                 rot: Quat::IDENTITY,
             },
-            brush: Brush { canvas: canvas_id },
+            brush: Brush { canvas: canvas_id, material: material_id },
         });
     }
 

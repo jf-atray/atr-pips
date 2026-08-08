@@ -3,23 +3,34 @@ use std::mem::size_of;
 use zerocopy::IntoBytes as _;
 
 use glam::{Quat, Vec3A};
+use slotmap::SecondaryMap;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, Buffer, BufferDescriptor, BufferSize,
-    BufferUsages, CommandEncoder, Device, RenderPass, TextureFormat,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferSize,
+    BufferUsages, ColorTargetState, ColorWrites, CommandEncoder, CompareFunction, DepthStencilState,
+    Device, FragmentState, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPass,
+    RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderStages, TextureFormat,
+    VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
-use wgpu::util::StagingBelt;
+use wgpu::util::{DeviceExt as _, StagingBelt};
 
-use crate::brushes::Brush;
-use crate::gpuscope::canvasing::{CanvasDraw, CanvasSolver, CanvasTrait, EveryCanvas};
+use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, DrawWriter, EveryCanvas};
 use crate::query::impls::query_ref_ref;
 use crate::spacial::camera::Camera;
-use crate::spacial::transform::Transform;
-use crate::tables::{CanvasId, CanvasSolverId};
+use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 use crate::tables::tables::Tables;
+
+pub struct SpriteMaterial {
+    pub buffer: Buffer,
+    pub bind_group: BindGroup,
+}
 
 pub struct GreenRectCanvas {
     uniform_buffer: Buffer,
     bind_group: BindGroup,
+    material_layout: BindGroupLayout,
+    materials: SecondaryMap<MaterialId, SpriteMaterial>,
+    quad_buffer: Buffer,
 }
 
 impl GreenRectCanvas {
@@ -28,10 +39,109 @@ impl GreenRectCanvas {
         format: TextureFormat,
         sample_count: u32,
         depth_format: Option<TextureFormat>,
-    ) -> (EveryCanvas, Box<dyn CanvasTrait>) {
+    ) -> (EveryCanvas, Box<dyn CanvasTrait>, MaterialId) {
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("green rect camera"),
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::VERTEX,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: BufferSize::new(64),
+                },
+                count: None,
+            }],
+        });
+
+        let material_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("green rect material"),
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: BufferSize::new(16),
+                },
+                count: None,
+            }],
+        });
+
         let shader = include_str!("green_rect.wgsl");
         let instance_stride = size_of::<GreenRectInstance>() as u64;
-        let every = EveryCanvas::new(device, format, sample_count, depth_format, shader, instance_stride);
+
+        let module = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("green rect shader"),
+            source: wgpu::ShaderSource::Wgsl(shader.into()),
+        });
+        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+            label: Some("green rect"),
+            bind_group_layouts: &[Some(&bind_group_layout), Some(&material_layout)],
+            ..Default::default()
+        });
+        let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("green rect"),
+            layout: Some(&pipeline_layout),
+            vertex: VertexState {
+                module: &module,
+                entry_point: Some("vs_main".into()),
+                buffers: &[
+                    Some(VertexBufferLayout {
+                        array_stride: 8,
+                        step_mode: VertexStepMode::Vertex,
+                        attributes: &[VertexAttribute {
+                            format: VertexFormat::Float32x2,
+                            offset: 0,
+                            shader_location: 0,
+                        }],
+                    }),
+                    Some(VertexBufferLayout {
+                        array_stride: instance_stride,
+                        step_mode: VertexStepMode::Instance,
+                        attributes: &[
+                            VertexAttribute {
+                                format: VertexFormat::Float32x3,
+                                offset: 0,
+                                shader_location: 1,
+                            },
+                            VertexAttribute {
+                                format: VertexFormat::Float32x4,
+                                offset: 16,
+                                shader_location: 2,
+                            },
+                        ],
+                    }),
+                ],
+                compilation_options: Default::default(),
+            },
+            primitive: PrimitiveState::default(),
+            depth_stencil: depth_format.map(|f| DepthStencilState {
+                format: f,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(CompareFunction::Always),
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: MultisampleState {
+                count: sample_count,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(FragmentState {
+                module: &module,
+                entry_point: Some("fs_main".into()),
+                targets: &[Some(ColorTargetState {
+                    format,
+                    blend: None,
+                    write_mask: ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            multiview_mask: None,
+            cache: None,
+        });
+        let mut every = EveryCanvas::new(bind_group_layout, pipeline);
 
         let uniform_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("green rect camera"),
@@ -49,12 +159,50 @@ impl GreenRectCanvas {
             }],
         });
 
+        let mut materials = SecondaryMap::new();
+        let default_id = every.material_ids.insert(());
+        let color = [0.0f32, 1.0, 0.0, 1.0];
+        let material_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("green rect default material"),
+            contents: color.as_bytes(),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        let material_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("green rect default material"),
+            layout: &material_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: material_buffer.as_entire_binding(),
+            }],
+        });
+        materials.insert(default_id, SpriteMaterial {
+            buffer: material_buffer,
+            bind_group: material_bind_group,
+        });
+
+        let quad: [[f32; 2]; 6] = [
+            [-1.0, -1.0],
+            [ 1.0, -1.0],
+            [ 1.0,  1.0],
+            [ 1.0,  1.0],
+            [-1.0,  1.0],
+            [-1.0, -1.0],
+        ];
+        let quad_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("quad"),
+            contents: quad.as_bytes(),
+            usage: BufferUsages::VERTEX,
+        });
+
         let canvas = Self {
             uniform_buffer,
             bind_group,
+            material_layout,
+            materials,
+            quad_buffer,
         };
         let canvas: Box<dyn CanvasTrait> = Box::new(canvas);
-        (every, canvas)
+        (every, canvas, default_id)
     }
 }
 
@@ -71,16 +219,18 @@ impl CanvasTrait for GreenRectCanvas {
         view.copy_from_slice(bytes);
     }
 
-    fn render(&self, pass: &mut RenderPass<'_>, instances: std::ops::Range<u32>, every: &EveryCanvas) {
+    fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, every: &EveryCanvas) {
+        let material = self.materials.get(material).expect("missing material");
         pass.set_pipeline(&every.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
-        pass.set_vertex_buffer(0, every.quad_buffer.slice(..));
+        pass.set_bind_group(1, &material.bind_group, &[]);
+        pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
         pass.draw(0..6, instances);
     }
 }
 
 pub struct GreenRectSolver {
-    sort: Vec<(GreenRectInstance, CanvasId)>,
+    sort: Vec<(GreenRectInstance, CanvasId, MaterialId)>,
     instances: Vec<GreenRectInstance>,
 }
 
@@ -101,36 +251,30 @@ impl GreenRectSolver {
                     position: xform.xyz.into(),
                     rotation: xform.rot,
                 };
-                self.sort.push((instance, brush.canvas));
+                self.sort.push((instance, brush.canvas, brush.material));
             }
         }
     }
 
-    fn pack(&mut self, adr: u32, draws: &mut Vec<CanvasDraw>) {
+    fn pack(&mut self, adr: u32, sink: &mut DrawWriter) {
         self.instances.clear();
         if self.sort.is_empty() {
             return;
         }
         let mut run_start = 0;
         let mut run_canvas = self.sort[0].1;
-        for (i, (inst, canvas)) in self.sort.iter().enumerate() {
+        let mut run_material = self.sort[0].2;
+        for (i, (inst, canvas, material)) in self.sort.iter().enumerate() {
             self.instances.push(*inst);
-            if *canvas != run_canvas {
-                draws.push(CanvasDraw {
-                    canvas: run_canvas,
-                    adr: adr + run_start as u32,
-                    count: (i - run_start) as u32,
-                });
+            if *canvas != run_canvas || *material != run_material {
+                sink.set_draw(run_canvas, run_material, adr + run_start as u32, (i - run_start) as u32);
                 run_start = i;
                 run_canvas = *canvas;
+                run_material = *material;
             }
         }
         let last = self.sort.len();
-        draws.push(CanvasDraw {
-            canvas: run_canvas,
-            adr: adr + run_start as u32,
-            count: (last - run_start) as u32,
-        });
+        sink.set_draw(run_canvas, run_material, adr + run_start as u32, (last - run_start) as u32);
     }
 
     fn write(
@@ -160,14 +304,14 @@ impl CanvasSolver for GreenRectSolver {
         belt: &mut StagingBelt,
         instance_buffer: &Buffer,
         solver_id: CanvasSolverId,
-        adr: u32,
-        draws: &mut Vec<CanvasDraw>,
-    ) -> u32 {
+        sink: &mut DrawWriter,
+    ) {
         self.collect_from(tables, solver_id);
-        self.sort.sort_by_key(|(_, c)| *c);
-        self.pack(adr, draws);
+        self.sort.sort_by_key(|(_, c, m)| (*c, *m));
+        let total = self.sort.len() as u32;
+        let adr = sink.reserve(total);
+        self.pack(adr, sink);
         self.write(encoder, belt, instance_buffer, adr);
-        self.instances.len() as u32
     }
 }
 
