@@ -47,6 +47,7 @@ impl EveryCanvas {
 
 pub trait CanvasTrait {
     fn prepare(&mut self, camera: &Camera, encoder: &mut CommandEncoder, belt: &mut wgpu::util::StagingBelt);
+    fn begin_render_pass(&self, _pass: &mut RenderPass<'_>, _every: &EveryCanvas) {}
     fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, every: &EveryCanvas);
 }
 
@@ -131,6 +132,7 @@ impl CanvasRenderer {
     pub fn render(&self, pass: &mut RenderPass<'_>) {
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         for (_canvas_id, (every, canvas)) in self.canvases.iter() {
+            canvas.begin_render_pass(pass, every);
             for (material, draw) in every.draws.iter() {
                 canvas.render(pass, material, draw.adr..draw.adr + draw.count, every);
             }

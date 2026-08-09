@@ -336,12 +336,15 @@ impl CanvasTrait for SpriteCanvas {
         view.copy_from_slice(bytes);
     }
 
-    fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, every: &EveryCanvas) {
-        let material = self.materials.get(material).expect("missing material");
+    fn begin_render_pass(&self, pass: &mut RenderPass<'_>, every: &EveryCanvas) {
         pass.set_pipeline(&every.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
-        pass.set_bind_group(1, &material.bind_group, &[]);
         pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
+    }
+
+    fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, _every: &EveryCanvas) {
+        let material = self.materials.get(material).expect("missing material");
+        pass.set_bind_group(1, &material.bind_group, &[]);
         pass.draw(0..6, instances);
     }
 }
