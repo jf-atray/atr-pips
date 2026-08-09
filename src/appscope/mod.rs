@@ -101,6 +101,7 @@ impl App {
                 gpu.device.canvas_renderer.render(pass);
             });
             frame.finish(gpu.queue());
+            gpu.device.canvas_renderer.recall();
         }
 
         self.fps_frame_count += 1;
