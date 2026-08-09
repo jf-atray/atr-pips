@@ -25,7 +25,7 @@ use winit::event_loop;
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
 
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let event_loop = event_loop::EventLoop::<gpuscope::GpuReady>::with_user_event()
         .build()

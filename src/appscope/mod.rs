@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use wgpu::Surface;
 use winit::application::ApplicationHandler;
@@ -18,6 +19,12 @@ pub struct App {
     lib: Arc<Lib>,
     proxy: EventLoopProxy<GpuReady>,
     state: AppState,
+    target_fps: Option<u32>,
+    target_dt: Option<f32>,
+    last_render: Option<Instant>,
+    prev_tick: Option<Instant>,
+    fps_frame_count: u32,
+    fps_timer: f32,
 }
 
 pub enum AppState {
@@ -39,7 +46,73 @@ impl App {
             lib,
             proxy,
             state: AppState::Boot,
+            target_fps: None,
+            target_dt: None,
+            last_render: None,
+            prev_tick: None,
+            fps_frame_count: 0,
+            fps_timer: 0.0,
         }
+    }
+
+    fn refresh_target_fps(&mut self) {
+        let windowing = match &self.state {
+            AppState::Windowed(w)
+            | AppState::AwaitingGpu { windowing: w }
+            | AppState::Ready { windowing: w, .. } => w,
+            AppState::Boot => return,
+        };
+
+        self.target_dt = windowing.window.current_monitor().and_then(|monitor| {
+            monitor
+                .refresh_rate_millihertz()
+                .map(|hz| hz as f32 / 1000.0)
+        });
+        self.target_fps = self
+            .target_dt
+            .map(|dt| dt.round().clamp(30.0, 240.0) as u32)
+            .or(Some(60));
+    }
+
+    fn draw(&mut self) {
+        let AppState::Ready {
+            windowing,
+            gpu,
+            game,
+        } = &mut self.state
+        else {
+            return;
+        };
+
+        let now = Instant::now();
+        let elapsed = self
+            .prev_tick
+            .map_or(0.0, |prev| (now - prev).as_secs_f32().min(0.25));
+        self.prev_tick = Some(now);
+
+        let aspect = windowing.width as f32 / windowing.height as f32;
+        game.update(elapsed, aspect);
+
+        if let Some(mut frame) = gpu.begin_frame() {
+            gpu.device
+                .canvas_renderer
+                .prepare(&game.domain.tables, &game.camera, &mut frame.encoder);
+            frame.with_render_pass(wgpu::Color::BLACK, |pass| {
+                gpu.device.canvas_renderer.render(pass);
+            });
+            frame.finish(gpu.queue());
+        }
+
+        self.fps_frame_count += 1;
+        self.fps_timer += elapsed;
+        if self.fps_timer >= 10.0 {
+            let fps = self.fps_frame_count as f32 / self.fps_timer;
+            log::info!("update rate: {:.2} Hz", fps);
+            self.fps_frame_count = 0;
+            self.fps_timer = 0.0;
+        }
+
+        self.last_render = Some(Instant::now());
     }
 
     fn spawn_gpu_init(&self, windowing: &Windowing, surface: Surface<'static>) {
@@ -72,6 +145,7 @@ impl App {
             AppState::Ready { windowing, gpu, .. } => {
                 windowing.set_size(width, height);
                 gpu.reconfigure(width, height);
+                self.refresh_target_fps();
             }
             AppState::Windowed(_) => {
                 //just knick these for a minute
@@ -84,6 +158,7 @@ impl App {
                 windowing.set_size(width, height);
                 self.spawn_gpu_init(&windowing, surface);
                 self.state = AppState::AwaitingGpu { windowing };
+                self.refresh_target_fps();
             }
             _ => {}
         }
@@ -112,6 +187,7 @@ impl ApplicationHandler<GpuReady> for App {
             self.state = AppState::AwaitingGpu { windowing };
         }
 
+        self.refresh_target_fps();
         event_loop.set_control_flow(ControlFlow::Poll);
     }
 
@@ -124,6 +200,7 @@ impl ApplicationHandler<GpuReady> for App {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => self.handle_resize(size.width, size.height),
+            WindowEvent::RedrawRequested => self.draw(),
             _ => {}
         }
     }
@@ -170,31 +247,40 @@ impl ApplicationHandler<GpuReady> for App {
                 gpu,
                 game,
             };
+            self.prev_tick = Some(Instant::now());
+            self.last_render = Some(Instant::now());
         } else {
             log::warn!("received GpuReady in unexpected state");
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let AppState::Ready {
-            windowing,
-            gpu,
-            game,
-        } = &mut self.state
-        {
-            let aspect = windowing.width as f32 / windowing.height as f32;
-            game.update(0.016, aspect);
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let windowing = match &self.state {
+            AppState::Ready { windowing, .. } => windowing,
+            _ => {
+                event_loop.set_control_flow(ControlFlow::Poll);
+                return;
+            }
+        };
 
-            if let Some(mut frame) = gpu.begin_frame() {
-                gpu.device
-                    .canvas_renderer //create some transient thin scope structs
-                    .prepare(&game.domain.tables, &game.camera, &mut frame.encoder);
-                frame.with_render_pass(wgpu::Color::BLACK, |pass| {
-                    gpu.device.canvas_renderer.render(pass);
-                });
-                frame.finish(gpu.queue());
+        match self.target_fps {
+            Some(fps) => {
+                let interval = Duration::from_secs_f32(1.0 / fps as f32);
+                let now = Instant::now();
+                let last = self.last_render.unwrap_or(now);
+                let next = if last + interval > now {
+                    last + interval
+                } else {
+                    now + interval
+                };
+                event_loop.set_control_flow(ControlFlow::WaitUntil(next));
+            }
+            None => {
+                event_loop.set_control_flow(ControlFlow::Poll);
             }
         }
+
+        windowing.window.request_redraw();
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {}
