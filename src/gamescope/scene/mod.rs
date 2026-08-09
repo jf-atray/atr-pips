@@ -21,8 +21,8 @@ impl Scene {
         let mut rng = rand::rng();
 
         for i in 0..64u32 {
-            let x = (i % 8) as f32 * 0.2 - 0.7;
-            let y = (i / 8) as f32 * 0.2 - 0.7;
+            let x = (i % 8) as f32 * 0.8 - 2.8;
+            let y = (i / 8) as f32 * 0.8 - 2.8;
             let material = materials[rng.random_range(0..materials.len())];
 
             pips.push(PipMaker {
