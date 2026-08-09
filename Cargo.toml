@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 atr-plex = { version = "0.2.0", features = ["inherent_associated_types"] }
 glam = { version = "0.33.3", features = ["zerocopy"] }
+image = { version = "0.25.0", default-features = false, features = ["png"] }
 log = "0.4.33"
 rand = "0.9"
 serde = "1.0.229"

@@ -3,6 +3,7 @@
 
 mod anims;
 mod appscope;
+mod assets;
 mod brushes;
 mod canvases;
 mod clip;

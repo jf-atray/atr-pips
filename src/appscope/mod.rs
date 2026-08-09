@@ -1,5 +1,8 @@
+use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 
+use glam::Vec2;
 use wgpu::Surface;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -7,11 +10,12 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
+use crate::assets::{AssetRegistry, SpriteEntry, SpriteRect};
 use crate::gamescope::game::Game;
-use crate::gamescope::green_rect::{GreenRectCanvas, GreenRectSolver};
+use crate::gamescope::green_rect::{SpriteCanvas, SpriteSolver};
+use crate::tables::MaterialId;
 use crate::gamescope::scene::{Scene, SceneAccess};
 use crate::gpuscope::canvasing::CanvasTrait;
-use rand::Rng;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -139,32 +143,114 @@ impl ApplicationHandler<GpuReady> for App {
             gpu.reconfigure(windowing.width, windowing.height);
 
 
-            let (mut every, mut canvas, default_material) = GreenRectCanvas::new(
-                &gpu.device.device,
+            const PIXELS_PER_UNIT: f32 = 512.0;
+            let device = &gpu.device.device;
+            let (mut every, mut canvas) = SpriteCanvas::new(
+                device,
                 gpu.surface.cfg.format,
                 gpu.targets.sample_count(),
                 gpu.targets
                     .depth_enabled()
                     .then(|| wgpu::TextureFormat::Depth32Float),
+                PIXELS_PER_UNIT,
             );
             let _solver_id = gpu
                 .device
                 .canvas_renderer
                 .solvers
-                .insert(Box::new(GreenRectSolver::new()));
+                .insert(Box::new(SpriteSolver::new()));
 
-            let mut rng = rand::rng();
-            let mut materials = vec![default_material];
-            for _ in 0..3 {
-                let color = [rng.random::<f32>(), rng.random::<f32>(), rng.random::<f32>(), 1.0];
-                materials.push(canvas.add_material(&gpu.device.device, &mut every, color));
+            let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
+
+            let default_material = canvas.add_material(
+                device,
+                &gpu.device.queue,
+                &mut every,
+                &mut gpu.device.texture_scope,
+                [0.0f32, 1.0, 0.0, 1.0],
+            );
+            pending.push((
+                "green".to_string(),
+                default_material,
+                Vec2::ONE,
+                SpriteRect::full(1.0, 1.0),
+            ));
+
+            for (name, color) in [
+                ("red", [1.0f32, 0.0, 0.0, 1.0]),
+                ("blue", [0.0f32, 0.0, 1.0, 1.0]),
+                ("yellow", [1.0f32, 1.0, 0.0, 1.0]),
+            ] {
+                let material = canvas.add_material(
+                    device,
+                    &gpu.device.queue,
+                    &mut every,
+                    &mut gpu.device.texture_scope,
+                    color,
+                );
+                pending.push((
+                    name.to_string(),
+                    material,
+                    Vec2::ONE,
+                    SpriteRect::full(1.0, 1.0),
+                ));
+            }
+
+            let sprites_dir = Path::new("assets/sprites");
+            if let Ok(entries) = fs::read_dir(sprites_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().and_then(|e| e.to_str()) != Some("png") {
+                        continue;
+                    }
+                    let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+                        continue;
+                    };
+                    let Some(img_id) = gpu.device.texture_scope.load_image(
+                        device,
+                        &gpu.device.queue,
+                        path.to_str().unwrap_or(""),
+                    ) else {
+                        log::warn!("failed to load sprite {}", path.display());
+                        continue;
+                    };
+                    let material = canvas.add_sprite(
+                        device,
+                        &gpu.device.queue,
+                        &mut every,
+                        &gpu.device.texture_scope,
+                        img_id,
+                        [1.0f32, 1.0, 1.0, 1.0],
+                    );
+                    let (w, h) = gpu.device.texture_scope.size(img_id).unwrap();
+                    let natural_scale = Vec2::new(w as f32, h as f32) / PIXELS_PER_UNIT;
+                    pending.push((
+                        name.to_string(),
+                        material,
+                        natural_scale,
+                        SpriteRect::full(w as f32, h as f32),
+                    ));
+                }
             }
 
             let canvas: Box<dyn CanvasTrait> = Box::new(canvas);
             let canvas_id = gpu.device.canvas_renderer.canvases.insert((every, canvas));
 
-            let scene = Scene::demo(canvas_id, &materials);
-            let mut game = Game::new(SceneAccess { current: scene });
+            let mut registry = AssetRegistry::new();
+            for (name, material, natural_scale, rect) in pending {
+                registry.register(
+                    name,
+                    SpriteEntry {
+                        canvas: canvas_id,
+                        material,
+                        natural_scale,
+                        rect,
+                    },
+                );
+            }
+
+            let scene = Scene::demo(&registry, PIXELS_PER_UNIT);
+            let mut game = Game::new(SceneAccess { current: scene }, registry);
             game.load();
             self.state = AppState::Ready {
                 windowing,

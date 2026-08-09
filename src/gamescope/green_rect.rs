@@ -2,46 +2,62 @@ use std::iter;
 use std::mem::size_of;
 use zerocopy::IntoBytes as _;
 
-use glam::{Quat, Vec3A};
+use glam::{Quat, Vec2, Vec3A, Vec4};
 use slotmap::SecondaryMap;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferSize,
     BufferUsages, ColorTargetState, ColorWrites, CommandEncoder, CompareFunction, DepthStencilState,
     Device, FragmentState, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPass,
-    RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderStages, TextureFormat,
+    RenderPipelineDescriptor, Sampler, SamplerDescriptor, ShaderModuleDescriptor, ShaderStages,
+    BindingResource, Queue, TextureFormat, TextureView, TextureViewDescriptor,
     VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
-use wgpu::util::{DeviceExt as _, StagingBelt};
+use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 
 use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, DrawWriter, EveryCanvas};
+use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::query::impls::query_ref_ref;
 use crate::spacial::camera::Camera;
 use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 use crate::tables::tables::Tables;
 
 pub struct SpriteMaterial {
-    pub buffer: Buffer,
+    pub img_id: ImgId,
+    pub view: TextureView,
+    pub uniform_buffer: Buffer,
     pub bind_group: BindGroup,
+    pub natural_scale: Vec2,
 }
 
-pub struct GreenRectCanvas {
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, zerocopy::IntoBytes, zerocopy::Immutable)]
+struct SpriteMaterialUniform {
+    natural_scale: Vec2,
+    _pad: [f32; 2],
+    color: Vec4,
+}
+
+pub struct SpriteCanvas {
     uniform_buffer: Buffer,
     bind_group: BindGroup,
     material_layout: BindGroupLayout,
     materials: SecondaryMap<MaterialId, SpriteMaterial>,
     quad_buffer: Buffer,
+    sampler: Sampler,
+    pixels_per_unit: f32,
 }
 
-impl GreenRectCanvas {
+impl SpriteCanvas {
     pub fn new(
         device: &Device,
         format: TextureFormat,
         sample_count: u32,
         depth_format: Option<TextureFormat>,
-    ) -> (EveryCanvas, GreenRectCanvas, MaterialId) {
+        pixels_per_unit: f32,
+    ) -> (EveryCanvas, Self) {
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("green rect camera"),
+            label: Some("sprite camera"),
             entries: &[BindGroupLayoutEntry {
                 binding: 0,
                 visibility: ShaderStages::VERTEX,
@@ -55,46 +71,71 @@ impl GreenRectCanvas {
         });
 
         let material_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("green rect material"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: BufferSize::new(16),
+            label: Some("sprite material"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(32),
+                    },
+                    count: None,
+                },
+            ],
         });
 
         let shader = include_str!("green_rect.wgsl");
-        let instance_stride = size_of::<GreenRectInstance>() as u64;
+        let instance_stride = size_of::<SpriteInstance>() as u64;
 
         let module = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("green rect shader"),
+            label: Some("sprite shader"),
             source: wgpu::ShaderSource::Wgsl(shader.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("green rect"),
+            label: Some("sprite"),
             bind_group_layouts: &[Some(&bind_group_layout), Some(&material_layout)],
             ..Default::default()
         });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("green rect"),
+            label: Some("sprite"),
             layout: Some(&pipeline_layout),
             vertex: VertexState {
                 module: &module,
                 entry_point: Some("vs_main".into()),
                 buffers: &[
                     Some(VertexBufferLayout {
-                        array_stride: 8,
+                        array_stride: 16,
                         step_mode: VertexStepMode::Vertex,
-                        attributes: &[VertexAttribute {
-                            format: VertexFormat::Float32x2,
-                            offset: 0,
-                            shader_location: 0,
-                        }],
+                        attributes: &[
+                            VertexAttribute {
+                                format: VertexFormat::Float32x2,
+                                offset: 0,
+                                shader_location: 0,
+                            },
+                            VertexAttribute {
+                                format: VertexFormat::Float32x2,
+                                offset: 8,
+                                shader_location: 1,
+                            },
+                        ],
                     }),
                     Some(VertexBufferLayout {
                         array_stride: instance_stride,
@@ -103,12 +144,22 @@ impl GreenRectCanvas {
                             VertexAttribute {
                                 format: VertexFormat::Float32x3,
                                 offset: 0,
-                                shader_location: 1,
+                                shader_location: 2,
                             },
                             VertexAttribute {
                                 format: VertexFormat::Float32x4,
                                 offset: 16,
-                                shader_location: 2,
+                                shader_location: 3,
+                            },
+                            VertexAttribute {
+                                format: VertexFormat::Float32x2,
+                                offset: 32,
+                                shader_location: 4,
+                            },
+                            VertexAttribute {
+                                format: VertexFormat::Float32x4,
+                                offset: 48,
+                                shader_location: 5,
                             },
                         ],
                     }),
@@ -141,17 +192,17 @@ impl GreenRectCanvas {
             multiview_mask: None,
             cache: None,
         });
-        let mut every = EveryCanvas::new(bind_group_layout, pipeline);
+        let every = EveryCanvas::new(bind_group_layout, pipeline);
 
         let uniform_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("green rect camera"),
+            label: Some("sprite camera"),
             size: 64,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("green rect camera"),
+            label: Some("sprite camera"),
             layout: &every.bind_group_layout,
             entries: &[BindGroupEntry {
                 binding: 0,
@@ -159,56 +210,120 @@ impl GreenRectCanvas {
             }],
         });
 
-        let quad: [[f32; 2]; 6] = [
-            [-1.0, -1.0],
-            [ 1.0, -1.0],
-            [ 1.0,  1.0],
+        let sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("sprite sampler"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
 
-            [-1.0,  1.0],
-            [-1.0, -1.0],
-            [ 1.0,  1.0],
+        let quad: [[f32; 4]; 6] = [
+            [-1.0, -1.0, 0.0, 1.0],
+            [ 1.0, -1.0, 1.0, 1.0],
+            [ 1.0,  1.0, 1.0, 0.0],
+
+            [-1.0,  1.0, 0.0, 0.0],
+            [-1.0, -1.0, 0.0, 1.0],
+            [ 1.0,  1.0, 1.0, 0.0],
         ];
-        let quad_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("quad"),
             contents: quad.as_bytes(),
             usage: BufferUsages::VERTEX,
         });
 
-        let mut canvas = Self {
+        (every, Self {
             uniform_buffer,
             bind_group,
             material_layout,
             materials: SecondaryMap::new(),
             quad_buffer,
-        };
-        let default_id = canvas.add_material(device, &mut every, [0.0f32, 1.0, 0.0, 1.0]);
-        (every, canvas, default_id)
+            sampler,
+            pixels_per_unit,
+        })
     }
 
-    pub fn add_material(&mut self, device: &Device, every: &mut EveryCanvas, color: [f32; 4]) -> MaterialId {
-        let id = every.material_ids.insert(());
-        let material_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("green rect material"),
-            contents: color.as_bytes(),
+    pub fn add_material(
+        &mut self,
+        device: &Device,
+        queue: &Queue,
+        every: &mut EveryCanvas,
+        texture_scope: &mut TextureScope,
+        color: [f32; 4],
+    ) -> MaterialId {
+        let white = texture_scope.white_pixel(device, queue);
+        self.add_raw(device, every, texture_scope, white, Vec2::ONE, color)
+    }
+
+    pub fn add_sprite(
+        &mut self,
+        device: &Device,
+        _queue: &Queue,
+        every: &mut EveryCanvas,
+        texture_scope: &TextureScope,
+        img_id: ImgId,
+        color: [f32; 4],
+    ) -> MaterialId {
+        let (w, h) = texture_scope.size(img_id).expect("missing texture for sprite");
+        let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
+        self.add_raw(device, every, texture_scope, img_id, natural_scale, color)
+    }
+
+    fn add_raw(
+        &mut self,
+        device: &Device,
+        every: &mut EveryCanvas,
+        texture_scope: &TextureScope,
+        img_id: ImgId,
+        natural_scale: Vec2,
+        color: [f32; 4],
+    ) -> MaterialId {
+        let texture = texture_scope.get(img_id).expect("missing texture");
+        let view = texture.create_view(&TextureViewDescriptor::default());
+
+        let uniform = SpriteMaterialUniform {
+            natural_scale,
+            _pad: [0.0; 2],
+            color: Vec4::new(color[0], color[1], color[2], color[3]),
+        };
+        let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("sprite material"),
+            contents: uniform.as_bytes(),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
-        let material_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("green rect material"),
+
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sprite material"),
             layout: &self.material_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: material_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&self.sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: uniform_buffer.as_entire_binding(),
+                },
+            ],
         });
+
+        let id = every.material_ids.insert(());
         self.materials.insert(id, SpriteMaterial {
-            buffer: material_buffer,
-            bind_group: material_bind_group,
+            img_id,
+            view,
+            uniform_buffer,
+            bind_group,
+            natural_scale,
         });
         id
     }
 }
 
-impl CanvasTrait for GreenRectCanvas {
+impl CanvasTrait for SpriteCanvas {
     fn prepare(&mut self, camera: &Camera, encoder: &mut CommandEncoder, belt: &mut StagingBelt) {
         let array = camera.view_proj.to_cols_array();
         let bytes = array.as_bytes();
@@ -231,12 +346,12 @@ impl CanvasTrait for GreenRectCanvas {
     }
 }
 
-pub struct GreenRectSolver {
-    sort: Vec<(GreenRectInstance, CanvasId, MaterialId)>,
-    instances: Vec<GreenRectInstance>,
+pub struct SpriteSolver {
+    sort: Vec<(SpriteInstance, CanvasId, MaterialId)>,
+    instances: Vec<SpriteInstance>,
 }
 
-impl GreenRectSolver {
+impl SpriteSolver {
     pub fn new() -> Self {
         Self {
             sort: Vec::new(),
@@ -249,9 +364,12 @@ impl GreenRectSolver {
         for (xforms, brushes) in query_ref_ref(&tables.core.xforms, &(), &tables.core.brushes, &())
         {
             for (xform, brush) in iter::zip(xforms, brushes) {
-                let instance = GreenRectInstance {
+                let instance = SpriteInstance {
                     position: xform.xyz.into(),
                     rotation: xform.rot,
+                    scale: brush.scale,
+                    _pad: [0.0; 2],
+                    color: brush.color,
                 };
                 self.sort.push((instance, brush.canvas, brush.material));
             }
@@ -287,7 +405,7 @@ impl GreenRectSolver {
         adr: u32,
     ) {
         if !self.instances.is_empty() {
-            let instance_size = size_of::<GreenRectInstance>() as u64;
+            let instance_size = size_of::<SpriteInstance>() as u64;
             let byte_offset = (adr as u64) * instance_size;
             let bytes = self.instances.as_slice().as_bytes();
             let size = BufferSize::new(bytes.len() as u64)
@@ -298,7 +416,7 @@ impl GreenRectSolver {
     }
 }
 
-impl CanvasSolver for GreenRectSolver {
+impl CanvasSolver for SpriteSolver {
     fn solve(
         &mut self,
         tables: &Tables,
@@ -319,7 +437,10 @@ impl CanvasSolver for GreenRectSolver {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, zerocopy::IntoBytes, zerocopy::Immutable)]
-struct GreenRectInstance {
+struct SpriteInstance {
     position: Vec3A,
     rotation: Quat,
+    scale: Vec2,
+    _pad: [f32; 2],
+    color: Vec4,
 }

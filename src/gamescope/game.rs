@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use slotmap::SlotMap;
 
+use crate::assets::AssetRegistry;
 use crate::brushes::Brush;
 use crate::gamescope::scene::SceneAccess;
 use crate::spacial::camera::Camera;
@@ -17,6 +18,7 @@ pub struct Game {
     pub domain: Domain,
     pub camera: Camera,
     pub scene: SceneAccess,
+    pub asset_registry: AssetRegistry,
 }
 
 #[derive(Clone)]
@@ -33,7 +35,7 @@ impl Maker for PipMaker {
 }
 
 impl Game {
-    pub fn new(scene: SceneAccess) -> Self {
+    pub fn new(scene: SceneAccess, asset_registry: AssetRegistry) -> Self {
         let tables = Tables {
             core: CoreAddition {
                 xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
@@ -53,10 +55,12 @@ impl Game {
             domain,
             camera: Camera::new(),
             scene,
+            asset_registry,
         }
     }
     pub fn load(&mut self) {
-        self.scene.current.load(&mut self.domain);
+        let registry = &self.asset_registry;
+        self.scene.current.load(registry, &mut self.domain);
     }
 
     pub fn update(&mut self, _dt: f32, aspect: f32) {

@@ -24,7 +24,7 @@ pub use surface::SurfaceScope;
 pub use targets::RenderTargets;
 
 pub use self::canvasing::CanvasRenderer;
-pub use self::texture_cache::TextureCache;
+pub use self::texture_cache::{ImgId, TextureScope};
 
 
 pub struct GpuReady(pub GpuParts);
@@ -118,14 +118,14 @@ impl Gpu {
         let surface_scope = SurfaceScope { surface, cfg };
 
         let canvas_renderer = CanvasRenderer::make(device.clone());
-        let texture_cache = TextureCache::new(&device, &queue);
+        let texture_scope = TextureScope::new();
 
         let device_context = DeviceContext {
             adapter,
             device,
             queue,
             canvas_renderer,
-            texture_cache,
+            texture_scope,
         };
 
         let targets = RenderTargets::make(
