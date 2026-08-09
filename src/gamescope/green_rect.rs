@@ -177,7 +177,7 @@ impl SpriteCanvas {
             multisample: MultisampleState {
                 count: sample_count,
                 mask: !0,
-                alpha_to_coverage_enabled: false,
+                alpha_to_coverage_enabled: true,
             },
             fragment: Some(FragmentState {
                 module: &module,
