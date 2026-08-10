@@ -62,6 +62,8 @@ impl Domain {
         scope.system.pip_id = Some(pip);
 
         let width = scope.width();
+
+        
         let candidates: Vec<ClassId> = self.by_width
             .get(&width)
             .map(|v| v.clone())

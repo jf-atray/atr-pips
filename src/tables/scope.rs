@@ -6,7 +6,7 @@ use crate::tables::{ClassId, core::CoreView, system::SystemView, tables::Tables,
 pub struct Scope {
     pub core: CoreView,
     pub(in crate::tables) system: SystemView,
-    pub additions: HashMap<TypeId, (TypeId, Box<dyn View>)>,
+    pub additions: HashMap<TypeId, Box<dyn View>>,
 }
 
 impl Scope {
@@ -14,14 +14,13 @@ impl Scope {
         let view_id = TypeId::of::<T>();
         let view_any = self.additions
             .get_mut(&view_id)?
-            .1
             .as_mut() as &mut dyn Any;
         view_any.downcast_mut::<T>()
     }
 
     pub(crate) fn width(&self) -> usize {
         let mut n = self.core.width() + self.system.width();
-        for (_, view) in self.additions.values() {
+        for view in self.additions.values() {
             n += view.width();
         }
         n
@@ -34,7 +33,7 @@ impl Scope {
         if !self.system.matches(class_id, &tables.system as &dyn Any) {
             return false;
         }
-        for (addition_id, view) in self.additions.values() {
+        for (addition_id, view) in self.additions.iter() {
             let Some(addition) = tables.additions.get(addition_id) else {
                 return false;
             };
@@ -50,7 +49,7 @@ impl Scope {
         let system_row = self.system.commit(class_id, &mut tables.system as &mut dyn Any);
         if row.is_none() { row = system_row; }
 
-        for (addition_id, view) in self.additions.values_mut() {
+        for (addition_id, view) in self.additions.iter_mut() {
             if let Some(addition) = tables.additions.get_mut(addition_id) {
                 let view_row = view.commit(class_id, addition.as_mut() as &mut dyn Any);
                 if row.is_none() { row = view_row; }
