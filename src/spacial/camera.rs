@@ -1,7 +1,5 @@
 use glam::{Mat4, Vec2, Vec3};
 
-use crate::input::InputSnapshot;
-
 #[derive(Clone, Copy, Debug)]
 pub struct Camera {
     pub pos: Vec2,

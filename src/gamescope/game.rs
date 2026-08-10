@@ -9,6 +9,7 @@ use crate::gamescope::scene::SceneAccess;
 use crate::spacial::camera::{Camera, CameraController};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
+use crate::tables::PipId;
 use crate::tables::class::Class;
 use crate::tables::class_strategy::{GrowthStrategy, rarity};
 use crate::tables::core::CoreAddition;
