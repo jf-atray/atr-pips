@@ -6,8 +6,7 @@ use crate::tables::{ClassId, ClassRowPtr, PipId, scope::{Scope, Maker}, tables::
 
 pub struct Domain {
     pub tables: Tables,
-    pub by_width: HashMap<usize, Vec<ClassId>>,
-    pub heading: SlotMap<ClassId, ()>,
+    pub heading: SlotMap<ClassId, usize>,
     pub ids: SlotMap<PipId, ClassRowPtr>,
 }
 
@@ -15,7 +14,6 @@ impl Domain {
     pub fn new(tables: Tables) -> Self {
         Self {
             tables,
-            by_width: HashMap::new(),
             heading: SlotMap::with_key(),
             ids: SlotMap::with_key(),
         }
@@ -78,7 +76,7 @@ impl Domain {
         }
 
         let class_id = class_id.unwrap_or_else(|| {
-            let id = self.heading.insert(());
+            let id = self.heading.insert(width);
             self.by_width.entry(width).or_default().push(id);
             id
         });
