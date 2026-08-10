@@ -1,5 +1,7 @@
 use glam::{Mat4, Vec2, Vec3};
 
+use crate::input::InputSnapshot;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Camera {
     pub pos: Vec2,
@@ -32,5 +34,16 @@ impl Camera {
         let view = Mat4::from_translation(Vec3::new(-self.pos.x, -self.pos.y, 0.0))
             * Mat4::from_rotation_z(-self.rot);
         self.view_proj = projection * view;
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CameraController {
+    pub pan_speed: f32,
+}
+
+impl CameraController {
+    pub fn new(pan_speed: f32) -> Self {
+        Self { pan_speed }
     }
 }

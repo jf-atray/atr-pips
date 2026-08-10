@@ -6,7 +6,7 @@ use crate::assets::AssetRegistry;
 use crate::brushes::Brush;
 use crate::gamescope::motion::MotionSolver;
 use crate::gamescope::scene::SceneAccess;
-use crate::spacial::camera::Camera;
+use crate::spacial::camera::{Camera, CameraController};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::class::Class;
@@ -19,6 +19,7 @@ use crate::tables::tables::Tables;
 pub struct Game {
     pub domain: Domain,
     pub camera: Camera,
+    pub camera_controller: CameraController,
     pub scene: SceneAccess,
     pub asset_registry: AssetRegistry,
     pub motion_solver: MotionSolver,
@@ -59,6 +60,7 @@ impl Game {
         Self {
             domain,
             camera: Camera::new(),
+            camera_controller: CameraController::new(5.0),
             scene,
             asset_registry,
             motion_solver: MotionSolver::new(),
