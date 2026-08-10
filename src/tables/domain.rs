@@ -41,11 +41,10 @@ impl Domain {
             .and_then(|col| col.get(ptr.row_idx))
             .copied();
 
-        if let Some(displaced) = displaced {
-            if let Some(entry) = self.ids.get_mut(displaced) {
+        if let Some(displaced) = displaced
+            && let Some(entry) = self.ids.get_mut(displaced) {
                 *entry = ClassRowPtr::new(ptr.class_id, ptr.row_idx);
             }
-        }
 
         self.ids.remove(pip);
     }

@@ -224,7 +224,7 @@ impl ApplicationHandler<GpuReady> for App {
                 gpu.targets.sample_count(),
                 gpu.targets
                     .depth_enabled()
-                    .then(|| wgpu::TextureFormat::Depth32Float),
+                    .then_some(wgpu::TextureFormat::Depth32Float),
                 PIXELS_PER_UNIT,
             );
             let _solver_id = gpu

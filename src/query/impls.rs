@@ -28,11 +28,10 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
-            if let Some(k) = duplex!(&self.k_source => { get(class_id) } -> unwrap) {
-                if &t.key == self.t_key && &k.key == self.k_key {
+            if let Some(k) = duplex!(&self.k_source => { get(class_id) } -> unwrap)
+                && &t.key == self.t_key && &k.key == self.k_key {
                     return Some((t, k));
                 }
-            }
         }
         None
     }
@@ -62,12 +61,11 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
-            if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap) {
-                if &t.key == self.t_key && &k.key == self.k_key {
+            if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap)
+                && &t.key == self.t_key && &k.key == self.k_key {
                     let k = unsafe { &mut *(k as *mut Columnar<K, KKey>) };
                     return Some((t, k));
                 }
-            }
         }
         None
     }

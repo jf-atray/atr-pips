@@ -24,7 +24,7 @@ pub use surface::SurfaceScope;
 pub use targets::RenderTargets;
 
 pub use self::canvasing::CanvasRenderer;
-pub use self::texture_cache::{ImgId, TextureScope};
+pub use self::texture_cache::TextureScope;
 
 
 pub struct GpuReady(pub GpuParts);

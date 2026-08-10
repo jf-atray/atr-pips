@@ -119,7 +119,7 @@ impl SpriteCanvas {
             layout: Some(&pipeline_layout),
             vertex: VertexState {
                 module: &module,
-                entry_point: Some("vs_main".into()),
+                entry_point: Some("vs_main"),
                 buffers: &[
                     Some(VertexBufferLayout {
                         array_stride: 16,
@@ -181,7 +181,7 @@ impl SpriteCanvas {
             },
             fragment: Some(FragmentState {
                 module: &module,
-                entry_point: Some("fs_main".into()),
+                entry_point: Some("fs_main"),
                 targets: &[Some(ColorTargetState {
                     format,
                     blend: None,

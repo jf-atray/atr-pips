@@ -1,4 +1,3 @@
-use crate::tables::{ClassRowPtr, class::Class};
 
 //todo, not needed until we have PipId indirection
 /*pub fn gather_ref<'a, T>(class: &'a Class<Vec<T>>, ptr: &ClassRowPtr) -> Option<&'a T> {
