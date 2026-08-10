@@ -6,7 +6,7 @@ use crate::assets::AssetRegistry;
 use crate::brushes::Brush;
 use crate::gamescope::motion::MotionSolver;
 use crate::gamescope::scene::SceneAccess;
-use crate::gamescope::scene::act::Scripts;
+use crate::scripting::Scripts;
 use crate::spacial::camera::{Camera, CameraController};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;

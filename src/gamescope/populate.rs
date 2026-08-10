@@ -5,10 +5,11 @@ use glam::Vec2;
 use wgpu::{Device, Queue};
 
 use crate::assets::{AssetRegistry, SpriteEntry, SpriteRect};
+use crate::demo::scripts::{MyScript, OtherScript};
 use crate::gamescope::game::Game;
 use crate::gamescope::green_rect::SpriteCanvas;
-use crate::gamescope::scene::act::{EveryScript, MyScript, OtherScript, ScriptHost};
 use crate::gamescope::scene::{Scene, SceneAccess};
+use crate::scripting::{EveryScript, ScriptHost};
 use crate::gpuscope::canvasing::{CanvasRenderer, EveryCanvas};
 use crate::gpuscope::texture_cache::TextureScope;
 use crate::tables::{CanvasId, MaterialId};

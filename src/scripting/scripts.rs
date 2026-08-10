@@ -1,76 +1,17 @@
-use std::{
-    any::Any,
-    cell::{RefCell, RefMut},
-};
+use std::cell::{RefCell, RefMut};
 
-use slotmap::{SlotMap, new_key_type};
+use slotmap::SlotMap;
 
-use crate::tables::PipId;
-
-//do not communicate by sharing memory, share memory by communicating
-//so ive already completely dropped the ball on that but let me take this
-//to its logical conclusion so I can learn to be better. :)
-pub struct Act {}
-
-pub struct EveryScript {
-    pub enabled: bool,
-}
-
-pub struct ScriptHost(EveryScript, Box<dyn Script>);
-
-impl ScriptHost {
-    pub fn new(every: EveryScript, one: Box<dyn Script>) -> Self {
-        Self(every, one)
-    }
-}
-
-pub struct ScriptHostMut<'a, T> {
-    pub every: &'a mut EveryScript,
-    pub script: &'a mut T,
-}
-
-new_key_type! {
-    pub struct ScriptId;
-}
-
-pub struct MyScript {
-    pub player: Option<PipId>,
-    pub other_script: Option<ScriptId>,
-}
-
-pub struct OtherScript {
-    pub num: u32,
-}
+use crate::scripting::error::ScriptGetError;
+use crate::scripting::every::EveryScript;
+use crate::scripting::host::{ScriptHost, ScriptHostMut};
+use crate::scripting::id::ScriptId;
+use crate::scripting::script::Script;
 
 // making a disjoint thin view to do a dynamic check is just the same as
 // doing that check here anyway using std features
 pub struct Scripts {
     pub scripts: SlotMap<ScriptId, RefCell<ScriptHost>>,
-}
-
-#[derive(Debug)]
-pub enum ScriptGetError {
-    BadId,
-    BadCast,
-    BadAlias,
-}
-
-pub trait Script: Any {
-    fn update(&mut self, scripts: &Scripts);
-}
-
-impl Script for OtherScript {
-    fn update(&mut self, _scripts: &Scripts) {}
-}
-
-impl Script for MyScript {
-    fn update(&mut self, scripts: &Scripts) {
-        let _ = scripts.with_option_mut::<OtherScript>(&mut self.other_script, |other| {
-            other.every.enabled = true;
-            let _ = other.script.num;
-            other.script.num = 42;
-        });
-    }
 }
 
 impl Scripts {
@@ -86,25 +27,6 @@ impl Scripts {
         cell.try_borrow_mut().map_err(|_| ScriptGetError::BadAlias)
     }
 
-    fn downcast_host<'a, T: Script>(
-        host: &'a mut ScriptHost,
-    ) -> Result<ScriptHostMut<'a, T>, ScriptGetError> {
-        let ScriptHost(every, one) = host;
-
-        if (one.as_ref() as &dyn Any).is::<T>() {
-            let one_as_any = one.as_mut() as &mut dyn Any;
-            let Some(one_as_cast) = one_as_any.downcast_mut::<T>() else {
-                unreachable!()
-            };
-            Ok(ScriptHostMut {
-                every,
-                script: one_as_cast,
-            })
-        } else {
-            Err(ScriptGetError::BadCast)
-        }
-    }
-
     fn with_host<T: Script, R>(
         &self,
         id: ScriptId,
@@ -112,7 +34,7 @@ impl Scripts {
     ) -> Result<R, ScriptGetError> {
         let cell = self.scripts.get(id).ok_or(ScriptGetError::BadId)?;
         let mut guard = Self::try_borrow_host(cell)?;
-        let host = Self::downcast_host::<T>(&mut *guard)?;
+        let host = guard.downcast_mut::<T>()?;
         Ok(f(host))
     }
 
@@ -150,7 +72,7 @@ impl Scripts {
     pub fn set_enabled(&self, id: ScriptId, enabled: bool) -> Result<(), ScriptGetError> {
         let cell = self.scripts.get(id).ok_or(ScriptGetError::BadId)?;
         let mut guard = Self::try_borrow_host(cell)?;
-        guard.0.enabled = enabled;
+        guard.every.enabled = enabled;
         Ok(())
     }
 
@@ -164,8 +86,8 @@ impl Scripts {
 
     pub fn update_enabled(&self) {
         self.foreach_untyped(|scripts, host| {
-            if host.0.enabled {
-                host.1.update(scripts);
+            if host.every.enabled {
+                host.script.update(scripts);
             }
         });
     }
@@ -179,10 +101,9 @@ impl Scripts {
         }
     }
 
-    
     pub fn foreach<T: Script>(&self, mut f: impl FnMut(ScriptHostMut<'_, T>)) {
         self.foreach_untyped(|_scripts, host| {
-            if let Ok(host) = Self::downcast_host::<T>(host) {
+            if let Ok(host) = host.downcast_mut::<T>() {
                 f(host);
             }
         });
