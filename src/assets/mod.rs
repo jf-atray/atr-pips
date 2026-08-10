@@ -74,7 +74,7 @@ impl AssetRegistry {
     }
 
     pub fn names(&self) -> impl Iterator<Item = &str> {
-        self.entries.keys().map(|k| k.as_str())
+        self.entries.keys().map(std::string::String::as_str)
     }
 
     pub fn pick_random<R: rand::Rng>(&self, rng: &mut R) -> &str {

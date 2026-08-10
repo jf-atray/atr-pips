@@ -122,11 +122,11 @@ impl<T: Seekable> Seekable for Option<T> {
     }
 
     fn length(self) -> f32 {
-        self.map(|t| t.length()).unwrap_or(0.0)
+        self.map_or(0.0, Seekable::length)
     }
 
     fn normalize(self) -> Self {
-        self.map(|t| t.normalize())
+        self.map(Seekable::normalize)
     }
 
     fn apply(self, delta: Self) -> Self {

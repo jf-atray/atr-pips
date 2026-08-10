@@ -1,4 +1,4 @@
-use glam::{*};
+use glam::{Vec3, Quat, Vec3Swizzles, Vec4Swizzles};
 
 #[derive(Clone, Default, PartialEq)]
 pub struct Transform {

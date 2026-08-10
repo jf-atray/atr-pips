@@ -94,9 +94,11 @@ impl App {
         game.update(elapsed, aspect);
 
         if let Some(mut frame) = gpu.begin_frame() {
-            gpu.device
-                .canvas_renderer
-                .prepare(&game.domain.tables, &game.camera, &mut frame.encoder);
+            gpu.device.canvas_renderer.prepare(
+                &game.domain.tables,
+                &game.camera,
+                &mut frame.encoder,
+            );
             frame.with_render_pass(wgpu::Color::BLACK, |pass| {
                 gpu.device.canvas_renderer.render(pass);
             });
@@ -108,7 +110,7 @@ impl App {
         self.fps_timer += elapsed;
         if self.fps_timer >= 10.0 {
             let fps = self.fps_frame_count as f32 / self.fps_timer;
-            log::info!("update rate: {:.2} Hz", fps);
+            log::info!("update rate: {fps:.2} Hz");
             self.fps_frame_count = 0;
             self.fps_timer = 0.0;
         }
@@ -214,7 +216,6 @@ impl ApplicationHandler<GpuReady> for App {
             let mut gpu = Gpu::make(event.0, &GpuSettings::default());
             gpu.reconfigure(windowing.width, windowing.height);
 
-
             const PIXELS_PER_UNIT: f32 = 512.0;
             let device = &gpu.device.device;
             let queue = &gpu.device.queue;
@@ -256,12 +257,11 @@ impl ApplicationHandler<GpuReady> for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let windowing = match &self.state {
-            AppState::Ready { windowing, .. } => windowing,
-            _ => {
-                event_loop.set_control_flow(ControlFlow::Poll);
-                return;
-            }
+        let windowing = if let AppState::Ready { windowing, .. } = &self.state {
+            windowing
+        } else {
+            event_loop.set_control_flow(ControlFlow::Poll);
+            return;
         };
 
         match self.target_fps {

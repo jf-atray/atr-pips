@@ -409,7 +409,7 @@ impl SpriteSolver {
     ) {
         if !self.instances.is_empty() {
             let instance_size = size_of::<SpriteInstance>() as u64;
-            let byte_offset = (adr as u64) * instance_size;
+            let byte_offset = u64::from(adr) * instance_size;
             let bytes = self.instances.as_slice().as_bytes();
             let size = BufferSize::new(bytes.len() as u64)
                 .expect("instance buffer write size is non-zero");

@@ -124,8 +124,8 @@ impl Gpu {
             adapter,
             device,
             queue,
-            canvas_renderer,
             texture_scope,
+            canvas_renderer,
         };
 
         let targets = RenderTargets::make(
@@ -202,6 +202,6 @@ fn pick_surface_format(surface: &Surface, adapter: &Adapter) -> wgpu::TextureFor
         .copied()
         .expect("no usable surface format");
 
-    log::info!("surface format: {:?}", best);
+    log::info!("surface format: {best:?}");
     best
 }

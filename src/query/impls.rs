@@ -63,7 +63,7 @@ where
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
             if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap)
                 && &t.key == self.t_key && &k.key == self.k_key {
-                    let k = unsafe { &mut *(k as *mut Columnar<K, KKey>) };
+                    let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k) };
                     return Some((t, k));
                 }
         }

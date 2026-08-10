@@ -57,7 +57,7 @@ pub struct DrawWriter<'a> {
     next_adr: u32,
 }
 
-impl<'a> DrawWriter<'a> {
+impl DrawWriter<'_> {
     pub fn reserve(&mut self, count: u32) -> u32 {
         let adr = self.next_adr;
         self.next_adr += count;
@@ -131,9 +131,9 @@ impl CanvasRenderer {
 
     pub fn render(&self, pass: &mut RenderPass<'_>) {
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        for (_canvas_id, (every, canvas)) in self.canvases.iter() {
+        for (_canvas_id, (every, canvas)) in &self.canvases {
             canvas.begin_render_pass(pass, every);
-            for (material, draw) in every.draws.iter() {
+            for (material, draw) in &every.draws {
                 canvas.render(pass, material, draw.adr..draw.adr + draw.count, every);
             }
         }

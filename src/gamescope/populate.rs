@@ -11,7 +11,7 @@ use crate::gpuscope::canvasing::{CanvasRenderer, EveryCanvas};
 use crate::gpuscope::texture_cache::TextureScope;
 use crate::tables::{CanvasId, MaterialId};
 
-/// Build the Game, AssetRegistry, Scene, and all sprite materials from a SpriteCanvas
+/// Build the Game, `AssetRegistry`, Scene, and all sprite materials from a `SpriteCanvas`
 /// that has already been constructed in App.
 pub fn build_game(
     device: &Device,

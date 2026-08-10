@@ -66,7 +66,7 @@ impl Domain {
         let width = scope.width();
         let candidates: Vec<ClassId> = self.by_width
             .get(&width)
-            .map(|v| v.to_vec())
+            .map(|v| v.clone())
             .unwrap_or_default();
 
         let mut class_id = None;
