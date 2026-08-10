@@ -5,7 +5,7 @@ use crate::tables::{ClassId, core::CoreView, system::SystemView, tables::Tables,
 #[derive(Default)]
 pub struct Scope {
     pub core: CoreView,
-    pub(in crate::tables) system: SystemView,
+    pub system: SystemView,
     pub additions: HashMap<TypeId, Box<dyn View>>,
 }
 
