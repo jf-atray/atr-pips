@@ -58,7 +58,6 @@ impl Game {
 
         let domain = Domain {
             tables,
-            by_width: HashMap::new(),
             heading: SlotMap::with_key(),
             ids: SlotMap::with_key(),
         };

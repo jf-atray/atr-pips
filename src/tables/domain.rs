@@ -54,8 +54,7 @@ impl Domain {
 
         for (addition_id, addition) in &self.tables.additions {
             let view = addition.view_default();
-            let view_id = (view.as_ref() as &dyn Any).type_id();
-            scope.additions.insert(view_id, (*addition_id, view));
+            scope.additions.insert(*addition_id, view);
         }
 
         maker.make_into(&mut scope);
@@ -63,14 +62,14 @@ impl Domain {
 
         let width = scope.width();
 
-        
-        let candidates: Vec<ClassId> = self.by_width
-            .get(&width)
-            .map(|v| v.clone())
-            .unwrap_or_default();
 
         let mut class_id = None;
-        for id in candidates {
+        //todo in youfirst I actually itered the smallest commited class
+        //but depending on the kind of slotmap this might actually be
+        //less than useful.
+        //doublecheck secondarymap because if sparce is still o(1) for a little more memory
+        //and gains a fwd walk key iter... yummy
+        for id in self.heading.iter().filter(|(_,v)| **v == width ).map(|(k,_)| k){
             if scope.matches(id, &self.tables) {
                 class_id = Some(id);
                 break;
@@ -78,9 +77,7 @@ impl Domain {
         }
 
         let class_id = class_id.unwrap_or_else(|| {
-            let id = self.heading.insert(width);
-            self.by_width.entry(width).or_default().push(id);
-            id
+            self.heading.insert(width)
         });
 
         let row_idx = scope.commit(class_id, &mut self.tables).unwrap();

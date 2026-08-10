@@ -33,7 +33,7 @@ impl Scope {
         if !self.system.matches(class_id, &tables.system as &dyn Any) {
             return false;
         }
-        for (addition_id, view) in self.additions.iter() {
+        for (addition_id, view) in &self.additions {
             let Some(addition) = tables.additions.get(addition_id) else {
                 return false;
             };
@@ -49,7 +49,7 @@ impl Scope {
         let system_row = self.system.commit(class_id, &mut tables.system as &mut dyn Any);
         if row.is_none() { row = system_row; }
 
-        for (addition_id, view) in self.additions.iter_mut() {
+        for (addition_id, view) in &mut self.additions {
             if let Some(addition) = tables.additions.get_mut(addition_id) {
                 let view_row = view.commit(class_id, addition.as_mut() as &mut dyn Any);
                 if row.is_none() { row = view_row; }
