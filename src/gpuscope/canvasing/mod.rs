@@ -82,7 +82,7 @@ pub struct CanvasRenderer {
 
 impl CanvasRenderer {
     pub fn make(device: Device) -> Self {
-        const INSTANCE_BUFFER_BYTES: u64 = 1024 * 10;
+        const INSTANCE_BUFFER_BYTES: u64 = 1024 * 1024 * 1;
 
         let instance_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("canvas instances"),

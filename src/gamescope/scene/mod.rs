@@ -26,7 +26,7 @@ impl Scene {
         let mut spawns = Vec::with_capacity(64);
         let mut rng = rand::rng();
 
-        for i in 0..64u32 {
+        for i in 0..64u32 * 64u32 {
             let x = (i % 8) as f32 * 0.8 - 2.8;
             let y = (i / 8) as f32 * 0.8 - 2.8;
             let name = registry.pick_random(&mut rng).to_string();
