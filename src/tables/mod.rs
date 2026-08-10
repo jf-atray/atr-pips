@@ -8,6 +8,7 @@ pub mod tables;
 
 slotmap::new_key_type! {
     pub struct ClassId;
+    pub struct PipId;
     //put these in canvassing mod
     pub struct CanvasId;
     pub struct CanvasSolverId;
