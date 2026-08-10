@@ -14,6 +14,7 @@ use crate::tables::class_strategy::{GrowthStrategy, rarity};
 use crate::tables::core::CoreAddition;
 use crate::tables::domain::Domain;
 use crate::tables::scope::{Maker, Scope};
+use crate::tables::system::SystemAddition;
 use crate::tables::tables::Tables;
 
 pub struct Game {
@@ -49,14 +50,18 @@ impl Game {
                 motions: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Motion>()),
             },
             additions: HashMap::new(),
+            system: SystemAddition {
+                pip_id: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PipId>()),
+            },
         };
 
         let domain = Domain {
             tables,
             by_width: HashMap::new(),
             heading: SlotMap::with_key(),
+            ids: SlotMap::with_key(),
         };
-
+        
         Self {
             domain,
             camera: Camera::new(),

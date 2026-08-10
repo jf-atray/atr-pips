@@ -1,10 +1,11 @@
 use std::{any::{Any, TypeId}, collections::HashMap};
 
-use crate::tables::{core::CoreAddition, partition::Addition};
+use crate::tables::{core::CoreAddition, partition::Addition, system::SystemAddition};
 
 pub struct Tables {
     pub core: CoreAddition,
     pub additions: HashMap<TypeId, Box<dyn Addition>>,
+    pub system: SystemAddition,
 }
 
 pub struct TablesAdditions<'a> {

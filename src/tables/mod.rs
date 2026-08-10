@@ -4,6 +4,7 @@ pub mod core;
 pub mod domain;
 pub mod partition;
 pub mod scope;
+pub mod system;
 pub mod tables;
 
 slotmap::new_key_type! {
