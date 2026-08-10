@@ -1,7 +1,6 @@
 use std::{
     any::Any,
-    cell::RefCell,
-    ops::{Deref, DerefMut},
+    cell::{RefCell, RefMut},
 };
 
 use slotmap::{SlotMap, new_key_type};
@@ -19,6 +18,12 @@ pub struct EveryScript {
 
 pub struct ScriptHost(EveryScript, Box<dyn Script>);
 
+impl ScriptHost {
+    pub fn new(every: EveryScript, one: Box<dyn Script>) -> Self {
+        Self(every, one)
+    }
+}
+
 pub struct ScriptHostMut<'a, T> {
     pub every: &'a mut EveryScript,
     pub script: &'a mut T,
@@ -34,32 +39,7 @@ pub struct MyScript {
 }
 
 pub struct OtherScript {
-    num: u32,
-}
-
-pub struct TopLevel {
-    pub scripts: Scripts,
-}
-
-impl TopLevel {
-    pub fn a(&mut self) -> () {
-        let id_2 = self.scripts.scripts.insert(RefCell::new(ScriptHost(
-            EveryScript { enabled: false },
-            Box::new(OtherScript { num: 0 }),
-        )));
-        let id_1 = self.scripts.scripts.insert(RefCell::new(ScriptHost(
-            EveryScript { enabled: false },
-            Box::new(MyScript {
-                player: None,
-                other_script: Some(id_2),
-            }),
-        )));
-        self.scripts
-            .with_mut_and::<MyScript>(id_1, |host, scripts| {
-                host.script.update(scripts);
-            })
-            .unwrap();
-    }
+    pub num: u32,
 }
 
 // making a disjoint thin view to do a dynamic check is just the same as
@@ -74,20 +54,6 @@ pub enum ScriptGetError {
     BadCast,
     BadAlias,
 }
-fn borrow<T: Script, F>(scripts: &Scripts, id: &mut Option<ScriptId>, f: F) -> Result<(), ()>
-where
-    F: FnOnce(ScriptHostMut<'_, T>),
-{
-    let Some(f_id) = id else {
-        return Err(());
-    };
-    let ok = scripts.with_mut::<T>(*f_id, f);
-    if ok.is_err() {
-        *id = None;
-        return Err(());
-    }
-    return Ok(());
-}
 
 pub trait Script: Any {
     fn update(&mut self, scripts: &Scripts);
@@ -99,41 +65,63 @@ impl Script for OtherScript {
 
 impl Script for MyScript {
     fn update(&mut self, scripts: &Scripts) {
-        let mut found_num = 0;
-        borrow::<OtherScript, _>(scripts, &mut self.other_script, |other| {
+        let _ = scripts.with_option_mut::<OtherScript>(&mut self.other_script, |other| {
             other.every.enabled = true;
-            found_num = other.script.num;
+            let _ = other.script.num;
             other.script.num = 42;
         });
     }
 }
 
 impl Scripts {
-    pub fn with_mut<T: Script>(
-        &self,
-        id: ScriptId,
-        f: impl FnOnce(ScriptHostMut<'_, T>),
-    ) -> Result<(), ScriptGetError> {
-        let Some(cell) = self.scripts.get(id) else {
-            return Err(ScriptGetError::BadId);
-        };
+    pub fn new() -> Self {
+        Self {
+            scripts: SlotMap::with_key(),
+        }
+    }
 
-        let mut guard = cell.borrow_mut();
-        let ScriptHost(every, one) = &mut *guard;
+    fn try_borrow_host<'a>(
+        cell: &'a RefCell<ScriptHost>,
+    ) -> Result<RefMut<'a, ScriptHost>, ScriptGetError> {
+        cell.try_borrow_mut().map_err(|_| ScriptGetError::BadAlias)
+    }
+
+    fn downcast_host<'a, T: Script>(
+        host: &'a mut ScriptHost,
+    ) -> Result<ScriptHostMut<'a, T>, ScriptGetError> {
+        let ScriptHost(every, one) = host;
 
         if (one.as_ref() as &dyn Any).is::<T>() {
             let one_as_any = one.as_mut() as &mut dyn Any;
             let Some(one_as_cast) = one_as_any.downcast_mut::<T>() else {
                 unreachable!()
             };
-            f(ScriptHostMut {
+            Ok(ScriptHostMut {
                 every,
                 script: one_as_cast,
-            });
-            Ok(())
+            })
         } else {
             Err(ScriptGetError::BadCast)
         }
+    }
+
+    fn with_host<T: Script, R>(
+        &self,
+        id: ScriptId,
+        f: impl FnOnce(ScriptHostMut<'_, T>) -> R,
+    ) -> Result<R, ScriptGetError> {
+        let cell = self.scripts.get(id).ok_or(ScriptGetError::BadId)?;
+        let mut guard = Self::try_borrow_host(cell)?;
+        let host = Self::downcast_host::<T>(&mut *guard)?;
+        Ok(f(host))
+    }
+
+    pub fn with_mut<T: Script>(
+        &self,
+        id: ScriptId,
+        f: impl FnOnce(ScriptHostMut<'_, T>),
+    ) -> Result<(), ScriptGetError> {
+        self.with_host(id, f)
     }
 
     pub fn with_mut_and<T: Script>(
@@ -141,28 +129,62 @@ impl Scripts {
         id: ScriptId,
         f: impl FnOnce(ScriptHostMut<'_, T>, &Scripts),
     ) -> Result<(), ScriptGetError> {
-        let Some(cell) = self.scripts.get(id) else {
+        self.with_host(id, |host| f(host, self))
+    }
+
+    pub fn with_option_mut<T: Script>(
+        &self,
+        id: &mut Option<ScriptId>,
+        f: impl FnOnce(ScriptHostMut<'_, T>),
+    ) -> Result<(), ScriptGetError> {
+        let Some(f_id) = id else {
             return Err(ScriptGetError::BadId);
         };
-
-        let mut guard = cell.borrow_mut();
-        let ScriptHost(every, one) = &mut *guard;
-
-        if (one.as_ref() as &dyn Any).is::<T>() {
-            let one_as_any = one.as_mut() as &mut dyn Any;
-            let Some(one_as_cast) = one_as_any.downcast_mut::<T>() else {
-                unreachable!()
-            };
-            f(
-                ScriptHostMut {
-                    every,
-                    script: one_as_cast,
-                },
-                self,
-            );
-            Ok(())
-        } else {
-            Err(ScriptGetError::BadCast)
+        let result = self.with_mut::<T>(*f_id, f);
+        if result.is_err() {
+            *id = None;
         }
+        result
+    }
+
+    pub fn set_enabled(&self, id: ScriptId, enabled: bool) -> Result<(), ScriptGetError> {
+        let cell = self.scripts.get(id).ok_or(ScriptGetError::BadId)?;
+        let mut guard = Self::try_borrow_host(cell)?;
+        guard.0.enabled = enabled;
+        Ok(())
+    }
+
+    pub fn enable(&self, id: ScriptId) -> Result<(), ScriptGetError> {
+        self.set_enabled(id, true)
+    }
+
+    pub fn disable(&self, id: ScriptId) -> Result<(), ScriptGetError> {
+        self.set_enabled(id, false)
+    }
+
+    pub fn update_enabled(&self) {
+        self.foreach_untyped(|scripts, host| {
+            if host.0.enabled {
+                host.1.update(scripts);
+            }
+        });
+    }
+
+    pub fn foreach_untyped(&self, mut f: impl FnMut(&Scripts, &mut ScriptHost)) {
+        for cell in self.scripts.values() {
+            if let Ok(mut guard) = Self::try_borrow_host(cell) {
+                let host = &mut *guard;
+                f(self, host);
+            }
+        }
+    }
+
+    
+    pub fn foreach<T: Script>(&self, mut f: impl FnMut(ScriptHostMut<'_, T>)) {
+        self.foreach_untyped(|_scripts, host| {
+            if let Ok(host) = Self::downcast_host::<T>(host) {
+                f(host);
+            }
+        });
     }
 }
