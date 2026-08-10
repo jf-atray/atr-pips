@@ -5,7 +5,7 @@ use crate::brushes::Brush;
 use crate::gamescope::game::PipMaker;
 use crate::spacial::transform::Transform;
 use crate::tables::domain::Domain;
-
+pub mod act;
 pub struct SpriteSpawn {
     pub name: String,
     pub xform: Transform,
