@@ -26,6 +26,8 @@ impl Script for PilotScript {
     fn update(&mut self, ctx: &mut DomainView) {
         let dt = ctx.dt();
         let red = *ctx.asset_registry().get("red");
+        let mut projectile_brush = Brush::from_sprite(&red);
+        projectile_brush.scale *= 0.8;
 
         let mut shots: Vec<ProjectileBlueprint> = Vec::new();
 
@@ -128,12 +130,7 @@ impl Script for PilotScript {
                                         xyz: Vec3::new(spawn_pos.x, spawn_pos.y, 0.0),
                                         rot: Quat::IDENTITY,
                                     },
-                                    brush: Brush {
-                                        canvas: red.canvas,
-                                        material: red.material,
-                                        scale: red.natural_scale * 0.8,
-                                        color: Vec3::ONE.extend(1.0),
-                                    },
+                                    brush: projectile_brush.clone(),
                                     motion: Motion { vel: Vec3::new(dir.x, dir.y, 0.0) * PROJECTILE_SPEED },
                                     projectile: ProjectileData {
                                         lifetime: PROJECTILE_LIFETIME,

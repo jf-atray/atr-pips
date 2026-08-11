@@ -25,12 +25,9 @@ const SPAWN_BOUNDS: f32 = 12.0;
 
 fn make_brush(registry: &AssetRegistry, name: &str, scale: f32) -> Brush {
     let e = registry.get(name);
-    Brush {
-        canvas: e.canvas,
-        material: e.material,
-        scale: e.natural_scale * scale,
-        color: Vec4::ONE,
-    }
+    let mut brush = Brush::from_sprite(e);
+    brush.scale *= scale;
+    brush
 }
 
 fn random_pos(rng: &mut impl Rng) -> Vec2 {

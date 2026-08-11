@@ -100,6 +100,8 @@ impl Script for ProjectileSolver {
             .asset_registry()
             .try_get("townie_1")
             .unwrap_or(ctx.asset_registry().get("yellow"));
+        let mut pickup_brush = Brush::from_sprite(&yellow);
+        pickup_brush.scale *= 1.5;
 
         let mut to_destroy: Vec<PipId> = Vec::new();
         let mut to_spawn: Vec<PickupBlueprint> = Vec::new();
@@ -154,12 +156,7 @@ impl Script for ProjectileSolver {
                             {
                                 to_spawn.push(PickupBlueprint {
                                     xform: xform_h[j].clone(),
-                                    brush: Brush {
-                                        canvas: yellow.canvas,
-                                        material: yellow.material,
-                                        scale: yellow.natural_scale * 1.5,
-                                        color: Vec3::ONE.extend(1.0),
-                                    },
+                                    brush: pickup_brush.clone(),
                                     name: None,
                                     team: Some(Team::Pickup),
                                     pickup: HealthPickupData { amount: 15.0 },
