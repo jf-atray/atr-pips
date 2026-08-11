@@ -8,6 +8,7 @@ use crate::arena::makers::ProjectileBlueprint;
 use crate::arena::tables::{PilotAddition, PilotState, ProjectileData, Team, TeamAddition};
 use crate::brushes::Brush;
 use crate::gather::impls::gather_ref;
+use crate::query::impls::{query_mut_mut_mut, query_ref_ref};
 use crate::scripting::{DomainView, Script};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
@@ -39,12 +40,13 @@ impl Script for PilotScript {
                     Some(team_add) => {
                         let mut teams = HashMap::new();
                         let mut enemies = Vec::new();
-                        for (class_id, team_col) in team_add.team.columns() {
-                            let Some(xform_col) = xforms.get_col(class_id) else { continue };
-                            let Some(pip_id_col) = system.pip_id.get_col(class_id) else { continue };
-
+                        for (team_col, pip_id_col) in query_ref_ref(&team_add.team, &(), &system.pip_id, &()) {
                             for i in 0..team_col.len() {
                                 teams.insert(pip_id_col[i], team_col[i]);
+                            }
+                        }
+                        for (team_col, xform_col) in query_ref_ref(&team_add.team, &(), xforms, &()) {
+                            for i in 0..team_col.len() {
                                 if team_col[i] == Team::Enemy {
                                     enemies.push(xform_col[i].xyz.truncate());
                                 }
@@ -59,10 +61,14 @@ impl Script for PilotScript {
             let pilot = additions.get_mut::<PilotAddition>().unwrap();
             let mut rng = rand::rng();
 
-            for (class_id, pilot_col) in pilot.data.columns_mut() {
-                let Some(motion_col) = motions.get_col_mut(class_id) else { continue };
-                let Some(pip_id_col) = system.pip_id.get_col(class_id) else { continue };
-
+            for (pilot_col, motion_col, pip_id_col) in query_mut_mut_mut(
+                &mut pilot.data,
+                &(),
+                motions,
+                &(),
+                &mut system.pip_id,
+                &(),
+            ) {
                 for i in 0..pilot_col.len() {
                     let pilot_data = &mut pilot_col[i];
                     let motion = &mut motion_col[i];

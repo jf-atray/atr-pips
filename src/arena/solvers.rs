@@ -11,12 +11,12 @@ use crate::arena::tables::{
 };
 use crate::brushes::Brush;
 use crate::gather::impls::gather_mut;
-use crate::query::impls::query_mut_mut;
+use crate::query::impls::{query_mut_mut, query_mut_mut_mut, query_ref_ref};
 use crate::scripting::{DomainView, Script};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::PipId;
-use crate::tables::tables::{Tables, AdditionsView};
+use crate::tables::tables::{AdditionsView, Tables};
 
 const BOUNDS: f32 = 15.0;
 const HIT_RADIUS: f32 = 0.3;
@@ -76,8 +76,7 @@ impl ProjectileSolver {
         let Some(team) = tables.get::<TeamAddition>() else {
             return map;
         };
-        for (class_id, team_col) in team.team.columns() {
-            let Some(pip_col) = tables.system.pip_id.get_col(class_id) else { continue };
+        for (team_col, pip_col) in query_ref_ref(&team.team, &(), &tables.system.pip_id, &()) {
             for i in 0..team_col.len() {
                 map.insert(pip_col[i], team_col[i]);
             }
@@ -85,7 +84,9 @@ impl ProjectileSolver {
         map
     }
 
-    fn additions<'a>(additions: &'a mut AdditionsView<'a>) -> (&'a mut ProjectileAddition, &'a mut HealthAddition) {
+    fn additions<'a>(
+        additions: &'a mut AdditionsView<'a>,
+    ) -> (&'a mut ProjectileAddition, &'a mut HealthAddition) {
         additions
             .get_both_mut::<ProjectileAddition, HealthAddition>()
             .expect("projectile and health additions not registered")
@@ -95,7 +96,8 @@ impl ProjectileSolver {
 impl Script for ProjectileSolver {
     fn update(&mut self, ctx: &mut DomainView) {
         let dt = ctx.dt();
-        let yellow = *ctx.asset_registry()
+        let yellow = *ctx
+            .asset_registry()
             .try_get("townie_1")
             .unwrap_or(ctx.asset_registry().get("yellow"));
 
@@ -111,8 +113,12 @@ impl Script for ProjectileSolver {
             let (projectile, health) = Self::additions(&mut view.additions);
 
             for (class_id, projectile_col) in projectile.data.columns_mut() {
-                let Some(xform_col) = xforms.get_col(class_id) else { continue };
-                let Some(pip_col) = system.pip_id.get_col(class_id) else { continue };
+                let Some(xform_col) = xforms.get_col(class_id) else {
+                    continue;
+                };
+                let Some(pip_col) = system.pip_id.get_col(class_id) else {
+                    continue;
+                };
 
                 for i in 0..projectile_col.len() {
                     let data = &mut projectile_col[i];
@@ -126,8 +132,12 @@ impl Script for ProjectileSolver {
                     let damage = data.damage;
 
                     'hit: for (health_class_id, health_col) in health.data.columns_mut() {
-                        let Some(xform_h) = xforms.get_col(health_class_id) else { continue };
-                        let Some(pip_h) = system.pip_id.get_col(health_class_id) else { continue };
+                        let Some(xform_h) = xforms.get_col(health_class_id) else {
+                            continue;
+                        };
+                        let Some(pip_h) = system.pip_id.get_col(health_class_id) else {
+                            continue;
+                        };
 
                         for j in 0..health_col.len() {
                             if health_col[j].health <= 0.0 || pip_h[j] == owner {
@@ -139,7 +149,8 @@ impl Script for ProjectileSolver {
                             health_col[j].health -= damage;
                             to_destroy.push(pip_col[i]);
                             to_destroy.push(pip_h[j]);
-                            if team_map.get(&pip_h[j]) == Some(&Team::Enemy) && health_col[j].health <= 0.0
+                            if team_map.get(&pip_h[j]) == Some(&Team::Enemy)
+                                && health_col[j].health <= 0.0
                             {
                                 to_spawn.push(PickupBlueprint {
                                     xform: xform_h[j].clone(),
@@ -201,7 +212,10 @@ impl SpawnerSolver {
             name: None,
             motion: Some(Motion { vel: Vec3::ZERO }),
             team: Some(Team::Enemy),
-            health: Some(HealthData { health: 30.0, max: 30.0 }),
+            health: Some(HealthData {
+                health: 30.0,
+                max: 30.0,
+            }),
             pilot: Some(pilot),
         }
     }
@@ -216,21 +230,21 @@ impl Script for SpawnerSolver {
         {
             let (_, tables) = ctx.split();
             let mut view = tables.view();
-            let xforms = &view.core.xforms;
             let spawner = view.additions.get_mut::<SpawnerAddition>().unwrap();
             let mut rng = rand::rng();
 
-            for (class_id, spawner_col) in spawner.data.columns_mut() {
-                let Some(xform_col) = xforms.get_col(class_id) else { continue };
-
+            for (spawner_col, xform_col) in
+                query_mut_mut(&mut spawner.data, &(), &mut view.core.xforms, &())
+            {
                 for i in 0..spawner_col.len() {
                     let data = &mut spawner_col[i];
+                    let pos = xform_col[i].xyz.truncate();
                     data.timer -= dt;
                     if data.timer > 0.0 || data.spawned >= data.max_count {
                         continue;
                     }
-                    let pos = xform_col[i].xyz.truncate();
-                    let offset = Vec2::new(rng.random::<f32>() - 0.5, rng.random::<f32>() - 0.5) * 2.0;
+                    let offset =
+                        Vec2::new(rng.random::<f32>() - 0.5, rng.random::<f32>() - 0.5) * 2.0;
                     let brush = data.enemy_brush.clone();
                     to_spawn.push(self.make_enemy(pos + offset, brush));
                     data.spawned += 1;
@@ -251,7 +265,9 @@ pub struct PickupSolver {
 }
 
 impl PickupSolver {
-    fn additions<'a>(additions: &'a mut AdditionsView<'a>) -> (&'a mut HealthPickupAddition, &'a mut HealthAddition) {
+    fn additions<'a>(
+        additions: &'a mut AdditionsView<'a>,
+    ) -> (&'a mut HealthPickupAddition, &'a mut HealthAddition) {
         additions
             .get_both_mut::<HealthPickupAddition, HealthAddition>()
             .expect("pickup and health additions not registered")
@@ -268,20 +284,24 @@ impl Script for PickupSolver {
         {
             let (ids, tables) = ctx.split();
             let mut view = tables.view();
-            let xforms = &view.core.xforms;
-            let system = &view.system;
             let (pickups, health) = Self::additions(&mut view.additions);
 
             let player_pos = if let Some(ptr) = ids.get(player) {
-                xforms.get_row(ptr).map_or(Vec2::ZERO, |x| x.xyz.truncate())
+                view.core.xforms
+                    .get_row(ptr)
+                    .map_or(Vec2::ZERO, |x| x.xyz.truncate())
             } else {
                 Vec2::ZERO
             };
 
-            for (class_id, pickup_col) in pickups.data.columns() {
-                let Some(xform_col) = xforms.get_col(class_id) else { continue };
-                let Some(pip_col) = system.pip_id.get_col(class_id) else { continue };
-
+            for (pickup_col, xform_col, pip_col) in query_mut_mut_mut(
+                &mut pickups.data,
+                &(),
+                &mut view.core.xforms,
+                &(),
+                &mut view.system.pip_id,
+                &(),
+            ) {
                 for i in 0..pickup_col.len() {
                     let pos = xform_col[i].xyz.truncate();
                     if (pos - player_pos).length() < PICKUP_RADIUS {

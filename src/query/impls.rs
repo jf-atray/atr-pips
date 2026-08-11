@@ -168,3 +168,65 @@ where
         Duplex::K(k) => k.next().map(|(k, t)| (t, k)),
     })
 }
+
+pub struct QueryMutMutMutIter<'a, T: 'a, K: 'a, L: 'a, TKey: 'a, KKey: 'a, LKey: 'a> {
+    smallest_source: ClassIterMut<'a, T, TKey>,
+    k_source: ClassRarity<Columnar<K, KKey>>::Mut<'a>,
+    l_source: ClassRarity<Columnar<L, LKey>>::Mut<'a>,
+    t_key: &'a TKey,
+    k_key: &'a KKey,
+    l_key: &'a LKey,
+}
+
+impl<'a, T, K, L, TKey, KKey, LKey> Iterator for QueryMutMutMutIter<'a, T, K, L, TKey, KKey, LKey>
+where
+    T: 'a,
+    K: 'a,
+    L: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
+    LKey: 'a + PartialEq,
+{
+    type Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>, &'a mut Columnar<L, LKey>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
+            if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap)
+                && let Some(l) = duplex!(&mut self.l_source => { get_mut(class_id) } -> unwrap)
+                && &t.key == self.t_key && &k.key == self.k_key && &l.key == self.l_key
+            {
+                let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k) };
+                let l = unsafe { &mut *std::ptr::from_mut::<Columnar<L, LKey>>(l) };
+                return Some((t, k, l));
+            }
+        }
+        None
+    }
+}
+
+pub fn query_mut_mut_mut<'a, T, K, L, TKey, KKey, LKey>(
+    t: &'a mut Class<T, TKey>,
+    t_key: &'a TKey,
+    k: &'a mut Class<K, KKey>,
+    k_key: &'a KKey,
+    l: &'a mut Class<L, LKey>,
+    l_key: &'a LKey,
+) -> impl Iterator<Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>, &'a mut Columnar<L, LKey>)>
+where
+    T: 'a,
+    K: 'a,
+    L: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
+    LKey: 'a + PartialEq,
+{
+    let mut iter = QueryMutMutMutIter {
+        smallest_source: duplex!(&mut t.data => iter_mut()),
+        k_source: k.data.as_mut(),
+        l_source: l.data.as_mut(),
+        t_key,
+        k_key,
+        l_key,
+    };
+    std::iter::from_fn(move || iter.next())
+}
