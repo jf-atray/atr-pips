@@ -1,6 +1,7 @@
+use crate::demo::solvers::PhysicsSolver;
 use crate::scripting::id::ScriptId;
 use crate::scripting::script::Script;
-use crate::scripting::scripts::Scripts;
+use crate::scripting::DomainView;
 use crate::tables::PipId;
 
 pub struct MyScript {
@@ -13,15 +14,22 @@ pub struct OtherScript {
 }
 
 impl Script for OtherScript {
-    fn update(&mut self, _scripts: &Scripts) {}
+    fn update(&mut self, _ctx: &DomainView) {}
 }
 
 impl Script for MyScript {
-    fn update(&mut self, scripts: &Scripts) {
-        let _ = scripts.with_option_mut::<OtherScript>(&mut self.other_script, |other| {
+    fn update(&mut self, ctx: &DomainView) {
+        let _ = ctx.with_script_option_mut::<OtherScript>(&mut self.other_script, |other| {
             other.every.enabled = true;
             let _ = other.script.num;
             other.script.num = 42;
         });
+
+        if self.other_script.is_some() {
+            let _ = ctx.with_solver_mut::<PhysicsSolver>(|physics| {
+                physics.every.enabled = false;
+                physics.script.gravity = 0.0;
+            });
+        }
     }
 }

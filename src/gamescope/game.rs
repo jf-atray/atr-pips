@@ -6,7 +6,7 @@ use crate::assets::AssetRegistry;
 use crate::brushes::Brush;
 use crate::gamescope::motion::MotionSolver;
 use crate::gamescope::scene::SceneAccess;
-use crate::scripting::Scripts;
+use crate::scripting::{Scripts, Solvers};
 use crate::spacial::camera::{Camera, CameraController};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
@@ -27,6 +27,7 @@ pub struct Game {
     pub asset_registry: AssetRegistry,
     pub motion_solver: MotionSolver,
     pub scripts: Scripts,
+    pub solvers: Solvers,
 }
 
 #[derive(Clone)]
@@ -72,6 +73,7 @@ impl Game {
             asset_registry,
             motion_solver: MotionSolver::new(),
             scripts: Scripts::new(),
+            solvers: Solvers::new(),
         }
     }
     pub fn load(&mut self) {
@@ -81,7 +83,8 @@ impl Game {
 
     //this is where we'll need to handle additions, scripts, solvers, etc.
     pub fn update(&mut self, dt: f32, aspect: f32) {
-        self.scripts.update_enabled();
+        self.scripts.update_enabled(&self.solvers);
+        self.solvers.update_enabled(&self.scripts);
         self.motion_solver.update(&mut self.domain.tables, dt);
         self.camera.update(aspect);
     }

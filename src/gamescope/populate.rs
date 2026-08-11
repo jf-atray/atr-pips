@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::fs;
 
 use glam::Vec2;
@@ -6,6 +5,7 @@ use wgpu::{Device, Queue};
 
 use crate::assets::{AssetRegistry, SpriteEntry, SpriteRect};
 use crate::demo::scripts::{MyScript, OtherScript};
+use crate::demo::solvers::PhysicsSolver;
 use crate::gamescope::game::Game;
 use crate::gamescope::green_rect::SpriteCanvas;
 use crate::gamescope::scene::{Scene, SceneAccess};
@@ -88,17 +88,19 @@ pub fn build_game(
     let mut game = Game::new(SceneAccess { current: scene }, registry);
     game.load();
 
-    let id_2 = game.scripts.scripts.insert(RefCell::new(ScriptHost::new(
+    game.solvers.register(PhysicsSolver::new());
+
+    let other_id = game.scripts.add(ScriptHost::new(
         EveryScript { enabled: true },
         Box::new(OtherScript { num: 0 }),
-    )));
-    game.scripts.scripts.insert(RefCell::new(ScriptHost::new(
+    ));
+    game.scripts.add(ScriptHost::new(
         EveryScript { enabled: true },
         Box::new(MyScript {
             player: None,
-            other_script: Some(id_2),
+            other_script: Some(other_id),
         }),
-    )));
+    ));
 
     game
 }
