@@ -8,6 +8,7 @@ use crate::scripting::host::{ScriptHost, ScriptHostMut};
 use crate::scripting::id::ScriptId;
 use crate::scripting::script::Script;
 use crate::scripting::solvers::Solvers;
+use crate::tables::domain::Domain;
 
 // making a disjoint thin view to do a dynamic check is just the same as
 // doing that check here anyway using std features
@@ -89,11 +90,11 @@ impl Scripts {
         self.set_enabled(id, false)
     }
 
-    pub fn update_enabled(&self, solvers: &Solvers) {
-        let ctx = DomainView::new(self, solvers);
+    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, solvers: &Solvers) {
+        let mut ctx = DomainView::new(dt, domain, self, solvers);
         self.foreach_untyped(|_scripts, host| {
             if host.every.enabled {
-                host.script.update(&ctx);
+                host.script.update(&mut ctx);
             }
         });
     }

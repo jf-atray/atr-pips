@@ -8,8 +8,9 @@ use crate::scripting::every::EveryScript;
 use crate::scripting::host::{ScriptHost, ScriptHostMut};
 use crate::scripting::script::Script;
 use crate::scripting::scripts::Scripts;
+use crate::tables::domain::Domain;
 
-pub struct Solvers { //justcopy paste from Scripts. Make more abstract?
+pub struct Solvers {
     solvers: HashMap<TypeId, RefCell<ScriptHost>>,
 }
 
@@ -73,13 +74,13 @@ impl Solvers {
         self.set_enabled::<T>(false)
     }
 
-    pub fn update_enabled(&self, scripts: &Scripts) {
-        let ctx = DomainView::new(scripts, self);
+    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, scripts: &Scripts) {
+        let mut ctx = DomainView::new(dt, domain, scripts, self);
         for cell in self.solvers.values() {
             if let Ok(mut guard) = Self::try_borrow_host(cell) {
                 let host = &mut *guard;
                 if host.every.enabled {
-                    host.script.update(&ctx);
+                    host.script.update(&mut ctx);
                 }
             }
         }

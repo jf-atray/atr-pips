@@ -99,6 +99,7 @@ pub fn build_game(
         Box::new(MyScript {
             player: None,
             other_script: Some(other_id),
+            timer: 0.0,
         }),
     ));
 

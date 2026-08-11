@@ -83,9 +83,8 @@ impl Game {
 
     //this is where we'll need to handle additions, scripts, solvers, etc.
     pub fn update(&mut self, dt: f32, aspect: f32) {
-        self.scripts.update_enabled(&self.solvers);
-        self.solvers.update_enabled(&self.scripts);
-        self.motion_solver.update(&mut self.domain.tables, dt);
+        self.scripts.update_enabled(dt, &mut self.domain, &self.solvers);
+        self.solvers.update_enabled(dt, &mut self.domain, &self.scripts);
         self.camera.update(aspect);
     }
 }
