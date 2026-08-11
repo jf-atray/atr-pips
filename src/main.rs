@@ -3,11 +3,11 @@
 
 mod anims;
 mod appscope;
+mod arena;
 mod assets;
 mod brushes;
 mod canvases;
 mod clip;
-mod demo;
 mod gamescope;
 mod gather;
 mod gpuscope;

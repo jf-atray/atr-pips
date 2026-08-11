@@ -18,15 +18,17 @@ impl<'a> TablesAdditions<'a> {
     }
 
     pub fn get<T: Addition + 'static>(&self) -> Option<&T> {
-        self.inner
-            .get(&TypeId::of::<T>())
-            .and_then(|a| (a.as_ref() as &dyn Any).downcast_ref::<T>())
+        self.inner.get(&TypeId::of::<T>()).and_then(|a| {
+            let any: &dyn Any = a.as_ref();
+            any.downcast_ref::<T>()
+        })
     }
 
     pub fn get_mut<T: Addition + 'static>(&mut self) -> Option<&mut T> {
-        self.inner
-            .get_mut(&TypeId::of::<T>())
-            .and_then(|a| (a.as_mut() as &mut dyn Any).downcast_mut::<T>())
+        self.inner.get_mut(&TypeId::of::<T>()).and_then(|a| {
+            let any: &mut dyn Any = a.as_mut();
+            any.downcast_mut::<T>()
+        })
     }
 
     pub fn get_many_mut<T, K>(&mut self) -> Option<(&mut T, &mut K)>
@@ -44,16 +46,38 @@ impl<'a> TablesAdditions<'a> {
             return None;
         };
 
-        let a = (a.as_mut() as &mut dyn Any).downcast_mut::<T>()?;
-        let b = (b.as_mut() as &mut dyn Any).downcast_mut::<K>()?;
-        Some((a, b))
+        let a: &mut dyn Any = a.as_mut();
+        let b: &mut dyn Any = b.as_mut();
+        Some((a.downcast_mut::<T>()?, b.downcast_mut::<K>()?))
     }
 }
 
 impl Tables {
     pub fn get<T: Addition + 'static>(&self) -> Option<&T> {
+        self.additions.get(&TypeId::of::<T>()).and_then(|a| {
+            let any: &dyn Any = a.as_ref();
+            any.downcast_ref::<T>()
+        })
+    }
+
+    pub fn get_mut<T: Addition + 'static>(&mut self) -> Option<&mut T> {
+        self.additions.get_mut(&TypeId::of::<T>()).and_then(|a| {
+            let any: &mut dyn Any = a.as_mut();
+            any.downcast_mut::<T>()
+        })
+    }
+
+    pub fn add<T: Addition + 'static>(&mut self, addition: T) {
+        let id = TypeId::of::<T>();
+        self.additions.insert(id, Box::new(addition));
+    }
+
+    pub fn remove<T: Addition + 'static>(&mut self) -> Option<T> {
         self.additions
-            .get(&TypeId::of::<T>())
-            .and_then(|a| (a.as_ref() as &dyn Any).downcast_ref::<T>())
+            .remove(&TypeId::of::<T>())
+            .and_then(|a| {
+                let any: Box<dyn Any> = a;
+                any.downcast::<T>().ok().map(|b| *b)
+            })
     }
 }

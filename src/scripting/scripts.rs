@@ -2,6 +2,7 @@ use std::cell::{RefCell, RefMut};
 
 use slotmap::SlotMap;
 
+use crate::assets::AssetRegistry;
 use crate::scripting::context::DomainView;
 use crate::scripting::error::ScriptGetError;
 use crate::scripting::host::{ScriptHost, ScriptHostMut};
@@ -90,8 +91,8 @@ impl Scripts {
         self.set_enabled(id, false)
     }
 
-    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, solvers: &Solvers) {
-        let mut ctx = DomainView::new(dt, domain, self, solvers);
+    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, solvers: &Solvers, asset_registry: &AssetRegistry) {
+        let mut ctx = DomainView::new(dt, domain, self, solvers, asset_registry);
         self.foreach_untyped(|_scripts, host| {
             if host.every.enabled {
                 host.script.update(&mut ctx);

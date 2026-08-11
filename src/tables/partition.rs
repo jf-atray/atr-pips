@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 
 use crate::tables::ClassId;
 
@@ -6,11 +6,15 @@ pub trait View: Any {
     fn width(&self) -> usize;
     fn matches(&self, class_id: ClassId, into: &dyn Any) -> bool;
     fn commit(&mut self, class_id: ClassId, into: &mut dyn Any) -> Option<usize>;
+    fn addition_id(&self) -> TypeId;
+    fn as_any_ref(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub trait Addition: Any {
     fn view_default(&self) -> Box<dyn View>;
     fn destroy(&mut self, class_id: ClassId, row_idx: usize);
+    fn clear(&mut self);
 }
 
 #[macro_export]
@@ -53,6 +57,18 @@ macro_rules! partition {
                 )+
                 row
             }
+
+            fn addition_id(&self) -> ::std::any::TypeId {
+                ::std::any::TypeId::of::<$addition>()
+            }
+
+            fn as_any_ref(&self) -> &dyn ::std::any::Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+                self
+            }
         }
 
         impl $crate::tables::partition::Addition for $addition {
@@ -66,6 +82,10 @@ macro_rules! partition {
                         col.swap_remove(row_idx);
                     }
                 )+
+            }
+
+            fn clear(&mut self) {
+                $( self.$fname.clear(); )+
             }
         }
     };

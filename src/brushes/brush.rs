@@ -2,7 +2,7 @@ use glam::{Vec2, Vec4};
 
 use crate::tables::{CanvasId, MaterialId};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Brush {
     pub canvas: CanvasId,
     pub material: MaterialId,

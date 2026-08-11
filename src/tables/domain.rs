@@ -19,6 +19,16 @@ impl Domain {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.ids.clear();
+        self.heading.clear();
+        self.tables.core.clear();
+        self.tables.system.clear();
+        for addition in self.tables.additions.values_mut() {
+            addition.clear();
+        }
+    }
+
     pub fn make<M: Maker>(&mut self, maker: M) -> PipId {
         //acquires a generational index
         let pip = self.ids.insert(ClassRowPtr::new(ClassId::default(), 0));
@@ -54,7 +64,8 @@ impl Domain {
 
         for (addition_id, addition) in &self.tables.additions {
             let view = addition.view_default();
-            scope.additions.insert(*addition_id, view);
+            let view_id = view.as_any_ref().type_id();
+            scope.additions.insert(view_id, (*addition_id, view));
         }
 
         maker.make_into(&mut scope);
@@ -91,5 +102,81 @@ impl Domain {
         for addition in self.tables.additions.values_mut() {
             addition.destroy(ptr.class_id, ptr.row_idx);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use glam::{Quat, Vec3};
+    use slotmap::SlotMap;
+    use std::collections::HashMap;
+
+    use super::*;
+    use crate::brushes::Brush;
+    use crate::spacial::motion::Motion;
+    use crate::spacial::transform::Transform;
+    use crate::tables::PipId;
+    use crate::tables::class::Class;
+    use crate::tables::class_strategy::{GrowthStrategy, rarity};
+    use crate::tables::core::CoreAddition;
+    use crate::tables::scope::{Maker, Scope};
+    use crate::tables::system::SystemAddition;
+    use crate::tables::tables::Tables;
+
+    struct M(Transform, Motion);
+
+    impl Maker for M {
+        fn make_into(self, scope: &mut Scope) {
+            scope.core.xforms = Some(self.0);
+            scope.core.motions = Some(self.1);
+        }
+    }
+
+    fn tables() -> Tables {
+        Tables {
+            core: CoreAddition {
+                xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
+                brushes: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Brush>()),
+                names: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<String>()),
+                motions: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Motion>()),
+            },
+            additions: HashMap::new(),
+            system: SystemAddition {
+                pip_id: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PipId>()),
+            },
+        }
+    }
+
+    #[test]
+    fn clear_clears_all() {
+        let mut domain = Domain::new(tables());
+        let _ = domain.make(M(Transform { xyz: Vec3::ONE, rot: Quat::IDENTITY }, Motion { vel: Vec3::ZERO }));
+        let _ = domain.make(M(Transform { xyz: Vec3::ONE, rot: Quat::IDENTITY }, Motion { vel: Vec3::ZERO }));
+        assert_eq!(domain.ids.len(), 2);
+        assert!(domain.tables.core.xforms.len() > 0);
+        domain.clear();
+        assert_eq!(domain.ids.len(), 0);
+        assert_eq!(domain.heading.len(), 0);
+        assert_eq!(domain.tables.core.xforms.len(), 0);
+    }
+
+    #[test]
+    fn vec_flush_pattern() {
+        let mut domain = Domain::new(tables());
+        let mut to_spawn = Vec::new();
+        to_spawn.push(M(Transform { xyz: Vec3::ONE, rot: Quat::IDENTITY }, Motion { vel: Vec3::ZERO }));
+        to_spawn.push(M(Transform { xyz: Vec3::ONE, rot: Quat::IDENTITY }, Motion { vel: Vec3::ZERO }));
+        let mut ids = Vec::new();
+        for m in to_spawn {
+            ids.push(domain.make(m));
+        }
+        let mut to_destroy = Vec::new();
+        for id in &ids {
+            to_destroy.push(*id);
+        }
+        for id in to_destroy {
+            domain.destroy(id);
+        }
+        assert_eq!(domain.ids.len(), 0);
     }
 }

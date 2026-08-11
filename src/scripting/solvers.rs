@@ -2,40 +2,50 @@ use std::any::TypeId;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 
+use slotmap::SlotMap;
+
+use crate::assets::AssetRegistry;
 use crate::scripting::context::DomainView;
 use crate::scripting::error::ScriptGetError;
 use crate::scripting::every::EveryScript;
 use crate::scripting::host::{ScriptHost, ScriptHostMut};
+use crate::scripting::id::SolverId;
 use crate::scripting::script::Script;
 use crate::scripting::scripts::Scripts;
 use crate::tables::domain::Domain;
 
 pub struct Solvers {
-    solvers: HashMap<TypeId, RefCell<ScriptHost>>,
+    solvers: SlotMap<SolverId, RefCell<ScriptHost>>,
+    by_type: HashMap<TypeId, SolverId>,
 }
 
 impl Solvers {
     pub fn new() -> Self {
         Self {
-            solvers: HashMap::new(),
+            solvers: SlotMap::with_key(),
+            by_type: HashMap::new(),
         }
     }
 
     pub fn register<T: Script>(&mut self, solver: T) {
         let type_id = TypeId::of::<T>();
-        if self.solvers.contains_key(&type_id) {
+        if self.by_type.contains_key(&type_id) {
             panic!(
                 "duplicate solver registered: {}",
                 std::any::type_name::<T>()
             );
         }
-        self.solvers.insert(
-            type_id,
-            RefCell::new(ScriptHost::new(
-                EveryScript { enabled: true },
-                Box::new(solver),
-            )),
-        );
+        let id = self.solvers.insert(RefCell::new(ScriptHost::new(
+            EveryScript { enabled: true },
+            Box::new(solver),
+        )));
+        self.by_type.insert(type_id, id);
+    }
+
+    pub fn remove<T: Script>(&mut self) -> Option<ScriptHost> {
+        let type_id = TypeId::of::<T>();
+        let id = self.by_type.remove(&type_id)?;
+        self.solvers.remove(id).map(|c| c.into_inner())
     }
 
     fn try_borrow_host<'a>(
@@ -49,7 +59,8 @@ impl Solvers {
         f: impl FnOnce(ScriptHostMut<'_, T>) -> R,
     ) -> Result<R, ScriptGetError> {
         let type_id = TypeId::of::<T>();
-        let cell = self.solvers.get(&type_id).ok_or(ScriptGetError::BadId)?;
+        let id = self.by_type.get(&type_id).copied().ok_or(ScriptGetError::BadId)?;
+        let cell = &self.solvers[id];
         let mut guard = Self::try_borrow_host(cell)?;
         let host = guard.downcast_mut::<T>()?;
         Ok(f(host))
@@ -74,8 +85,8 @@ impl Solvers {
         self.set_enabled::<T>(false)
     }
 
-    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, scripts: &Scripts) {
-        let mut ctx = DomainView::new(dt, domain, scripts, self);
+    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, scripts: &Scripts, asset_registry: &AssetRegistry) {
+        let mut ctx = DomainView::new(dt, domain, scripts, self, asset_registry);
         for cell in self.solvers.values() {
             if let Ok(mut guard) = Self::try_borrow_host(cell) {
                 let host = &mut *guard;

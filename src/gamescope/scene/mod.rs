@@ -1,63 +1,32 @@
-use glam::{Quat, Vec2, Vec3, Vec4};
-
 use crate::assets::AssetRegistry;
-use crate::brushes::Brush;
-use crate::gamescope::game::PipMaker;
-use crate::spacial::transform::Transform;
+use crate::scripting::{Scripts, Solvers};
+use crate::tables::tables::Tables;
 use crate::tables::domain::Domain;
+use crate::tables::PipId;
 
-pub struct SpriteSpawn {
-    pub name: String,
-    pub xform: Transform,
-    pub scale: Vec2,
-    pub color: Vec4,
-}
-
-pub struct Scene {
-    pub spawns: Vec<SpriteSpawn>,
+pub trait Scene {
+    fn name(&self) -> &str;
+    fn player(&self) -> Option<PipId>;
+    fn register_tables(&self, tables: &mut Tables);
+    fn unregister_tables(&self, tables: &mut Tables);
+    fn populate(&mut self, registry: &AssetRegistry, domain: &mut Domain);
+    fn setup(&mut self, scripts: &mut Scripts, solvers: &mut Solvers);
+    fn teardown(&self, scripts: &mut Scripts, solvers: &mut Solvers);
+    fn is_complete(&mut self, dt: f32, domain: &Domain) -> bool;
 }
 
 pub struct SceneAccess {
-    pub current: Scene,
+    pub current: Box<dyn Scene>,
+    pub order: Vec<Box<dyn Fn() -> Box<dyn Scene>>>,
+    pub index: usize,
 }
 
-impl Scene {
-    pub fn demo(registry: &AssetRegistry, _pixels_per_unit: f32) -> Self {
-        let mut spawns = Vec::with_capacity(64);
-        let mut rng = rand::rng();
-
-        for i in 0..64u32 * 64u32 {
-            let x = (i % 8) as f32 * 0.8 - 2.8;
-            let y = (i / 8) as f32 * 0.8 - 2.8;
-            let name = registry.pick_random(&mut rng).to_string();
-
-            spawns.push(SpriteSpawn {
-                name,
-                xform: Transform {
-                    xyz: Vec3::new(x, y, 0.0),
-                    rot: Quat::IDENTITY,
-                },
-                scale: Vec2::ONE,
-                color: Vec4::ONE,
-            });
+impl SceneAccess {
+    pub fn next(&mut self) -> Box<dyn Scene> {
+        if self.order.is_empty() {
+            panic!("SceneAccess has no scene factories");
         }
-
-        Self { spawns }
-    }
-
-    pub fn load(&self, registry: &AssetRegistry, domain: &mut Domain) {
-        for spawn in &self.spawns {
-            let entry = registry.get(&spawn.name);
-            let pip = PipMaker {
-                xform: spawn.xform.clone(),
-                brush: Brush {
-                    canvas: entry.canvas,
-                    material: entry.material,
-                    scale: spawn.scale,
-                    color: spawn.color,
-                },
-            };
-            domain.make(pip);
-        }
+        self.index = (self.index + 1) % self.order.len();
+        self.order[self.index]()
     }
 }

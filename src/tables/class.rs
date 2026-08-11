@@ -25,6 +25,21 @@ impl<T, K> Class<T, K> {
         };
         Self { growth, data }
     }
+
+    pub fn clear(&mut self) {
+        duplex!(&mut self.data => { clear() } -> unwrap);
+    }
+
+    pub fn columns(&self) -> impl Iterator<Item = (ClassId, &Columnar<T, K>)> {
+        let mut it = duplex!(&self.data => iter());
+        std::iter::from_fn(move || duplex!(&mut it => { next() } -> unwrap))
+    }
+
+    pub fn columns_mut(&mut self) -> impl Iterator<Item = (ClassId, &mut Columnar<T, K>)> {
+        let mut it = duplex!(&mut self.data => iter_mut());
+        std::iter::from_fn(move || duplex!(&mut it => { next() } -> unwrap))
+    }
+
     pub fn get_col(&self, id: ClassId) -> Option<&Columnar<T, K>> {
         duplex!(&self.data => { get(id) } -> unwrap)
     }
