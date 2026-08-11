@@ -11,6 +11,7 @@ use crate::gather::impls::gather_ref;
 use crate::scripting::{DomainView, Script};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
+use crate::tables::tables::TablesView;
 
 const PROJECTILE_SPEED: f32 = 8.0;
 const PROJECTILE_LIFETIME: f32 = 1.2;
@@ -29,15 +30,11 @@ impl Script for PilotScript {
 
         {
             let (ids, tables) = ctx.split();
-            let xforms = &tables.core.xforms;
-            let motions = &mut tables.core.motions;
-            let system = &tables.system;
-
+            let TablesView { core, system, mut additions } = tables.view();
+            let xforms = &core.xforms;
+            let motions = &mut core.motions;
             let (team_map, enemy_positions) = {
-                let maybe_team = tables.additions.get(&TypeId::of::<TeamAddition>()).and_then(|b| {
-                    let any: &dyn Any = b.as_ref();
-                    any.downcast_ref::<TeamAddition>()
-                });
+                let maybe_team = additions.get::<TeamAddition>();
                 match maybe_team {
                     Some(team_add) => {
                         let mut teams = HashMap::new();
@@ -59,13 +56,7 @@ impl Script for PilotScript {
                 }
             };
 
-            let pilot = {
-                let Some(boxed) = tables.additions.get_mut(&TypeId::of::<PilotAddition>()) else {
-                    return;
-                };
-                let any: &mut dyn Any = boxed.as_mut();
-                any.downcast_mut::<PilotAddition>().unwrap()
-            };
+            let pilot = additions.get_mut::<PilotAddition>().unwrap();
             let mut rng = rand::rng();
 
             for (class_id, pilot_col) in pilot.data.columns_mut() {

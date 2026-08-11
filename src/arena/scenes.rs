@@ -54,8 +54,8 @@ fn unregister_common(tables: &mut Tables) {
 }
 
 fn set_enemies_to_chase(domain: &mut Domain, player: PipId) {
-    let mut additions = crate::tables::tables::TablesAdditions::new(&mut domain.tables.additions);
-    let (pilot, team) = additions.get_many_mut::<PilotAddition, TeamAddition>().unwrap();
+    let view = &mut domain.tables.view();
+    let (pilot, team) = view.additions.get_both_mut::<PilotAddition, TeamAddition>().unwrap();
 
     for (class_id, team_col) in team.team.columns() {
         let Some(pilot_col) = pilot.data.get_col_mut(class_id) else { continue };

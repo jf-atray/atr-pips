@@ -16,7 +16,7 @@ use crate::scripting::{DomainView, Script};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::PipId;
-use crate::tables::tables::Tables;
+use crate::tables::tables::{Tables, AdditionsView};
 
 const BOUNDS: f32 = 15.0;
 const HIT_RADIUS: f32 = 0.3;
@@ -73,11 +73,7 @@ pub struct ProjectileSolver;
 impl ProjectileSolver {
     fn team_map(tables: &Tables) -> HashMap<PipId, Team> {
         let mut map = HashMap::new();
-        let Some(team_box) = tables.additions.get(&TypeId::of::<TeamAddition>()) else {
-            return map;
-        };
-        let any: &dyn Any = team_box.as_ref();
-        let Some(team) = any.downcast_ref::<TeamAddition>() else {
+        let Some(team) = tables.get::<TeamAddition>() else {
             return map;
         };
         for (class_id, team_col) in team.team.columns() {
@@ -89,21 +85,10 @@ impl ProjectileSolver {
         map
     }
 
-    fn additions(
-        additions: &mut HashMap<TypeId, Box<dyn crate::tables::partition::Addition>>,
-    ) -> (&mut ProjectileAddition, &mut HealthAddition) {
-        let [Some(p), Some(h)] = additions.get_disjoint_mut([
-            &TypeId::of::<ProjectileAddition>(),
-            &TypeId::of::<HealthAddition>(),
-        ]) else {
-            panic!("projectile and health additions not registered");
-        };
-        let p: &mut dyn Any = p.as_mut();
-        let h: &mut dyn Any = h.as_mut();
-        (
-            p.downcast_mut::<ProjectileAddition>().unwrap(),
-            h.downcast_mut::<HealthAddition>().unwrap(),
-        )
+    fn additions<'a>(additions: &'a mut AdditionsView<'a>) -> (&'a mut ProjectileAddition, &'a mut HealthAddition) {
+        additions
+            .get_both_mut::<ProjectileAddition, HealthAddition>()
+            .expect("projectile and health additions not registered")
     }
 }
 
@@ -120,9 +105,10 @@ impl Script for ProjectileSolver {
         {
             let (_, tables) = ctx.split();
             let team_map = Self::team_map(tables);
-            let xforms = &tables.core.xforms;
-            let system = &tables.system;
-            let (projectile, health) = Self::additions(&mut tables.additions);
+            let mut view = tables.view();
+            let xforms = &view.core.xforms;
+            let system = &view.system;
+            let (projectile, health) = Self::additions(&mut view.additions);
 
             for (class_id, projectile_col) in projectile.data.columns_mut() {
                 let Some(xform_col) = xforms.get_col(class_id) else { continue };
@@ -229,13 +215,9 @@ impl Script for SpawnerSolver {
 
         {
             let (_, tables) = ctx.split();
-            let xforms = &tables.core.xforms;
-            let spawner = {
-                let Some(boxed) = tables.additions.get_mut(&TypeId::of::<SpawnerAddition>()) else { return };
-
-                let any: &mut dyn Any = boxed.as_mut();
-                any.downcast_mut::<SpawnerAddition>().unwrap()
-            };
+            let mut view = tables.view();
+            let xforms = &view.core.xforms;
+            let spawner = view.additions.get_mut::<SpawnerAddition>().unwrap();
             let mut rng = rand::rng();
 
             for (class_id, spawner_col) in spawner.data.columns_mut() {
@@ -269,21 +251,10 @@ pub struct PickupSolver {
 }
 
 impl PickupSolver {
-    fn additions(
-        additions: &mut HashMap<TypeId, Box<dyn crate::tables::partition::Addition>>,
-    ) -> (&mut HealthPickupAddition, &mut HealthAddition) {
-        let [Some(p), Some(h)] = additions.get_disjoint_mut([
-            &TypeId::of::<HealthPickupAddition>(),
-            &TypeId::of::<HealthAddition>(),
-        ]) else {
-            panic!("pickup and health additions not registered");
-        };
-        let p: &mut dyn Any = p.as_mut();
-        let h: &mut dyn Any = h.as_mut();
-        (
-            p.downcast_mut::<HealthPickupAddition>().unwrap(),
-            h.downcast_mut::<HealthAddition>().unwrap(),
-        )
+    fn additions<'a>(additions: &'a mut AdditionsView<'a>) -> (&'a mut HealthPickupAddition, &'a mut HealthAddition) {
+        additions
+            .get_both_mut::<HealthPickupAddition, HealthAddition>()
+            .expect("pickup and health additions not registered")
     }
 }
 
@@ -296,9 +267,10 @@ impl Script for PickupSolver {
 
         {
             let (ids, tables) = ctx.split();
-            let xforms = &tables.core.xforms;
-            let system = &tables.system;
-            let (pickups, health) = Self::additions(&mut tables.additions);
+            let mut view = tables.view();
+            let xforms = &view.core.xforms;
+            let system = &view.system;
+            let (pickups, health) = Self::additions(&mut view.additions);
 
             let player_pos = if let Some(ptr) = ids.get(player) {
                 xforms.get_row(ptr).map_or(Vec2::ZERO, |x| x.xyz.truncate())
