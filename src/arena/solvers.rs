@@ -19,7 +19,7 @@ use crate::tables::PipId;
 use crate::tables::tables::Tables;
 
 const BOUNDS: f32 = 15.0;
-const HIT_RADIUS: f32 = 0.45;
+const HIT_RADIUS: f32 = 0.3;
 const PICKUP_RADIUS: f32 = 0.8;
 
 pub struct MovementSolver;
@@ -194,7 +194,7 @@ impl SpawnerSolver {
         let pilot = match self.player {
             Some(p) => PilotData {
                 state: PilotState::Chase { target: p },
-                speed: 3.0,
+                speed: 2.0,
                 cooldown: 0.0,
             },
             None => PilotData {
