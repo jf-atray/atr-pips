@@ -33,6 +33,26 @@ macro_rules! partition {
             $($fvis $fname: Option<$ftype>, )+
         }
 
+        impl $addition {
+            pub fn new() -> Self {
+                Self {
+                    $($fname: $crate::tables::class::Class::new(
+                        $crate::tables::class_strategy::rarity::common(()),
+                        $crate::tables::class_strategy::GrowthStrategy::quart_kib::<$ftype>(),
+                    ),)+
+                }
+            }
+
+            pub fn with_opinions<F>(f: F) -> Self
+            where
+                F: FnOnce(&mut Self),
+            {
+                let mut addition = Self::new();
+                f(&mut addition);
+                addition
+            }
+        }
+
         impl $view {
             pub fn with(&mut self, $($fname:$ftype, )+) -> &mut Self {
                 $(self.$fname = Some($fname); )+

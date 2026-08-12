@@ -34,7 +34,6 @@ pub struct PilotData {
 pub struct ProjectileData {
     pub lifetime: f32,
     pub damage: f32,
-    pub owner: PipId,
 }
 
 #[derive(Clone, Debug)]

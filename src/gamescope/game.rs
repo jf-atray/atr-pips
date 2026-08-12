@@ -1,23 +1,13 @@
 use std::sync::Arc;
 
-use slotmap::SlotMap;
-
 use crate::assets::AssetRegistry;
-use crate::brushes::Brush;
 use crate::gamescope::scene::{Scene, SceneAccess};
 use crate::gather::impls::gather_ref;
 use crate::scripting::{Scripts, Solvers};
 use crate::seek::{Seek, solve_seek};
 use crate::spacial::camera::Camera;
-use crate::spacial::motion::Motion;
-use crate::spacial::transform::Transform;
 use crate::tables::PipId;
-use crate::tables::class::Class;
-use crate::tables::class_strategy::{GrowthStrategy, rarity};
-use crate::tables::core::CoreAddition;
 use crate::tables::domain::Domain;
-use crate::tables::system::SystemAddition;
-use crate::tables::tables::Tables;
 
 pub struct Game {
     pub domain: Domain,
@@ -31,22 +21,7 @@ pub struct Game {
 
 impl Game {
     pub fn new(scene: SceneAccess, asset_registry: Arc<AssetRegistry>) -> Self {
-        let core = CoreAddition {
-            xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
-            brushes: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Brush>()),
-            names: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<String>()),
-            motions: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Motion>()),
-        };
-        let system = SystemAddition {
-            pip_id: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PipId>()),
-        };
-        let tables = Tables::new(core, system);
-
-        let domain = Domain {
-            tables,
-            heading: SlotMap::with_key(),
-            ids: SlotMap::with_key(),
-        };
+        let domain = Domain::new();
 
         let mut game = Self {
             domain,

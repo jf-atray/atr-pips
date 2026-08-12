@@ -17,8 +17,6 @@ use crate::scripting::{EveryScript, ScriptHost, Scripts, Solvers};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::PipId;
-use crate::tables::class::Class;
-use crate::tables::class_strategy::{GrowthStrategy, rarity};
 use crate::tables::domain::Domain;
 use crate::tables::scope::Scope;
 use crate::tables::tables::Tables;
@@ -40,12 +38,7 @@ fn random_pos(rng: &mut impl Rng) -> Vec2 {
 }
 
 fn register_common(tables: &mut Tables) {
-    if tables.get::<ActorAddition>().is_none() {
-        tables.add(ActorAddition {
-            team: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Team>()),
-            pilot: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PilotData>()),
-        });
-    }
+    tables.get_or_insert::<ActorAddition>(ActorAddition::new());
 }
 
 fn unregister_common(tables: &mut Tables) {
@@ -142,7 +135,7 @@ impl Scene for SplashScene {
                 rot: glam::Quat::IDENTITY,
             };
             let brush = make_brush(registry, "cactus", 2.0);
-            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            domain.make(move |scope: &mut Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.view::<ActorView>().map(|view| view.team(Team::Neutral));
@@ -199,26 +192,7 @@ impl Scene for ArenaScene {
 
     fn register_tables(&self, tables: &mut Tables) {
         register_common(tables);
-        if tables.get::<ArenaAddition>().is_none() {
-            tables.add(ArenaAddition {
-                health: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<HealthData>(),
-                ),
-                projectile: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>(),
-                ),
-                spawner: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<SpawnerData>(),
-                ),
-                pickup: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<HealthPickupData>(),
-                ),
-            });
-        }
+        tables.get_or_insert::<ArenaAddition>(ArenaAddition::new());
     }
 
     fn unregister_tables(&self, tables: &mut Tables) {
@@ -249,7 +223,7 @@ impl Scene for ArenaScene {
                 speed: 2.5,
                 cooldown: 0.0,
             };
-            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            domain.make(move |scope: &mut Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.core.motions = Some(Motion { vel: Vec3::ZERO });
@@ -277,7 +251,7 @@ impl Scene for ArenaScene {
             speed: 4.0,
             cooldown: 0.0,
         };
-        self.player = Some(domain.make(move |scope: &mut crate::tables::scope::Scope| {
+        self.player = Some(domain.make(move |scope: &mut Scope| {
             scope.core.with(
                 player_xform,
                 player_brush,
@@ -304,7 +278,7 @@ impl Scene for ArenaScene {
                 spawned: 0,
                 enemy_brush,
             };
-            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            domain.make(move |scope: &mut Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.view::<ActorView>().map(|view| view.team(Team::Neutral));
@@ -321,7 +295,7 @@ impl Scene for ArenaScene {
             };
             let brush = make_brush(registry, "townie_1", 3.0);
             let pickup = HealthPickupData { amount: 20.0 };
-            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            domain.make(move |scope: &mut Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.view::<ActorView>().map(|view| view.team(Team::Pickup));
@@ -337,7 +311,7 @@ impl Scene for ArenaScene {
                 rot: glam::Quat::IDENTITY,
             };
             let brush = make_brush(registry, "cactus", 2.0);
-            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            domain.make(move |scope: &mut Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.view::<ActorView>().map(|view| view.team(Team::Neutral));
@@ -408,26 +382,7 @@ impl Scene for SwarmScene {
 
     fn register_tables(&self, tables: &mut Tables) {
         register_common(tables);
-        if tables.get::<ArenaAddition>().is_none() {
-            tables.add(ArenaAddition {
-                health: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<HealthData>(),
-                ),
-                projectile: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>(),
-                ),
-                spawner: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<SpawnerData>(),
-                ),
-                pickup: Class::new(
-                    rarity::common(()),
-                    GrowthStrategy::quart_kib::<HealthPickupData>(),
-                ),
-            });
-        }
+        tables.get_or_insert::<ArenaAddition>(ArenaAddition::new());
     }
 
     fn unregister_tables(&self, tables: &mut Tables) {
@@ -487,7 +442,7 @@ impl Scene for SwarmScene {
                 speed: 2.0,
                 cooldown: 0.0,
             };
-            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            domain.make(move |scope: &mut Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.core.motions = Some(Motion { vel: Vec3::ZERO });
@@ -512,7 +467,7 @@ impl Scene for SwarmScene {
                 spawned: 0,
                 enemy_brush,
             };
-            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            domain.make(move |scope: &mut Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.view::<ActorView>().map(|view| view.team(Team::Neutral));

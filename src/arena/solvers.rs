@@ -126,7 +126,6 @@ impl Script for ProjectileSolver {
                         continue;
                     }
                     let pos = xform_col[i].xyz.truncate();
-                    let owner = data.owner;
                     let damage = data.damage;
 
                     'hit: for (health_class_id, health_col) in arena.health.columns_mut() {
@@ -138,7 +137,7 @@ impl Script for ProjectileSolver {
                         };
 
                         for j in 0..health_col.len() {
-                            if health_col[j].health <= 0.0 || pip_h[j] == owner {
+                            if health_col[j].health <= 0.0 {
                                 continue;
                             }
                             if (xform_h[j].xyz.truncate() - pos).length() >= HIT_RADIUS {

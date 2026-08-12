@@ -5,7 +5,7 @@ use crate::tables::domain::Domain;
 use crate::tables::PipId;
 
 pub trait Scene {
-    fn name(&self) -> &str;
+    fn name(&self) -> &'static str;
     fn player(&self) -> Option<PipId>;
     fn register_tables(&self, tables: &mut Tables);
     fn unregister_tables(&self, tables: &mut Tables);

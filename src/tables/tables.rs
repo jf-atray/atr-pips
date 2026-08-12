@@ -8,12 +8,16 @@ pub struct Tables {
     additions: HashMap<TypeId, Box<dyn Addition>>,
 }
 impl Tables {
-    pub fn new(core: CoreAddition, system: SystemAddition) -> Self {
+    pub fn with(core: CoreAddition, system: SystemAddition) -> Self {
         Self {
             core,
             system,
             additions: HashMap::new(),
         }
+    }
+
+    pub fn new() -> Self {
+        Self::with(CoreAddition::new(), SystemAddition::new())
     }
 
     pub fn view(&mut self) -> TablesView<'_> {
@@ -62,6 +66,20 @@ impl<'a> AdditionsView<'a> {
         })
     }
 
+    pub fn get_or_insert<T: Addition + 'static>(&mut self, default: T) -> &mut T {
+        use std::collections::hash_map::Entry;
+        match self.inner.entry(TypeId::of::<T>()) {
+            Entry::Occupied(e) => {
+                let any: &mut dyn Any = e.into_mut().as_mut();
+                any.downcast_mut::<T>().expect("addition type mismatch")
+            }
+            Entry::Vacant(e) => {
+                let any: &mut dyn Any = e.insert(Box::new(default)).as_mut();
+                any.downcast_mut::<T>().expect("addition type mismatch")
+            }
+        }
+    }
+
     pub fn disjoin<const N: usize>(&mut self, ids: [TypeId; N]) -> Option<[&mut Box<dyn Addition>; N]> {
         let refs: [&TypeId; N] = std::array::from_fn(|i| &ids[i]);
         let results: [Option<&mut Box<dyn Addition>>; N] = self.inner.get_disjoint_mut(refs);
@@ -99,6 +117,20 @@ impl Tables {
             let any: &mut dyn Any = a.as_mut();
             any.downcast_mut::<T>()
         })
+    }
+
+    pub fn get_or_insert<T: Addition + 'static>(&mut self, default: T) -> &mut T {
+        use std::collections::hash_map::Entry;
+        match self.additions.entry(TypeId::of::<T>()) {
+            Entry::Occupied(e) => {
+                let any: &mut dyn Any = e.into_mut().as_mut();
+                any.downcast_mut::<T>().expect("addition type mismatch")
+            }
+            Entry::Vacant(e) => {
+                let any: &mut dyn Any = e.insert(Box::new(default)).as_mut();
+                any.downcast_mut::<T>().expect("addition type mismatch")
+            }
+        }
     }
     pub fn get_any(&self, id: &TypeId) -> Option<&dyn Addition> {
         self.additions.get(id).map(std::convert::AsRef::as_ref)
