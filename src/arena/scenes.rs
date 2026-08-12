@@ -92,7 +92,7 @@ impl SplashScene {
 }
 
 impl Scene for SplashScene {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Splash"
     }
 
@@ -189,7 +189,7 @@ impl ArenaScene {
 }
 
 impl Scene for ArenaScene {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Arena"
     }
 
@@ -398,7 +398,7 @@ impl SwarmScene {
 }
 
 impl Scene for SwarmScene {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "Swarm"
     }
 

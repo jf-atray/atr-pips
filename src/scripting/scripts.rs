@@ -28,9 +28,9 @@ impl Scripts {
         self.scripts.insert(RefCell::new(host))
     }
 
-    fn try_borrow_host<'a>(
-        cell: &'a RefCell<ScriptHost>,
-    ) -> Result<RefMut<'a, ScriptHost>, ScriptGetError> {
+    fn try_borrow_host(
+        cell: &RefCell<ScriptHost>,
+    ) -> Result<RefMut<'_, ScriptHost>, ScriptGetError> {
         cell.try_borrow_mut().map_err(|_| ScriptGetError::BadAlias)
     }
 

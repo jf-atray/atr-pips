@@ -65,7 +65,7 @@ impl<'a> AdditionsView<'a> {
     pub fn disjoin<const N: usize>(&mut self, ids: [TypeId; N]) -> Option<[&mut Box<dyn Addition>; N]> {
         let refs: [&TypeId; N] = std::array::from_fn(|i| &ids[i]);
         let results: [Option<&mut Box<dyn Addition>>; N] = self.inner.get_disjoint_mut(refs);
-        if results.iter().any(|o| o.is_none()) {
+        if results.iter().any(std::option::Option::is_none) {
             //I think it's just simpler if it's all or nothing
             return None;
         }
@@ -101,7 +101,7 @@ impl Tables {
         })
     }
     pub fn get_any(&self, id: &TypeId) -> Option<&dyn Addition> {
-        self.additions.get(id).map(|a| a.as_ref())
+        self.additions.get(id).map(std::convert::AsRef::as_ref)
     }
     pub fn get_any_mut(&mut self, id: &TypeId) -> Option<&mut Box<dyn Addition+'static>> {
         self.additions.get_mut(id)
@@ -112,7 +112,7 @@ impl Tables {
     }
 
     pub fn addition_values_mut(&mut self) -> impl Iterator<Item = &mut dyn Addition> {
-        self.additions.values_mut().map(|a| a.as_mut())
+        self.additions.values_mut().map(std::convert::AsMut::as_mut)
     }
 
     pub fn add<T: Addition + 'static>(&mut self, addition: T) {

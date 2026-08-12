@@ -29,12 +29,10 @@ impl Solvers {
 
     pub fn register<T: Script>(&mut self, solver: T) {
         let type_id = TypeId::of::<T>();
-        if self.by_type.contains_key(&type_id) {
-            panic!(
-                "duplicate solver registered: {}",
-                std::any::type_name::<T>()
-            );
-        }
+        assert!(!self.by_type.contains_key(&type_id), 
+            "duplicate solver registered: {}",
+            std::any::type_name::<T>()
+        );
         let id = self.solvers.insert(RefCell::new(ScriptHost::new(
             EveryScript { enabled: true },
             Box::new(solver),
@@ -45,12 +43,12 @@ impl Solvers {
     pub fn remove<T: Script>(&mut self) -> Option<ScriptHost> {
         let type_id = TypeId::of::<T>();
         let id = self.by_type.remove(&type_id)?;
-        self.solvers.remove(id).map(|c| c.into_inner())
+        self.solvers.remove(id).map(std::cell::RefCell::into_inner)
     }
 
-    fn try_borrow_host<'a>(
-        cell: &'a RefCell<ScriptHost>,
-    ) -> Result<RefMut<'a, ScriptHost>, ScriptGetError> {
+    fn try_borrow_host(
+        cell: &RefCell<ScriptHost>,
+    ) -> Result<RefMut<'_, ScriptHost>, ScriptGetError> {
         cell.try_borrow_mut().map_err(|_| ScriptGetError::BadAlias)
     }
 

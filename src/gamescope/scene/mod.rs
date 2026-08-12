@@ -23,9 +23,7 @@ pub struct SceneAccess {
 
 impl SceneAccess {
     pub fn next(&mut self) -> Box<dyn Scene> {
-        if self.order.is_empty() {
-            panic!("SceneAccess has no scene factories");
-        }
+        assert!(!self.order.is_empty(), "SceneAccess has no scene factories");
         self.index = (self.index + 1) % self.order.len();
         self.order[self.index]()
     }
