@@ -6,10 +6,9 @@ use crate::arena::solvers::{
     BoundsSolver, MovementSolver, PickupSolver, ProjectileSolver, SpawnerSolver,
 };
 use crate::arena::tables::{
-    HealthAddition, HealthData, HealthPickupAddition, HealthPickupData, PilotAddition, PilotData,
-    PilotState, ProjectileAddition, SpawnerAddition, SpawnerData, Team, TeamAddition,
+    ActorAddition, ActorView, ArenaAddition, ArenaView, HealthData, HealthPickupData, PilotData,
+    PilotState, SpawnerData, Team,
 };
-use crate::arena::tables::{HealthPickupView, HealthView, PilotView, SpawnerView, TeamView};
 use crate::assets::AssetRegistry;
 use crate::brushes::Brush;
 use crate::gamescope::scene::Scene;
@@ -41,21 +40,16 @@ fn random_pos(rng: &mut impl Rng) -> Vec2 {
 }
 
 fn register_common(tables: &mut Tables) {
-    if tables.get::<TeamAddition>().is_none() {
-        tables.add(TeamAddition {
+    if tables.get::<ActorAddition>().is_none() {
+        tables.add(ActorAddition {
             team: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Team>()),
-        });
-    }
-    if tables.get::<PilotAddition>().is_none() {
-        tables.add(PilotAddition {
-            data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PilotData>()),
+            pilot: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PilotData>()),
         });
     }
 }
 
 fn unregister_common(tables: &mut Tables) {
-    let _ = tables.remove::<TeamAddition>();
-    let _ = tables.remove::<PilotAddition>();
+    let _ = tables.remove::<ActorAddition>();
 }
 
 fn player_dead(domain: &Domain, player: Option<PipId>) -> bool {
@@ -65,19 +59,16 @@ fn player_dead(domain: &Domain, player: Option<PipId>) -> bool {
     };
     domain
         .tables
-        .get::<HealthAddition>()
-        .and_then(|h| h.data.get_row(ptr))
+        .get::<ArenaAddition>()
+        .and_then(|a| a.health.get_row(ptr))
         .is_none_or(|h| h.health <= 0.0)
 }
 
 fn set_enemies_to_chase(domain: &mut Domain, player: PipId) {
     let view = &mut domain.tables.view();
-    let (pilot, team) = view
-        .additions
-        .get_both_mut::<PilotAddition, TeamAddition>()
-        .unwrap();
+    let actor = view.additions.get_mut::<ActorAddition>().unwrap();
 
-    for (pilot_col, team_col) in query_mut_mut(&mut pilot.data, &(), &mut team.team, &()) {
+    for (pilot_col, team_col) in query_mut_mut(&mut actor.pilot, &(), &mut actor.team, &()) {
         for i in 0..pilot_col.len() {
             if team_col[i] == Team::Enemy {
                 pilot_col[i].state = PilotState::Chase { target: player };
@@ -134,8 +125,7 @@ impl Scene for SplashScene {
                 "player".to_string(),
                 Motion { vel: Vec3::ZERO },
             );
-            scope.view::<TeamView>().map(|view| view.with(Team::Player));
-            scope.view::<PilotView>().map(|view| view.with(PilotData {
+            scope.view::<ActorView>().map(|view| view.pilot(Team::Player, PilotData {
                 state: PilotState::Wander {
                     goal: random_goal,
                     timer: 1.0,
@@ -155,7 +145,7 @@ impl Scene for SplashScene {
             domain.make(move |scope: &mut crate::tables::scope::Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
-                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
+                scope.view::<ActorView>().map(|view| view.team(Team::Neutral));
             });
         }
     }
@@ -209,33 +199,21 @@ impl Scene for ArenaScene {
 
     fn register_tables(&self, tables: &mut Tables) {
         register_common(tables);
-        if tables.get::<HealthAddition>().is_none() {
-            tables.add(HealthAddition {
-                data: Class::new(
+        if tables.get::<ArenaAddition>().is_none() {
+            tables.add(ArenaAddition {
+                health: Class::new(
                     rarity::common(()),
                     GrowthStrategy::quart_kib::<HealthData>(),
                 ),
-            });
-        }
-        if tables.get::<ProjectileAddition>().is_none() {
-            tables.add(ProjectileAddition {
-                data: Class::new(
+                projectile: Class::new(
                     rarity::common(()),
                     GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>(),
                 ),
-            });
-        }
-        if tables.get::<SpawnerAddition>().is_none() {
-            tables.add(SpawnerAddition {
-                data: Class::new(
+                spawner: Class::new(
                     rarity::common(()),
                     GrowthStrategy::quart_kib::<SpawnerData>(),
                 ),
-            });
-        }
-        if tables.get::<HealthPickupAddition>().is_none() {
-            tables.add(HealthPickupAddition {
-                data: Class::new(
+                pickup: Class::new(
                     rarity::common(()),
                     GrowthStrategy::quart_kib::<HealthPickupData>(),
                 ),
@@ -244,10 +222,7 @@ impl Scene for ArenaScene {
     }
 
     fn unregister_tables(&self, tables: &mut Tables) {
-        let _ = tables.remove::<HealthAddition>();
-        let _ = tables.remove::<ProjectileAddition>();
-        let _ = tables.remove::<SpawnerAddition>();
-        let _ = tables.remove::<HealthPickupAddition>();
+        let _ = tables.remove::<ArenaAddition>();
         unregister_common(tables);
     }
 
@@ -278,9 +253,8 @@ impl Scene for ArenaScene {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.core.motions = Some(Motion { vel: Vec3::ZERO });
-                scope.view::<TeamView>().map(|view| view.with(Team::Enemy));
-                scope.view::<HealthView>().map(|view| view.with(health));
-                scope.view::<PilotView>().map(|view| view.with(pilot));
+                scope.view::<ActorView>().map(|view| view.pilot(Team::Enemy, pilot));
+                scope.view::<ArenaView>().map(|view| view.health(health));
             });
         }
 
@@ -310,9 +284,8 @@ impl Scene for ArenaScene {
                 "player".to_string(),
                 Motion { vel: Vec3::ZERO },
             );
-            scope.view::<TeamView>().map(|view| view.with(Team::Player));
-            scope.view::<HealthView>().map(|view| view.with(player_health));
-            scope.view::<PilotView>().map(|view| view.with(player_pilot));
+            scope.view::<ActorView>().map(|view| view.pilot(Team::Player, player_pilot));
+            scope.view::<ArenaView>().map(|view| view.health(player_health));
         }));
 
         let spawner_count = rng.random_range(1usize..=2);
@@ -334,8 +307,8 @@ impl Scene for ArenaScene {
             domain.make(move |scope: &mut crate::tables::scope::Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
-                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
-                scope.view::<SpawnerView>().map(|view| view.with(spawner));
+                scope.view::<ActorView>().map(|view| view.team(Team::Neutral));
+                scope.view::<ArenaView>().map(|view| view.spawner(spawner));
             });
         }
 
@@ -351,8 +324,8 @@ impl Scene for ArenaScene {
             domain.make(move |scope: &mut crate::tables::scope::Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
-                scope.view::<TeamView>().map(|view| view.with(Team::Pickup));
-                scope.view::<HealthPickupView>().map(|view| view.with(pickup));
+                scope.view::<ActorView>().map(|view| view.team(Team::Pickup));
+                scope.view::<ArenaView>().map(|view| view.pickup(pickup));
             });
         }
 
@@ -367,7 +340,7 @@ impl Scene for ArenaScene {
             domain.make(move |scope: &mut crate::tables::scope::Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
-                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
+                scope.view::<ActorView>().map(|view| view.team(Team::Neutral));
             });
         }
 
@@ -435,36 +408,30 @@ impl Scene for SwarmScene {
 
     fn register_tables(&self, tables: &mut Tables) {
         register_common(tables);
-        if tables.get::<HealthAddition>().is_none() {
-            tables.add(HealthAddition {
-                data: Class::new(
+        if tables.get::<ArenaAddition>().is_none() {
+            tables.add(ArenaAddition {
+                health: Class::new(
                     rarity::common(()),
                     GrowthStrategy::quart_kib::<HealthData>(),
                 ),
-            });
-        }
-        if tables.get::<ProjectileAddition>().is_none() {
-            tables.add(ProjectileAddition {
-                data: Class::new(
+                projectile: Class::new(
                     rarity::common(()),
                     GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>(),
                 ),
-            });
-        }
-        if tables.get::<SpawnerAddition>().is_none() {
-            tables.add(SpawnerAddition {
-                data: Class::new(
+                spawner: Class::new(
                     rarity::common(()),
                     GrowthStrategy::quart_kib::<SpawnerData>(),
+                ),
+                pickup: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<HealthPickupData>(),
                 ),
             });
         }
     }
 
     fn unregister_tables(&self, tables: &mut Tables) {
-        let _ = tables.remove::<HealthAddition>();
-        let _ = tables.remove::<ProjectileAddition>();
-        let _ = tables.remove::<SpawnerAddition>();
+        let _ = tables.remove::<ArenaAddition>();
         unregister_common(tables);
     }
 
@@ -496,9 +463,8 @@ impl Scene for SwarmScene {
                 "player".to_string(),
                 Motion { vel: Vec3::ZERO },
             );
-            scope.view::<TeamView>().map(|view| view.with(Team::Player));
-            scope.view::<HealthView>().map(|view| view.with(player_health));
-            scope.view::<PilotView>().map(|view| view.with(player_pilot));
+            scope.view::<ActorView>().map(|view| view.pilot(Team::Player, player_pilot));
+            scope.view::<ArenaView>().map(|view| view.health(player_health));
         }));
 
         let enemy_count = rng.random_range(20usize..=30);
@@ -525,9 +491,8 @@ impl Scene for SwarmScene {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
                 scope.core.motions = Some(Motion { vel: Vec3::ZERO });
-                scope.view::<TeamView>().map(|view| view.with(Team::Enemy));
-                scope.view::<HealthView>().map(|view| view.with(health));
-                scope.view::<PilotView>().map(|view| view.with(pilot));
+                scope.view::<ActorView>().map(|view| view.pilot(Team::Enemy, pilot));
+                scope.view::<ArenaView>().map(|view| view.health(health));
             });
         }
 
@@ -550,8 +515,8 @@ impl Scene for SwarmScene {
             domain.make(move |scope: &mut crate::tables::scope::Scope| {
                 scope.core.xforms = Some(xform);
                 scope.core.brushes = Some(brush);
-                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
-                scope.view::<SpawnerView>().map(|view| view.with(spawner));
+                scope.view::<ActorView>().map(|view| view.team(Team::Neutral));
+                scope.view::<ArenaView>().map(|view| view.spawner(spawner));
             });
         }
 

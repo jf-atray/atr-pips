@@ -1,6 +1,5 @@
 use crate::arena::tables::{
-    HealthData, HealthPickupData, HealthPickupView, HealthView, PilotData, PilotView,
-    ProjectileData, ProjectileView, Team, TeamView,
+    ActorView, ArenaView, HealthData, HealthPickupData, PilotData, ProjectileData, Team,
 };
 use crate::brushes::Brush;
 use crate::spacial::motion::Motion;
@@ -27,9 +26,12 @@ impl Maker for ActorBlueprint {
         if let Some(motion) = self.motion {
             scope.core.motions = Some(motion);
         }
-        self.team.map(|team| scope.view::<TeamView>().map(|view| view.with(team)));
-        self.health.map(|health| scope.view::<HealthView>().map(|view| view.with(health)));
-        self.pilot.map(|pilot| scope.view::<PilotView>().map(|view| view.with(pilot)));
+        if let (Some(team), Some(pilot)) = (self.team, self.pilot) {
+            scope.view::<ActorView>().map(|view| view.pilot(team, pilot));
+        } else {
+            self.team.map(|team| scope.view::<ActorView>().map(|view| view.team(team)));
+        }
+        self.health.map(|health| scope.view::<ArenaView>().map(|view| view.health(health)));
     }
 }
 
@@ -45,7 +47,7 @@ impl Maker for ProjectileBlueprint {
         scope.core.xforms = Some(self.xform);
         scope.core.brushes = Some(self.brush);
         scope.core.motions = Some(self.motion);
-        scope.view::<ProjectileView>().map(|view| view.with(self.projectile));
+        scope.view::<ArenaView>().map(|view| view.projectile(self.projectile));
     }
 }
 
@@ -64,7 +66,7 @@ impl Maker for PickupBlueprint {
         if let Some(name) = self.name {
             scope.core.names = Some(name);
         }
-        self.team.map(|team| scope.view::<TeamView>().map(|view| view.with(team)));
-        scope.view::<HealthPickupView>().map(|view| view.with(self.pickup));
+        self.team.map(|team| scope.view::<ActorView>().map(|view| view.team(team)));
+        scope.view::<ArenaView>().map(|view| view.pickup(self.pickup));
     }
 }

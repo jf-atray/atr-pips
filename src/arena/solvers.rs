@@ -5,8 +5,7 @@ use rand::Rng;
 
 use crate::arena::makers::{ActorBlueprint, PickupBlueprint};
 use crate::arena::tables::{
-    HealthAddition, HealthData, HealthPickupAddition, HealthPickupData, PilotData, PilotState,
-    ProjectileAddition, SpawnerAddition, Team, TeamAddition,
+    ActorAddition, ArenaAddition, HealthData, HealthPickupData, PilotData, PilotState, Team,
 };
 use crate::brushes::Brush;
 use crate::gather::impls::gather_mut;
@@ -72,10 +71,10 @@ pub struct ProjectileSolver;
 impl ProjectileSolver {
     fn team_map(tables: &Tables) -> HashMap<PipId, Team> {
         let mut map = HashMap::new();
-        let Some(team) = tables.get::<TeamAddition>() else {
+        let Some(actor) = tables.get::<ActorAddition>() else {
             return map;
         };
-        for (team_col, pip_col) in query_ref_ref(&team.team, &(), &tables.system.pip_id, &()) {
+        for (team_col, pip_col) in query_ref_ref(&actor.team, &(), &tables.system.pip_id, &()) {
             for i in 0..team_col.len() {
                 map.insert(pip_col[i], team_col[i]);
             }
@@ -83,12 +82,10 @@ impl ProjectileSolver {
         map
     }
 
-    fn additions<'a>(
-        additions: &'a mut AdditionsView<'a>,
-    ) -> (&'a mut ProjectileAddition, &'a mut HealthAddition) {
+    fn additions<'a>(additions: &'a mut AdditionsView<'a>) -> &'a mut ArenaAddition {
         additions
-            .get_both_mut::<ProjectileAddition, HealthAddition>()
-            .expect("projectile and health additions not registered")
+            .get_mut::<ArenaAddition>()
+            .expect("arena addition not registered")
     }
 }
 
@@ -111,9 +108,9 @@ impl Script for ProjectileSolver {
             let mut view = tables.view();
             let xforms = &view.core.xforms;
             let system = &view.system;
-            let (projectile, health) = Self::additions(&mut view.additions);
+            let arena = Self::additions(&mut view.additions);
 
-            for (class_id, projectile_col) in projectile.data.columns_mut() {
+            for (class_id, projectile_col) in arena.projectile.columns_mut() {
                 let Some(xform_col) = xforms.get_col(class_id) else {
                     continue;
                 };
@@ -132,7 +129,7 @@ impl Script for ProjectileSolver {
                     let owner = data.owner;
                     let damage = data.damage;
 
-                    'hit: for (health_class_id, health_col) in health.data.columns_mut() {
+                    'hit: for (health_class_id, health_col) in arena.health.columns_mut() {
                         let Some(xform_h) = xforms.get_col(health_class_id) else {
                             continue;
                         };
@@ -226,11 +223,11 @@ impl Script for SpawnerSolver {
         {
             let (_, tables) = ctx.split();
             let mut view = tables.view();
-            let spawner = view.additions.get_mut::<SpawnerAddition>().unwrap();
+            let arena = view.additions.get_mut::<ArenaAddition>().unwrap();
             let mut rng = rand::rng();
 
             for (spawner_col, xform_col) in
-                query_mut_mut(&mut spawner.data, &(), &mut view.core.xforms, &())
+                query_mut_mut(&mut arena.spawner, &(), &mut view.core.xforms, &())
             {
                 for i in 0..spawner_col.len() {
                     let data = &mut spawner_col[i];
@@ -261,12 +258,10 @@ pub struct PickupSolver {
 }
 
 impl PickupSolver {
-    fn additions<'a>(
-        additions: &'a mut AdditionsView<'a>,
-    ) -> (&'a mut HealthPickupAddition, &'a mut HealthAddition) {
+    fn additions<'a>(additions: &'a mut AdditionsView<'a>) -> &'a mut ArenaAddition {
         additions
-            .get_both_mut::<HealthPickupAddition, HealthAddition>()
-            .expect("pickup and health additions not registered")
+            .get_mut::<ArenaAddition>()
+            .expect("arena addition not registered")
     }
 }
 
@@ -280,7 +275,7 @@ impl Script for PickupSolver {
         {
             let (ids, tables) = ctx.split();
             let mut view = tables.view();
-            let (pickups, health) = Self::additions(&mut view.additions);
+            let arena = Self::additions(&mut view.additions);
 
             let player_pos = if let Some(ptr) = ids.get(player) {
                 view.core.xforms
@@ -291,7 +286,7 @@ impl Script for PickupSolver {
             };
 
             for (pickup_col, xform_col, pip_col) in query_mut_mut_mut(
-                &mut pickups.data,
+                &mut arena.pickup,
                 &(),
                 &mut view.core.xforms,
                 &(),
@@ -308,7 +303,7 @@ impl Script for PickupSolver {
             }
 
             for (pip, amount) in to_heal.drain(..) {
-                if let Some(h) = gather_mut(ids, &mut health.data, pip) {
+                if let Some(h) = gather_mut(ids, &mut arena.health, pip) {
                     h.health = (h.health + amount).min(h.max);
                 }
             }

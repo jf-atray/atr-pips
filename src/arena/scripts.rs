@@ -4,7 +4,7 @@ use glam::{Quat, Vec2, Vec3};
 use rand::Rng;
 
 use crate::arena::makers::ProjectileBlueprint;
-use crate::arena::tables::{PilotAddition, PilotState, ProjectileData, Team, TeamAddition};
+use crate::arena::tables::{ActorAddition, PilotState, ProjectileData, Team};
 use crate::brushes::Brush;
 use crate::gather::impls::gather_ref;
 use crate::query::impls::{query_mut_mut_mut, query_ref_ref};
@@ -36,17 +36,17 @@ impl Script for PilotScript {
             let xforms = &core.xforms;
             let motions = &mut core.motions;
             let (team_map, enemy_positions) = {
-                let maybe_team = additions.get::<TeamAddition>();
-                match maybe_team {
-                    Some(team_add) => {
+                let maybe_actor = additions.get::<ActorAddition>();
+                match maybe_actor {
+                    Some(actor) => {
                         let mut teams = HashMap::new();
                         let mut enemies = Vec::new();
-                        for (team_col, pip_id_col) in query_ref_ref(&team_add.team, &(), &system.pip_id, &()) {
+                        for (team_col, pip_id_col) in query_ref_ref(&actor.team, &(), &system.pip_id, &()) {
                             for i in 0..team_col.len() {
                                 teams.insert(pip_id_col[i], team_col[i]);
                             }
                         }
-                        for (team_col, xform_col) in query_ref_ref(&team_add.team, &(), xforms, &()) {
+                        for (team_col, xform_col) in query_ref_ref(&actor.team, &(), xforms, &()) {
                             for i in 0..team_col.len() {
                                 if team_col[i] == Team::Enemy {
                                     enemies.push(xform_col[i].xyz.truncate());
@@ -59,11 +59,11 @@ impl Script for PilotScript {
                 }
             };
 
-            let pilot = additions.get_mut::<PilotAddition>().unwrap();
+            let actor = additions.get_mut::<ActorAddition>().unwrap();
             let mut rng = rand::rng();
 
             for (pilot_col, motion_col, pip_id_col) in query_mut_mut_mut(
-                &mut pilot.data,
+                &mut actor.pilot,
                 &(),
                 motions,
                 &(),

@@ -52,37 +52,52 @@ pub struct HealthPickupData {
 }
 
 crate::partition! {
-    pub struct TeamAddition as TeamView {
+    pub struct ActorAddition as ActorView {
         pub team: Class<Team>,
+        pub pilot: Class<PilotData>,
+    }
+}
+
+impl ActorView {
+    pub fn team(&mut self, team: Team) -> &mut Self {
+        self.team = Some(team);
+        self
+    }
+
+    pub fn pilot(&mut self, team: Team, pilot: PilotData) -> &mut Self {
+        self.team = Some(team);
+        self.pilot = Some(pilot);
+        self
     }
 }
 
 crate::partition! {
-    pub struct PilotAddition as PilotView {
-        pub data: Class<PilotData>,
+    pub struct ArenaAddition as ArenaView {
+        pub health: Class<HealthData>,
+        pub projectile: Class<ProjectileData>,
+        pub spawner: Class<SpawnerData>,
+        pub pickup: Class<HealthPickupData>,
     }
 }
 
-crate::partition! {
-    pub struct HealthAddition as HealthView {
-        pub data: Class<HealthData>,
+impl ArenaView {
+    pub fn health(&mut self, health: HealthData) -> &mut Self {
+        self.health = Some(health);
+        self
     }
-}
 
-crate::partition! {
-    pub struct ProjectileAddition as ProjectileView {
-        pub data: Class<ProjectileData>,
+    pub fn projectile(&mut self, projectile: ProjectileData) -> &mut Self {
+        self.projectile = Some(projectile);
+        self
     }
-}
 
-crate::partition! {
-    pub struct SpawnerAddition as SpawnerView {
-        pub data: Class<SpawnerData>,
+    pub fn spawner(&mut self, spawner: SpawnerData) -> &mut Self {
+        self.spawner = Some(spawner);
+        self
     }
-}
 
-crate::partition! {
-    pub struct HealthPickupAddition as HealthPickupView {
-        pub data: Class<HealthPickupData>,
+    pub fn pickup(&mut self, pickup: HealthPickupData) -> &mut Self {
+        self.pickup = Some(pickup);
+        self
     }
 }
