@@ -114,6 +114,10 @@ impl<T, K: Default + PartialEq> Class<T, K> {
     }
 }
 
+//this is moving up on the list of things to address.
+//data may end up being temporally distant but HIGHLY related
+//maybe class will hold pages for discrete classes to semi-pack
+//then the ClassId() itself can be an enum on where to lookup
 #[derive(Debug)]
 pub struct Columnar<T, K = ()> {
     pub key: K,
