@@ -28,7 +28,7 @@ impl Domain {
     pub fn make<M: Maker>(&mut self, maker: M) -> PipId {
         //acquires a generational index
         let pip = self.ids.insert(ClassRowPtr::new(ClassId::default(), 0));
-        let ptr = self.commit(pip, maker);
+        let ptr = self.commit_with(pip, |scope| maker.make_into(scope));
         //backfill with what class we actually discovered
         self.ids[pip] = ptr;
         pip
@@ -55,7 +55,7 @@ impl Domain {
 
 
 
-    fn commit<M: Maker>(&mut self, pip: PipId, maker: M) -> ClassRowPtr {
+    fn commit_with<F: FnOnce(&mut Scope)>(&mut self, pip: PipId, f: F) -> ClassRowPtr {
         let mut scope = Scope::default();
 
         for (addition_id, addition) in self.tables.addition_entries() {
@@ -64,7 +64,7 @@ impl Domain {
             scope.additions.insert(view_id, (*addition_id, view));
         }
 
-        maker.make_into(&mut scope);
+        f(&mut scope);
         scope.system.pip_id = Some(pip);
 
         let width = scope.width();
@@ -129,18 +129,16 @@ mod tests {
     }
 
     fn tables() -> Tables {
-        Tables {
-            core: CoreAddition {
-                xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
-                brushes: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Brush>()),
-                names: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<String>()),
-                motions: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Motion>()),
-            },
-            additions: HashMap::new(),
-            system: SystemAddition {
-                pip_id: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PipId>()),
-            },
-        }
+        let core = CoreAddition {
+            xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
+            brushes: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Brush>()),
+            names: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<String>()),
+            motions: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Motion>()),
+        };
+        let system = SystemAddition {
+            pip_id: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PipId>()),
+        };
+        Tables::new(core, system)
     }
 
     #[test]

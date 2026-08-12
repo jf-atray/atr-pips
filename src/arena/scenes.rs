@@ -1,13 +1,15 @@
 use glam::{Vec2, Vec3};
 use rand::Rng;
 
-use crate::arena::makers::{ActorBlueprint, PickupBlueprint, SpawnerBlueprint};
 use crate::arena::scripts::PilotScript;
-use crate::arena::solvers::{BoundsSolver, MovementSolver, PickupSolver, ProjectileSolver, SpawnerSolver};
+use crate::arena::solvers::{
+    BoundsSolver, MovementSolver, PickupSolver, ProjectileSolver, SpawnerSolver,
+};
 use crate::arena::tables::{
     HealthAddition, HealthData, HealthPickupAddition, HealthPickupData, PilotAddition, PilotData,
-    PilotState, SpawnerData, SpawnerAddition, Team, TeamAddition, ProjectileAddition,
+    PilotState, ProjectileAddition, SpawnerAddition, SpawnerData, Team, TeamAddition,
 };
+use crate::arena::tables::{HealthPickupView, HealthView, PilotView, SpawnerView, TeamView};
 use crate::assets::AssetRegistry;
 use crate::brushes::Brush;
 use crate::gamescope::scene::Scene;
@@ -15,11 +17,12 @@ use crate::query::impls::query_mut_mut;
 use crate::scripting::{EveryScript, ScriptHost, Scripts, Solvers};
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
-use crate::tables::class::Class;
-use crate::tables::class_strategy::{rarity, GrowthStrategy};
-use crate::tables::domain::Domain;
-use crate::tables::tables::Tables;
 use crate::tables::PipId;
+use crate::tables::class::Class;
+use crate::tables::class_strategy::{GrowthStrategy, rarity};
+use crate::tables::domain::Domain;
+use crate::tables::scope::Scope;
+use crate::tables::tables::Tables;
 
 const SPAWN_BOUNDS: f32 = 12.0;
 
@@ -39,10 +42,14 @@ fn random_pos(rng: &mut impl Rng) -> Vec2 {
 
 fn register_common(tables: &mut Tables) {
     if tables.get::<TeamAddition>().is_none() {
-        tables.add(TeamAddition { team: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Team>()) });
+        tables.add(TeamAddition {
+            team: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Team>()),
+        });
     }
     if tables.get::<PilotAddition>().is_none() {
-        tables.add(PilotAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PilotData>()) });
+        tables.add(PilotAddition {
+            data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PilotData>()),
+        });
     }
 }
 
@@ -51,9 +58,24 @@ fn unregister_common(tables: &mut Tables) {
     let _ = tables.remove::<PilotAddition>();
 }
 
+fn player_dead(domain: &Domain, player: Option<PipId>) -> bool {
+    let Some(pid) = player else { return false };
+    let Some(ptr) = domain.ids.get(pid) else {
+        return true;
+    };
+    domain
+        .tables
+        .get::<HealthAddition>()
+        .and_then(|h| h.data.get_row(ptr))
+        .is_none_or(|h| h.health <= 0.0)
+}
+
 fn set_enemies_to_chase(domain: &mut Domain, player: PipId) {
     let view = &mut domain.tables.view();
-    let (pilot, team) = view.additions.get_both_mut::<PilotAddition, TeamAddition>().unwrap();
+    let (pilot, team) = view
+        .additions
+        .get_both_mut::<PilotAddition, TeamAddition>()
+        .unwrap();
 
     for (pilot_col, team_col) in query_mut_mut(&mut pilot.data, &(), &mut team.team, &()) {
         for i in 0..pilot_col.len() {
@@ -71,7 +93,10 @@ pub struct SplashScene {
 
 impl SplashScene {
     pub fn new() -> Self {
-        Self { timer: 0.0, player: None }
+        Self {
+            timer: 0.0,
+            player: None,
+        }
     }
 }
 
@@ -96,27 +121,41 @@ impl Scene for SplashScene {
         let mut rng = rand::rng();
 
         let player_pos = Vec2::ZERO;
-        self.player = Some(domain.make(ActorBlueprint {
-            xform: Transform { xyz: Vec3::new(player_pos.x, player_pos.y, 0.0), rot: glam::Quat::IDENTITY },
-            brush: make_brush(registry, "player_happy", 5.0),
-            name: Some("player".to_string()),
-            motion: Some(Motion { vel: Vec3::ZERO }),
-            team: Some(Team::Player),
-            health: None,
-            pilot: Some(PilotData { state: PilotState::Wander { goal: random_pos(&mut rng), timer: 1.0 }, speed: 3.0, cooldown: 0.0 }),
+        let prop_count = rng.random_range(4usize..=6);
+        let random_goal = random_pos(&mut rng);
+
+        self.player = Some(domain.make(move |scope: &mut Scope| {
+            scope.core.with(
+                Transform {
+                    xyz: Vec3::new(player_pos.x, player_pos.y, 0.0),
+                    rot: glam::Quat::IDENTITY,
+                },
+                make_brush(registry, "player_happy", 5.0),
+                "player".to_string(),
+                Motion { vel: Vec3::ZERO },
+            );
+            scope.view::<TeamView>().map(|view| view.with(Team::Player));
+            scope.view::<PilotView>().map(|view| view.with(PilotData {
+                state: PilotState::Wander {
+                    goal: random_goal,
+                    timer: 1.0,
+                },
+                speed: 3.0,
+                cooldown: 0.0,
+            }));
         }));
 
-        let prop_count = rng.random_range(4usize..=6);
         for _ in 0..prop_count {
             let pos = random_pos(&mut rng);
-            domain.make(ActorBlueprint {
-                xform: Transform { xyz: Vec3::new(pos.x, pos.y, 0.0), rot: glam::Quat::IDENTITY },
-                brush: make_brush(registry, "cactus", 2.0),
-                name: None,
-                motion: None,
-                team: Some(Team::Neutral),
-                health: None,
-                pilot: None,
+            let xform = Transform {
+                xyz: Vec3::new(pos.x, pos.y, 0.0),
+                rot: glam::Quat::IDENTITY,
+            };
+            let brush = make_brush(registry, "cactus", 2.0);
+            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+                scope.core.xforms = Some(xform);
+                scope.core.brushes = Some(brush);
+                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
             });
         }
     }
@@ -148,15 +187,14 @@ pub struct ArenaScene {
 
 impl ArenaScene {
     pub fn new() -> Self {
-        Self { timer: 0.0, player: None }
+        Self {
+            timer: 0.0,
+            player: None,
+        }
     }
 
     fn health_dead(&self, domain: &Domain) -> bool {
-        let Some(pid) = self.player else { return false };
-        let Some(ptr) = domain.ids.get(pid) else { return true };
-        domain.tables.get::<HealthAddition>()
-            .and_then(|h| h.data.get_row(ptr))
-            .is_none_or(|h| h.health <= 0.0)
+        player_dead(domain, self.player)
     }
 }
 
@@ -172,16 +210,36 @@ impl Scene for ArenaScene {
     fn register_tables(&self, tables: &mut Tables) {
         register_common(tables);
         if tables.get::<HealthAddition>().is_none() {
-            tables.add(HealthAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<HealthData>()) });
+            tables.add(HealthAddition {
+                data: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<HealthData>(),
+                ),
+            });
         }
         if tables.get::<ProjectileAddition>().is_none() {
-            tables.add(ProjectileAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>()) });
+            tables.add(ProjectileAddition {
+                data: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>(),
+                ),
+            });
         }
         if tables.get::<SpawnerAddition>().is_none() {
-            tables.add(SpawnerAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<SpawnerData>()) });
+            tables.add(SpawnerAddition {
+                data: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<SpawnerData>(),
+                ),
+            });
         }
         if tables.get::<HealthPickupAddition>().is_none() {
-            tables.add(HealthPickupAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<HealthPickupData>()) });
+            tables.add(HealthPickupAddition {
+                data: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<HealthPickupData>(),
+                ),
+            });
         }
     }
 
@@ -199,64 +257,115 @@ impl Scene for ArenaScene {
         let enemy_count = rng.random_range(4usize..=6);
         for _ in 0..enemy_count {
             let pos = random_pos(&mut rng);
-            domain.make(ActorBlueprint {
-                xform: Transform { xyz: Vec3::new(pos.x, pos.y, 0.0), rot: glam::Quat::IDENTITY },
-                brush: make_brush(registry, "red", 1.2),
-                name: None,
-                motion: Some(Motion { vel: Vec3::ZERO }),
-                team: Some(Team::Enemy),
-                health: Some(HealthData { health: 30.0, max: 30.0 }),
-                pilot: Some(PilotData { state: PilotState::Wander { goal: random_pos(&mut rng), timer: 1.0 }, speed: 2.5, cooldown: 0.0 }),
+            let xform = Transform {
+                xyz: Vec3::new(pos.x, pos.y, 0.0),
+                rot: glam::Quat::IDENTITY,
+            };
+            let brush = make_brush(registry, "red", 1.2);
+            let health = HealthData {
+                health: 30.0,
+                max: 30.0,
+            };
+            let pilot = PilotData {
+                state: PilotState::Wander {
+                    goal: random_pos(&mut rng),
+                    timer: 1.0,
+                },
+                speed: 2.5,
+                cooldown: 0.0,
+            };
+            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+                scope.core.xforms = Some(xform);
+                scope.core.brushes = Some(brush);
+                scope.core.motions = Some(Motion { vel: Vec3::ZERO });
+                scope.view::<TeamView>().map(|view| view.with(Team::Enemy));
+                scope.view::<HealthView>().map(|view| view.with(health));
+                scope.view::<PilotView>().map(|view| view.with(pilot));
             });
         }
 
         let player_pos = Vec2::ZERO;
-        let player_state = PilotState::Wander { goal: random_pos(&mut rng), timer: 2.0 };
-        self.player = Some(domain.make(ActorBlueprint {
-            xform: Transform { xyz: Vec3::new(player_pos.x, player_pos.y, 0.0), rot: glam::Quat::IDENTITY },
-            brush: make_brush(registry, "player_happy", 5.0),
-            name: Some("player".to_string()),
-            motion: Some(Motion { vel: Vec3::ZERO }),
-            team: Some(Team::Player),
-            health: Some(HealthData { health: 150.0, max: 150.0 }),
-            pilot: Some(PilotData { state: player_state, speed: 4.0, cooldown: 0.0 }),
+        let player_state = PilotState::Wander {
+            goal: random_pos(&mut rng),
+            timer: 2.0,
+        };
+        let player_xform = Transform {
+            xyz: Vec3::new(player_pos.x, player_pos.y, 0.0),
+            rot: glam::Quat::IDENTITY,
+        };
+        let player_brush = make_brush(registry, "player_happy", 5.0);
+        let player_health = HealthData {
+            health: 150.0,
+            max: 150.0,
+        };
+        let player_pilot = PilotData {
+            state: player_state,
+            speed: 4.0,
+            cooldown: 0.0,
+        };
+        self.player = Some(domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            scope.core.xforms = Some(player_xform);
+            scope.core.brushes = Some(player_brush);
+            scope.core.names = Some("player".to_string());
+            scope.core.motions = Some(Motion { vel: Vec3::ZERO });
+            scope.view::<TeamView>().map(|view| view.with(Team::Player));
+            scope.view::<HealthView>().map(|view| view.with(player_health));
+            scope.view::<PilotView>().map(|view| view.with(player_pilot));
         }));
 
         let spawner_count = rng.random_range(1usize..=2);
         for _ in 0..spawner_count {
             let pos = random_pos(&mut rng);
-            domain.make(SpawnerBlueprint {
-                xform: Transform { xyz: Vec3::new(pos.x, pos.y, 0.0), rot: glam::Quat::IDENTITY },
-                brush: make_brush(registry, "blue", 1.2),
-                name: None,
-                team: Some(Team::Neutral),
-                spawner: SpawnerData { interval: 2.0, timer: 1.0, max_count: 10, spawned: 0, enemy_brush: make_brush(registry, "red", 1.2) },
+            let xform = Transform {
+                xyz: Vec3::new(pos.x, pos.y, 0.0),
+                rot: glam::Quat::IDENTITY,
+            };
+            let brush = make_brush(registry, "blue", 1.2);
+            let enemy_brush = make_brush(registry, "red", 1.2);
+            let spawner = SpawnerData {
+                interval: 2.0,
+                timer: 1.0,
+                max_count: 10,
+                spawned: 0,
+                enemy_brush,
+            };
+            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+                scope.core.xforms = Some(xform);
+                scope.core.brushes = Some(brush);
+                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
+                scope.view::<SpawnerView>().map(|view| view.with(spawner));
             });
         }
 
         let pickup_count = rng.random_range(1usize..=2);
         for _ in 0..pickup_count {
             let pos = random_pos(&mut rng);
-            domain.make(PickupBlueprint {
-                xform: Transform { xyz: Vec3::new(pos.x, pos.y, 0.0), rot: glam::Quat::IDENTITY },
-                brush: make_brush(registry, "townie_1", 3.0),
-                name: None,
-                team: Some(Team::Pickup),
-                pickup: HealthPickupData { amount: 20.0 },
+            let xform = Transform {
+                xyz: Vec3::new(pos.x, pos.y, 0.0),
+                rot: glam::Quat::IDENTITY,
+            };
+            let brush = make_brush(registry, "townie_1", 3.0);
+            let pickup = HealthPickupData { amount: 20.0 };
+            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+                scope.core.xforms = Some(xform);
+                scope.core.brushes = Some(brush);
+                scope.view::<TeamView>().map(|view| view.with(Team::Pickup));
+                scope.view::<HealthPickupView>().map(|view| view.with(pickup));
             });
         }
 
         let prop_count = rng.random_range(2usize..=4);
         for _ in 0..prop_count {
             let pos = random_pos(&mut rng);
-            domain.make(ActorBlueprint {
-                xform: Transform { xyz: Vec3::new(pos.x, pos.y, 0.0), rot: glam::Quat::IDENTITY },
-                brush: make_brush(registry, "cactus", 2.0),
-                name: None,
-                motion: None,
-                team: Some(Team::Neutral),
-                health: None,
-                pilot: None,
+            let xform = Transform {
+                xyz: Vec3::new(pos.x, pos.y, 0.0),
+                rot: glam::Quat::IDENTITY,
+            };
+            let brush = make_brush(registry, "cactus", 2.0);
+            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+                scope.core.xforms = Some(xform);
+                scope.core.brushes = Some(brush);
+                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
             });
         }
 
@@ -266,12 +375,19 @@ impl Scene for ArenaScene {
     }
 
     fn setup(&mut self, scripts: &mut Scripts, solvers: &mut Solvers) {
-        scripts.add(ScriptHost::new(EveryScript { enabled: true }, Box::new(PilotScript)));
+        scripts.add(ScriptHost::new(
+            EveryScript { enabled: true },
+            Box::new(PilotScript),
+        ));
         solvers.register(MovementSolver);
         solvers.register(BoundsSolver);
         solvers.register(ProjectileSolver);
-        solvers.register(SpawnerSolver { player: self.player });
-        solvers.register(PickupSolver { player: self.player });
+        solvers.register(SpawnerSolver {
+            player: self.player,
+        });
+        solvers.register(PickupSolver {
+            player: self.player,
+        });
     }
 
     fn teardown(&self, _scripts: &mut Scripts, solvers: &mut Solvers) {
@@ -295,15 +411,14 @@ pub struct SwarmScene {
 
 impl SwarmScene {
     pub fn new() -> Self {
-        Self { timer: 0.0, player: None }
+        Self {
+            timer: 0.0,
+            player: None,
+        }
     }
 
     fn health_dead(&self, domain: &Domain) -> bool {
-        let Some(pid) = self.player else { return false };
-        let Some(ptr) = domain.ids.get(pid) else { return true };
-        domain.tables.get::<HealthAddition>()
-            .and_then(|h| h.data.get_row(ptr))
-            .is_none_or(|h| h.health <= 0.0)
+        player_dead(domain, self.player)
     }
 }
 
@@ -319,13 +434,28 @@ impl Scene for SwarmScene {
     fn register_tables(&self, tables: &mut Tables) {
         register_common(tables);
         if tables.get::<HealthAddition>().is_none() {
-            tables.add(HealthAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<HealthData>()) });
+            tables.add(HealthAddition {
+                data: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<HealthData>(),
+                ),
+            });
         }
         if tables.get::<ProjectileAddition>().is_none() {
-            tables.add(ProjectileAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>()) });
+            tables.add(ProjectileAddition {
+                data: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<crate::arena::tables::ProjectileData>(),
+                ),
+            });
         }
         if tables.get::<SpawnerAddition>().is_none() {
-            tables.add(SpawnerAddition { data: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<SpawnerData>()) });
+            tables.add(SpawnerAddition {
+                data: Class::new(
+                    rarity::common(()),
+                    GrowthStrategy::quart_kib::<SpawnerData>(),
+                ),
+            });
         }
     }
 
@@ -340,39 +470,84 @@ impl Scene for SwarmScene {
         let mut rng = rand::rng();
 
         let player_pos = Vec2::ZERO;
-        self.player = Some(domain.make(ActorBlueprint {
-            xform: Transform { xyz: Vec3::new(player_pos.x, player_pos.y, 0.0), rot: glam::Quat::IDENTITY },
-            brush: make_brush(registry, "player_happy", 5.0),
-            name: Some("player".to_string()),
-            motion: Some(Motion { vel: Vec3::ZERO }),
-            team: Some(Team::Player),
-            health: Some(HealthData { health: 250.0, max: 250.0 }),
-            pilot: Some(PilotData { state: PilotState::Wander { goal: random_pos(&mut rng), timer: 2.0 }, speed: 4.0, cooldown: 0.0 }),
+        let player_xform = Transform {
+            xyz: Vec3::new(player_pos.x, player_pos.y, 0.0),
+            rot: glam::Quat::IDENTITY,
+        };
+        let player_brush = make_brush(registry, "player_happy", 5.0);
+        let player_health = HealthData {
+            health: 250.0,
+            max: 250.0,
+        };
+        let player_pilot = PilotData {
+            state: PilotState::Wander {
+                goal: random_pos(&mut rng),
+                timer: 2.0,
+            },
+            speed: 4.0,
+            cooldown: 0.0,
+        };
+        self.player = Some(domain.make(move |scope: &mut crate::tables::scope::Scope| {
+            scope.core.xforms = Some(player_xform);
+            scope.core.brushes = Some(player_brush);
+            scope.core.names = Some("player".to_string());
+            scope.core.motions = Some(Motion { vel: Vec3::ZERO });
+            scope.view::<TeamView>().map(|view| view.with(Team::Player));
+            scope.view::<HealthView>().map(|view| view.with(player_health));
+            scope.view::<PilotView>().map(|view| view.with(player_pilot));
         }));
 
         let enemy_count = rng.random_range(20usize..=30);
         for _ in 0..enemy_count {
             let pos = random_pos(&mut rng);
-            domain.make(ActorBlueprint {
-                xform: Transform { xyz: Vec3::new(pos.x, pos.y, 0.0), rot: glam::Quat::IDENTITY },
-                brush: make_brush(registry, "bandit-1", 3.0),
-                name: None,
-                motion: Some(Motion { vel: Vec3::ZERO }),
-                team: Some(Team::Enemy),
-                health: Some(HealthData { health: 20.0, max: 20.0 }),
-                pilot: Some(PilotData { state: PilotState::Wander { goal: random_pos(&mut rng), timer: 1.0 }, speed: 2.0, cooldown: 0.0 }),
+            let xform = Transform {
+                xyz: Vec3::new(pos.x, pos.y, 0.0),
+                rot: glam::Quat::IDENTITY,
+            };
+            let brush = make_brush(registry, "bandit-1", 3.0);
+            let health = HealthData {
+                health: 20.0,
+                max: 20.0,
+            };
+            let pilot = PilotData {
+                state: PilotState::Wander {
+                    goal: random_pos(&mut rng),
+                    timer: 1.0,
+                },
+                speed: 2.0,
+                cooldown: 0.0,
+            };
+            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+                scope.core.xforms = Some(xform);
+                scope.core.brushes = Some(brush);
+                scope.core.motions = Some(Motion { vel: Vec3::ZERO });
+                scope.view::<TeamView>().map(|view| view.with(Team::Enemy));
+                scope.view::<HealthView>().map(|view| view.with(health));
+                scope.view::<PilotView>().map(|view| view.with(pilot));
             });
         }
 
         let spawner_count = rng.random_range(2usize..=3);
         for _ in 0..spawner_count {
             let pos = random_pos(&mut rng);
-            domain.make(SpawnerBlueprint {
-                xform: Transform { xyz: Vec3::new(pos.x, pos.y, 0.0), rot: glam::Quat::IDENTITY },
-                brush: make_brush(registry, "yellow", 1.2),
-                name: None,
-                team: Some(Team::Neutral),
-                spawner: SpawnerData { interval: 1.5, timer: 0.5, max_count: 40, spawned: 0, enemy_brush: make_brush(registry, "bandit-1", 3.0) },
+            let xform = Transform {
+                xyz: Vec3::new(pos.x, pos.y, 0.0),
+                rot: glam::Quat::IDENTITY,
+            };
+            let brush = make_brush(registry, "yellow", 1.2);
+            let enemy_brush = make_brush(registry, "bandit-1", 3.0);
+            let spawner = SpawnerData {
+                interval: 1.5,
+                timer: 0.5,
+                max_count: 40,
+                spawned: 0,
+                enemy_brush,
+            };
+            domain.make(move |scope: &mut crate::tables::scope::Scope| {
+                scope.core.xforms = Some(xform);
+                scope.core.brushes = Some(brush);
+                scope.view::<TeamView>().map(|view| view.with(Team::Neutral));
+                scope.view::<SpawnerView>().map(|view| view.with(spawner));
             });
         }
 
@@ -382,11 +557,16 @@ impl Scene for SwarmScene {
     }
 
     fn setup(&mut self, scripts: &mut Scripts, solvers: &mut Solvers) {
-        scripts.add(ScriptHost::new(EveryScript { enabled: true }, Box::new(PilotScript)));
+        scripts.add(ScriptHost::new(
+            EveryScript { enabled: true },
+            Box::new(PilotScript),
+        ));
         solvers.register(MovementSolver);
         solvers.register(BoundsSolver);
         solvers.register(ProjectileSolver);
-        solvers.register(SpawnerSolver { player: self.player });
+        solvers.register(SpawnerSolver {
+            player: self.player,
+        });
     }
 
     fn teardown(&self, _scripts: &mut Scripts, solvers: &mut Solvers) {

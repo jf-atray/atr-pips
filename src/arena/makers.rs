@@ -1,6 +1,6 @@
 use crate::arena::tables::{
     HealthData, HealthPickupData, HealthPickupView, HealthView, PilotData, PilotView,
-    ProjectileData, ProjectileView, SpawnerData, SpawnerView, Team, TeamView,
+    ProjectileData, ProjectileView, Team, TeamView,
 };
 use crate::brushes::Brush;
 use crate::spacial::motion::Motion;
@@ -60,31 +60,6 @@ impl Maker for ProjectileBlueprint {
     }
 }
 
-pub struct SpawnerBlueprint {
-    pub xform: Transform,
-    pub brush: Brush,
-    pub name: Option<String>,
-    pub team: Option<Team>,
-    pub spawner: SpawnerData,
-}
-
-impl Maker for SpawnerBlueprint {
-    fn make_into(self, scope: &mut Scope) {
-        scope.core.xforms = Some(self.xform);
-        scope.core.brushes = Some(self.brush);
-        if let Some(name) = self.name {
-            scope.core.names = Some(name);
-        }
-        if let Some(team) = self.team
-            && let Some(view) = scope.view::<TeamView>() {
-                view.team = Some(team);
-            }
-        if let Some(view) = scope.view::<SpawnerView>() {
-            view.data = Some(self.spawner);
-        }
-    }
-}
-
 pub struct PickupBlueprint {
     pub xform: Transform,
     pub brush: Brush,
@@ -109,4 +84,3 @@ impl Maker for PickupBlueprint {
         }
     }
 }
-

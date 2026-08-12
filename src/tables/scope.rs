@@ -60,6 +60,12 @@ impl Scope {
 }
 
 
-pub trait Maker: Any {
+pub trait Maker {
     fn make_into(self, scope: &mut Scope);
+}
+
+impl<F: FnOnce(&mut Scope)> Maker for F {
+    fn make_into(self, scope: &mut Scope) {
+        self(scope);
+    }
 }

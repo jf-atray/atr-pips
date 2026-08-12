@@ -33,7 +33,15 @@ macro_rules! partition {
             $($fvis $fname: Option<$ftype>, )+
         }
 
+        impl $view {
+            pub fn with(&mut self, $($fname:$ftype, )+) -> &mut Self {
+                $(self.$fname = Some($fname); )+
+                self
+            }
+        }
+
         impl $crate::tables::partition::View for $view {
+
             fn width(&self) -> usize {
                 0usize $(+ self.$fname.is_some() as usize)+
             }
