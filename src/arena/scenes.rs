@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3, Vec4};
+use glam::{Vec2, Vec3};
 use rand::Rng;
 
 use crate::arena::makers::{ActorBlueprint, PickupBlueprint, SpawnerBlueprint};
@@ -156,7 +156,7 @@ impl ArenaScene {
         let Some(ptr) = domain.ids.get(pid) else { return true };
         domain.tables.get::<HealthAddition>()
             .and_then(|h| h.data.get_row(ptr))
-            .map_or(true, |h| h.health <= 0.0)
+            .is_none_or(|h| h.health <= 0.0)
     }
 }
 
@@ -303,7 +303,7 @@ impl SwarmScene {
         let Some(ptr) = domain.ids.get(pid) else { return true };
         domain.tables.get::<HealthAddition>()
             .and_then(|h| h.data.get_row(ptr))
-            .map_or(true, |h| h.health <= 0.0)
+            .is_none_or(|h| h.health <= 0.0)
     }
 }
 

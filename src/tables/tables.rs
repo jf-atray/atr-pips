@@ -24,7 +24,7 @@ impl Tables {
             additions,
         }
     }
-    pub fn clear(&mut self) -> () {
+    pub fn clear(&mut self) {
         self.core.clear();
         self.system.clear();
         for adtn in &mut self.additions {

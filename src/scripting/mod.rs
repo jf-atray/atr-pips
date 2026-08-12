@@ -8,10 +8,8 @@ pub mod scripts;
 pub mod solvers;
 
 pub use context::DomainView;
-pub use error::ScriptGetError;
 pub use every::EveryScript;
-pub use host::{ScriptHost, ScriptHostMut};
-pub use id::ScriptId;
+pub use host::ScriptHost;
 pub use script::Script;
 pub use scripts::Scripts;
 pub use solvers::Solvers;

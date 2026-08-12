@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap};
+use std::any::Any;
 
 use slotmap::SlotMap;
 

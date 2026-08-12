@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::collections::HashMap;
 
 use slotmap::SlotMap;
 
@@ -12,7 +11,7 @@ use crate::seek::{Seek, solve_seek};
 use crate::spacial::camera::Camera;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
-use crate::tables::{PipId, ClassRowPtr};
+use crate::tables::PipId;
 use crate::tables::class::Class;
 use crate::tables::class_strategy::{GrowthStrategy, rarity};
 use crate::tables::core::CoreAddition;
@@ -103,8 +102,8 @@ impl Game {
     }
 
     pub fn update(&mut self, dt: f32, aspect: f32) {
-        self.scripts.update_enabled(dt, &mut self.domain, &self.solvers, &*self.asset_registry);
-        self.solvers.update_enabled(dt, &mut self.domain, &self.scripts, &*self.asset_registry);
+        self.scripts.update_enabled(dt, &mut self.domain, &self.solvers, &self.asset_registry);
+        self.solvers.update_enabled(dt, &mut self.domain, &self.scripts, &self.asset_registry);
         self.follow_player(dt);
         self.camera.update(aspect);
         self.maybe_switch_scene(dt);

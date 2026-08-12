@@ -18,7 +18,7 @@ impl Scope {
 
     pub(crate) fn width(&self) -> usize {
         let mut n = self.core.width() + self.system.width();
-        for (_, (_, view)) in &self.additions {
+        for (_, view) in self.additions.values() {
             n += view.width();
         }
         n
@@ -31,7 +31,7 @@ impl Scope {
         if !self.system.matches(class_id, &tables.system) {
             return false;
         }
-        for (view_id, (addition_id, view)) in &self.additions {
+        for (_view_id, (addition_id, view)) in &self.additions {
             let Some(addition) = tables.get_any(addition_id) else {
                 return false;
             };
@@ -48,7 +48,7 @@ impl Scope {
         if row.is_none() { row = system_row; }
 
         //todo check the dependency inversion on this.
-        for (view_id, (addition_id, view)) in &mut self.additions {
+        for (_view_id, (addition_id, view)) in &mut self.additions {
             if let Some(addition) = tables.get_any_mut(addition_id) {
                 let view_row = view.commit(class_id, addition.as_mut());
                 if row.is_none() { row = view_row; }

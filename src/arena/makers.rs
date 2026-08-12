@@ -27,21 +27,18 @@ impl Maker for ActorBlueprint {
         if let Some(motion) = self.motion {
             scope.core.motions = Some(motion);
         }
-        if let Some(team) = self.team {
-            if let Some(view) = scope.view::<TeamView>() {
+        if let Some(team) = self.team
+            && let Some(view) = scope.view::<TeamView>() {
                 view.team = Some(team);
             }
-        }
-        if let Some(health) = self.health {
-            if let Some(view) = scope.view::<HealthView>() {
+        if let Some(health) = self.health
+            && let Some(view) = scope.view::<HealthView>() {
                 view.data = Some(health);
             }
-        }
-        if let Some(pilot) = self.pilot {
-            if let Some(view) = scope.view::<PilotView>() {
+        if let Some(pilot) = self.pilot
+            && let Some(view) = scope.view::<PilotView>() {
                 view.data = Some(pilot);
             }
-        }
     }
 }
 
@@ -78,11 +75,10 @@ impl Maker for SpawnerBlueprint {
         if let Some(name) = self.name {
             scope.core.names = Some(name);
         }
-        if let Some(team) = self.team {
-            if let Some(view) = scope.view::<TeamView>() {
+        if let Some(team) = self.team
+            && let Some(view) = scope.view::<TeamView>() {
                 view.team = Some(team);
             }
-        }
         if let Some(view) = scope.view::<SpawnerView>() {
             view.data = Some(self.spawner);
         }
@@ -104,11 +100,10 @@ impl Maker for PickupBlueprint {
         if let Some(name) = self.name {
             scope.core.names = Some(name);
         }
-        if let Some(team) = self.team {
-            if let Some(view) = scope.view::<TeamView>() {
+        if let Some(team) = self.team
+            && let Some(view) = scope.view::<TeamView>() {
                 view.team = Some(team);
             }
-        }
         if let Some(view) = scope.view::<HealthPickupView>() {
             view.data = Some(self.pickup);
         }
