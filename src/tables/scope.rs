@@ -25,17 +25,17 @@ impl Scope {
     }
 
     pub(crate) fn matches(&self, class_id: ClassId, tables: &Tables) -> bool {
-        if !self.core.matches(class_id, &tables.core as &dyn Any) {
+        if !self.core.matches(class_id, &tables.core) {
             return false;
         }
-        if !self.system.matches(class_id, &tables.system as &dyn Any) {
+        if !self.system.matches(class_id, &tables.system) {
             return false;
         }
         for (view_id, (addition_id, view)) in &self.additions {
-            let Some(addition) = tables.additions.get(addition_id) else {
+            let Some(addition) = tables.get_any(addition_id) else {
                 return false;
             };
-            if !view.matches(class_id, addition.as_ref() as &dyn Any) {
+            if !view.matches(class_id, addition) {
                 return false;
             }
         }
@@ -43,13 +43,14 @@ impl Scope {
     }
 
     pub(crate) fn commit(&mut self, class_id: ClassId, tables: &mut Tables) -> Option<usize> {
-        let mut row = self.core.commit(class_id, &mut tables.core as &mut dyn Any);
-        let system_row = self.system.commit(class_id, &mut tables.system as &mut dyn Any);
+        let mut row = self.core.commit(class_id, &mut tables.core);
+        let system_row = self.system.commit(class_id, &mut tables.system);
         if row.is_none() { row = system_row; }
 
+        //todo check the dependency inversion on this.
         for (view_id, (addition_id, view)) in &mut self.additions {
-            if let Some(addition) = tables.additions.get_mut(addition_id) {
-                let view_row = view.commit(class_id, addition.as_mut() as &mut dyn Any);
+            if let Some(addition) = tables.get_any_mut(addition_id) {
+                let view_row = view.commit(class_id, addition.as_mut());
                 if row.is_none() { row = view_row; }
             }
         }

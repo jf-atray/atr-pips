@@ -32,18 +32,16 @@ pub struct Game {
 
 impl Game {
     pub fn new(scene: SceneAccess, asset_registry: Arc<AssetRegistry>) -> Self {
-        let tables = Tables {
-            core: CoreAddition {
-                xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
-                brushes: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Brush>()),
-                names: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<String>()),
-                motions: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Motion>()),
-            },
-            additions: HashMap::new(),
-            system: SystemAddition {
-                pip_id: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PipId>()),
-            },
+        let core = CoreAddition {
+            xforms: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Transform>()),
+            brushes: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Brush>()),
+            names: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<String>()),
+            motions: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<Motion>()),
         };
+        let system = SystemAddition {
+            pip_id: Class::new(rarity::common(()), GrowthStrategy::quart_kib::<PipId>()),
+        };
+        let tables = Tables::new(core, system);
 
         let domain = Domain {
             tables,

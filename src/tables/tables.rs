@@ -8,12 +8,27 @@ pub struct Tables {
     additions: HashMap<TypeId, Box<dyn Addition>>,
 }
 impl Tables {
+    pub fn new(core: CoreAddition, system: SystemAddition) -> Self {
+        Self {
+            core,
+            system,
+            additions: HashMap::new(),
+        }
+    }
+
     pub fn view(&mut self) -> TablesView<'_> {
         let additions = AdditionsView::new(&mut self.additions);
         TablesView {
             core: &mut self.core,
             system: &mut self.system,
             additions,
+        }
+    }
+    pub fn clear(&mut self) -> () {
+        self.core.clear();
+        self.system.clear();
+        for adtn in &mut self.additions {
+            adtn.1.clear();
         }
     }
 }
@@ -84,6 +99,20 @@ impl Tables {
             let any: &mut dyn Any = a.as_mut();
             any.downcast_mut::<T>()
         })
+    }
+    pub fn get_any(&self, id: &TypeId) -> Option<&dyn Addition> {
+        self.additions.get(id).map(|a| a.as_ref())
+    }
+    pub fn get_any_mut(&mut self, id: &TypeId) -> Option<&mut Box<dyn Addition+'static>> {
+        self.additions.get_mut(id)
+    }
+
+    pub fn addition_entries(&self) -> impl Iterator<Item = (&TypeId, &dyn Addition)> {
+        self.additions.iter().map(|(id, a)| (id, a.as_ref()))
+    }
+
+    pub fn addition_values_mut(&mut self) -> impl Iterator<Item = &mut dyn Addition> {
+        self.additions.values_mut().map(|a| a.as_mut())
     }
 
     pub fn add<T: Addition + 'static>(&mut self, addition: T) {

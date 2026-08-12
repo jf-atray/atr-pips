@@ -22,11 +22,7 @@ impl Domain {
     pub fn clear(&mut self) {
         self.ids.clear();
         self.heading.clear();
-        self.tables.core.clear();
-        self.tables.system.clear();
-        for addition in self.tables.additions.values_mut() {
-            addition.clear();
-        }
+        self.tables.clear();
     }
 
     pub fn make<M: Maker>(&mut self, maker: M) -> PipId {
@@ -62,7 +58,7 @@ impl Domain {
     fn commit<M: Maker>(&mut self, pip: PipId, maker: M) -> ClassRowPtr {
         let mut scope = Scope::default();
 
-        for (addition_id, addition) in &self.tables.additions {
+        for (addition_id, addition) in self.tables.addition_entries() {
             let view = addition.view_default();
             let view_id = view.as_any_ref().type_id();
             scope.additions.insert(view_id, (*addition_id, view));
@@ -99,7 +95,7 @@ impl Domain {
         self.tables.core.destroy(ptr.class_id, ptr.row_idx);
         self.tables.system.destroy(ptr.class_id, ptr.row_idx);
 
-        for addition in self.tables.additions.values_mut() {
+        for addition in self.tables.addition_values_mut() {
             addition.destroy(ptr.class_id, ptr.row_idx);
         }
     }
