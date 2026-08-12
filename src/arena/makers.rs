@@ -27,18 +27,9 @@ impl Maker for ActorBlueprint {
         if let Some(motion) = self.motion {
             scope.core.motions = Some(motion);
         }
-        if let Some(team) = self.team
-            && let Some(view) = scope.view::<TeamView>() {
-                view.team = Some(team);
-            }
-        if let Some(health) = self.health
-            && let Some(view) = scope.view::<HealthView>() {
-                view.data = Some(health);
-            }
-        if let Some(pilot) = self.pilot
-            && let Some(view) = scope.view::<PilotView>() {
-                view.data = Some(pilot);
-            }
+        self.team.map(|team| scope.view::<TeamView>().map(|view| view.with(team)));
+        self.health.map(|health| scope.view::<HealthView>().map(|view| view.with(health)));
+        self.pilot.map(|pilot| scope.view::<PilotView>().map(|view| view.with(pilot)));
     }
 }
 
@@ -54,9 +45,7 @@ impl Maker for ProjectileBlueprint {
         scope.core.xforms = Some(self.xform);
         scope.core.brushes = Some(self.brush);
         scope.core.motions = Some(self.motion);
-        if let Some(view) = scope.view::<ProjectileView>() {
-            view.data = Some(self.projectile);
-        }
+        scope.view::<ProjectileView>().map(|view| view.with(self.projectile));
     }
 }
 
@@ -75,12 +64,7 @@ impl Maker for PickupBlueprint {
         if let Some(name) = self.name {
             scope.core.names = Some(name);
         }
-        if let Some(team) = self.team
-            && let Some(view) = scope.view::<TeamView>() {
-                view.team = Some(team);
-            }
-        if let Some(view) = scope.view::<HealthPickupView>() {
-            view.data = Some(self.pickup);
-        }
+        self.team.map(|team| scope.view::<TeamView>().map(|view| view.with(team)));
+        scope.view::<HealthPickupView>().map(|view| view.with(self.pickup));
     }
 }

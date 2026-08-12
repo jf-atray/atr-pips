@@ -304,10 +304,12 @@ impl Scene for ArenaScene {
             cooldown: 0.0,
         };
         self.player = Some(domain.make(move |scope: &mut crate::tables::scope::Scope| {
-            scope.core.xforms = Some(player_xform);
-            scope.core.brushes = Some(player_brush);
-            scope.core.names = Some("player".to_string());
-            scope.core.motions = Some(Motion { vel: Vec3::ZERO });
+            scope.core.with(
+                player_xform,
+                player_brush,
+                "player".to_string(),
+                Motion { vel: Vec3::ZERO },
+            );
             scope.view::<TeamView>().map(|view| view.with(Team::Player));
             scope.view::<HealthView>().map(|view| view.with(player_health));
             scope.view::<PilotView>().map(|view| view.with(player_pilot));
@@ -488,10 +490,12 @@ impl Scene for SwarmScene {
             cooldown: 0.0,
         };
         self.player = Some(domain.make(move |scope: &mut crate::tables::scope::Scope| {
-            scope.core.xforms = Some(player_xform);
-            scope.core.brushes = Some(player_brush);
-            scope.core.names = Some("player".to_string());
-            scope.core.motions = Some(Motion { vel: Vec3::ZERO });
+            scope.core.with(
+                player_xform,
+                player_brush,
+                "player".to_string(),
+                Motion { vel: Vec3::ZERO },
+            );
             scope.view::<TeamView>().map(|view| view.with(Team::Player));
             scope.view::<HealthView>().map(|view| view.with(player_health));
             scope.view::<PilotView>().map(|view| view.with(player_pilot));
