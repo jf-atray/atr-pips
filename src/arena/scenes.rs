@@ -456,7 +456,7 @@ impl Scene for SwarmScene {
             speed: 4.0,
             cooldown: 0.0,
         };
-        self.player = Some(domain.make(move |scope: &mut crate::tables::scope::Scope| {
+        self.player = Some(domain.make(move |scope: &mut Scope| {
             scope.core.with(
                 player_xform,
                 player_brush,

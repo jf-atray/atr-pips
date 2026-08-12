@@ -1,4 +1,4 @@
-use std::{any::{Any, TypeId}, collections::HashMap};
+use std::{any::TypeId, collections::HashMap};
 
 use crate::tables::{ClassId, core::CoreView, system::SystemView, tables::Tables, partition::View};
 
@@ -31,7 +31,7 @@ impl Scope {
         if !self.system.matches(class_id, &tables.system) {
             return false;
         }
-        for (_view_id, (addition_id, view)) in &self.additions {
+        for (addition_id, view) in self.additions.values() {
             let Some(addition) = tables.get_any(addition_id) else {
                 return false;
             };
@@ -48,7 +48,7 @@ impl Scope {
         if row.is_none() { row = system_row; }
 
         //todo check the dependency inversion on this.
-        for (_view_id, (addition_id, view)) in &mut self.additions {
+        for (addition_id, view) in self.additions.values_mut() {
             if let Some(addition) = tables.get_any_mut(addition_id) {
                 let view_row = view.commit(class_id, addition.as_mut());
                 if row.is_none() { row = view_row; }
