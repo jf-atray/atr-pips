@@ -224,9 +224,7 @@ impl Scene for ArenaScene {
                 cooldown: 0.0,
             };
             domain.make(move |scope: &mut Scope| {
-                scope.core.xforms = Some(xform);
-                scope.core.brushes = Some(brush);
-                scope.core.motions = Some(Motion { vel: Vec3::ZERO });
+                scope.core.with(xform, brush, String::new(), Motion::default());
                 scope.view::<ActorView>().map(|view| view.pilot(Team::Enemy, pilot));
                 scope.view::<ArenaView>().map(|view| view.health(health));
             });
