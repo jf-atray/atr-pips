@@ -1,9 +1,10 @@
 use std::iter;
 use std::mem::size_of;
 use core::range::Range;
+use std::num::NonZero;
 use zerocopy::IntoBytes as _;
 
-use glam::{Quat, Vec2, Vec3A, Vec4};
+use glam::Vec2;
 use slotmap::SecondaryMap;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
@@ -39,7 +40,8 @@ pub struct SpriteMaterial {
 #[repr(C)]
 #[derive(Clone, Debug, zerocopy::IntoBytes, zerocopy::Immutable)]
 struct SpriteUniformDatum {
-    natural_scale: Vec2,
+    natural_scale: [f32; 3],
+    _pad: f32,
 }
 
 
@@ -134,17 +136,17 @@ impl BasicSpriteCanvas {
                 entry_point: Some("vs_main"),
                 buffers: &[
                     Some(VertexBufferLayout {
-                        array_stride: 16,
+                        array_stride: 20,
                         step_mode: VertexStepMode::Vertex,
                         attributes: &[
                             VertexAttribute {
-                                format: VertexFormat::Float32x2,
+                                format: VertexFormat::Float32x3,
                                 offset: 0,
                                 shader_location: 0,
                             },
                             VertexAttribute {
                                 format: VertexFormat::Float32x2,
-                                offset: 8,
+                                offset: 12,
                                 shader_location: 1,
                             },
                         ],
@@ -159,18 +161,18 @@ impl BasicSpriteCanvas {
                                 shader_location: 2,
                             },
                             VertexAttribute {
-                                format: VertexFormat::Float32x4,
-                                offset: 16,
+                                format: VertexFormat::Float16x4,
+                                offset: 12,
                                 shader_location: 3,
                             },
                             VertexAttribute {
-                                format: VertexFormat::Float32x2,
-                                offset: 32,
+                                format: VertexFormat::Float16x4,
+                                offset: 20,
                                 shader_location: 4,
                             },
                             VertexAttribute {
-                                format: VertexFormat::Float32x4,
-                                offset: 48,
+                                format: VertexFormat::Float16x4,
+                                offset: 28,
                                 shader_location: 5,
                             },
                         ],
@@ -229,14 +231,14 @@ impl BasicSpriteCanvas {
             ..Default::default()
         });
 
-        let quad: [[f32; 4]; 6] = [
-            [-1.0, -1.0, 0.0, 1.0],
-            [ 1.0, -1.0, 1.0, 1.0],
-            [ 1.0,  1.0, 1.0, 0.0],
+        let quad: [[f32; 5]; 6] = [
+            [-1.0, -1.0, 0.0, 0.0, 1.0],
+            [ 1.0, -1.0, 0.0, 1.0, 1.0],
+            [ 1.0,  1.0, 0.0, 1.0, 0.0],
 
-            [-1.0,  1.0, 0.0, 0.0],
-            [-1.0, -1.0, 0.0, 1.0],
-            [ 1.0,  1.0, 1.0, 0.0],
+            [-1.0,  1.0, 0.0, 0.0, 0.0],
+            [-1.0, -1.0, 0.0, 0.0, 1.0],
+            [ 1.0,  1.0, 0.0, 1.0, 0.0],
         ];
         let quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("quad"),
@@ -273,7 +275,8 @@ impl BasicSpriteCanvas {
         let view = texture.create_view(&TextureViewDescriptor::default());
 
         let uniform = SpriteUniformDatum {
-            natural_scale,
+            natural_scale: [natural_scale.x, natural_scale.y, 1.0],
+            _pad: 0.0,
         };
         //ew ew etc
         let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -357,12 +360,12 @@ impl SpriteSolver {
         for (xforms, brushes) in query_ref_ref(&tables.core.xforms, &(), &tables.core.brushes, &())
         {
             for (xform, brush) in iter::zip(xforms, brushes) {
+                let to = |x: f32| x as f16;
                 let instance = SpriteInstance {
-                    position: xform.xyz.into(),
-                    rotation: xform.rot,
-                    scale: brush.scale,
-                    _pad: [0.0; 2],
-                    color: brush.color,
+                    position: [xform.xyz.x, xform.xyz.y, xform.xyz.z],
+                    rotation: [to(xform.rot.x), to(xform.rot.y), to(xform.rot.z), to(xform.rot.w)],
+                    scale: [to(brush.scale.x), to(brush.scale.y), 0.0f16, 0.0f16],
+                    color: [to(brush.color.x), to(brush.color.y), to(brush.color.z), to(brush.color.w)],
                 };
                 self.sort.push((instance, brush.canvas, brush.material));
             }
@@ -398,12 +401,15 @@ impl SpriteSolver {
         adr: u32,
     ) {
         if !self.instances.is_empty() {
+            let bytes = self.instances.as_slice().as_bytes();
+            let Some(bytes_len) = NonZero::new(bytes.len() as u64) else {
+                //don't need to write anything if SpriteInstance is a zero-sized struct
+                return;
+            };
             let instance_size = size_of::<SpriteInstance>() as u64;
             let byte_offset = u64::from(adr) * instance_size;
-            let bytes = self.instances.as_slice().as_bytes();
-            let size = BufferSize::new(bytes.len() as u64)
-                .expect("instance buffer write size is non-zero");
-            let mut view = belt.write_buffer(encoder, instance_buffer, byte_offset, size);
+            
+            let mut view = belt.write_buffer(encoder, instance_buffer, byte_offset, bytes_len);
             view.copy_from_slice(bytes);
         }
     }
@@ -431,9 +437,8 @@ impl CanvasSolver for SpriteSolver {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, zerocopy::IntoBytes, zerocopy::Immutable)]
 struct SpriteInstance {
-    position: Vec3A,
-    rotation: Quat,
-    scale: Vec2,
-    _pad: [f32; 2],
-    color: Vec4,
+    position: [f32; 3],
+    rotation: [f16; 4],
+    scale: [f16; 4],
+    color: [f16; 4],
 }

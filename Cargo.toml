@@ -14,7 +14,7 @@ slotmap = "1.1.1"
 web-time = "1.1.0"
 wgpu = "30.0.0"
 winit = "0.30.13"
-zerocopy = "0.8.56"
+zerocopy = { version = "0.8.56", features = ["float-nightly"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11.10"

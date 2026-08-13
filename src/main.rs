@@ -1,4 +1,6 @@
 #![feature(inherent_associated_types)]
+#![feature(f16)]
+#![feature(trivial_bounds)]
 #![allow(incomplete_features)]
 #![allow(dead_code)]
 mod anims;
