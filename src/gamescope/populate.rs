@@ -1,14 +1,11 @@
 use std::fs;
-use std::sync::Arc;
 
 use glam::Vec2;
 use wgpu::{Device, Queue};
 
-use crate::arena::scenes::{ArenaScene, SplashScene, SwarmScene};
 use crate::assets::{AssetRegistry, SpriteEntry, SpriteRect};
 use crate::gamescope::game::Game;
 use crate::gamescope::green_rect::SpriteCanvas;
-use crate::gamescope::scene::SceneAccess;
 use crate::gpuscope::canvasing::{CanvasRenderer, EveryCanvas};
 use crate::gpuscope::texture_cache::TextureScope;
 use crate::tables::{CanvasId, MaterialId};
@@ -83,16 +80,5 @@ pub fn build_game(
         );
     }
 
-    let registry = Arc::new(registry);
-    let scene_access = SceneAccess {
-        current: Box::new(SplashScene::new()),
-        order: vec![
-            Box::new(|| Box::new(SplashScene::new())),
-            Box::new(|| Box::new(ArenaScene::new())),
-            Box::new(|| Box::new(SwarmScene::new())),
-        ],
-        index: 0,
-    };
-
-    Game::new(scene_access, Arc::clone(&registry))
+    Game::new(registry)
 }
