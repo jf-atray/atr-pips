@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use slotmap::SlotMap;
 
 use crate::tables::{ClassId, ClassRowPtr, PipId, scope::{Scope, Maker}, tables::Tables, partition::Addition};

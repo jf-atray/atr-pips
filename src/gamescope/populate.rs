@@ -22,7 +22,7 @@ pub fn build_game(
 ) -> Game {
     let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
 
-    for (name) in [
+    for name in [
         ("green"),
     ] {
         let white_pixel = texture_scope.white_pixel(device, queue);

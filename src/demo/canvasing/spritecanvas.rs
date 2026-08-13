@@ -11,7 +11,7 @@ use wgpu::{
     BufferUsages, ColorTargetState, ColorWrites, CommandEncoder, CompareFunction, DepthStencilState,
     Device, FragmentState, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPass,
     RenderPipelineDescriptor, Sampler, SamplerDescriptor, ShaderModuleDescriptor, ShaderStages,
-    BindingResource, Queue, TextureFormat, TextureView, TextureViewDescriptor,
+    BindingResource, Queue, TextureFormat, TextureViewDescriptor,
     VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
