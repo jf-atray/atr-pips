@@ -1,15 +1,11 @@
-use std::cell::RefCell;
 use std::fs;
 
 use glam::Vec2;
 use wgpu::{Device, Queue};
 
 use crate::assets::{AssetRegistry, SpriteEntry, SpriteRect};
-use crate::demo::scripts::{MyScript, OtherScript};
 use crate::gamescope::game::Game;
 use crate::gamescope::green_rect::SpriteCanvas;
-use crate::gamescope::scene::{Scene, SceneAccess};
-use crate::scripting::{EveryScript, ScriptHost};
 use crate::gpuscope::canvasing::{CanvasRenderer, EveryCanvas};
 use crate::gpuscope::texture_cache::TextureScope;
 use crate::tables::{CanvasId, MaterialId};
@@ -84,21 +80,5 @@ pub fn build_game(
         );
     }
 
-    let scene = Scene::demo(&registry, pixels_per_unit);
-    let mut game = Game::new(SceneAccess { current: scene }, registry);
-    game.load();
-
-    let id_2 = game.scripts.scripts.insert(RefCell::new(ScriptHost::new(
-        EveryScript { enabled: true },
-        Box::new(OtherScript { num: 0 }),
-    )));
-    game.scripts.scripts.insert(RefCell::new(ScriptHost::new(
-        EveryScript { enabled: true },
-        Box::new(MyScript {
-            player: None,
-            other_script: Some(id_2),
-        }),
-    )));
-
-    game
+    Game::new(registry)
 }

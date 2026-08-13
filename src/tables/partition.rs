@@ -1,16 +1,20 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 
 use crate::tables::ClassId;
 
 pub trait View: Any {
     fn width(&self) -> usize;
-    fn matches(&self, class_id: ClassId, into: &dyn Any) -> bool;
-    fn commit(&mut self, class_id: ClassId, into: &mut dyn Any) -> Option<usize>;
+    fn matches(&self, class_id: ClassId, into: &dyn Addition) -> bool;
+    fn commit(&mut self, class_id: ClassId, into: &mut dyn Addition) -> Option<usize>;
+    fn addition_id(&self) -> TypeId;
+    fn as_any_ref(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub trait Addition: Any {
     fn view_default(&self) -> Box<dyn View>;
     fn destroy(&mut self, class_id: ClassId, row_idx: usize);
+    fn clear(&mut self);
 }
 
 #[macro_export]
@@ -29,17 +33,47 @@ macro_rules! partition {
             $($fvis $fname: Option<$ftype>, )+
         }
 
+        impl $addition {
+            pub fn new() -> Self {
+                Self {
+                    $($fname: $crate::tables::class::Class::new(
+                        $crate::tables::class_strategy::rarity::common(()),
+                        $crate::tables::class_strategy::GrowthStrategy::quart_kib::<$ftype>(),
+                    ),)+
+                }
+            }
+
+            pub fn with_opinions<F>(f: F) -> Self
+            where
+                F: FnOnce(&mut Self),
+            {
+                let mut addition = Self::new();
+                f(&mut addition);
+                addition
+            }
+        }
+
+        impl $view {
+            pub fn with(&mut self, $($fname:$ftype, )+) -> &mut Self {
+                $(self.$fname = Some($fname); )+
+                self
+            }
+        }
+
         impl $crate::tables::partition::View for $view {
+
             fn width(&self) -> usize {
                 0usize $(+ self.$fname.is_some() as usize)+
             }
 
-            fn matches(&self, class_id: $crate::tables::ClassId, into: &dyn ::std::any::Any) -> bool {
+            fn matches(&self, class_id: $crate::tables::ClassId, into: &dyn $crate::tables::partition::Addition) -> bool {
+                let into: &dyn ::std::any::Any = into;
                 let into = into.downcast_ref::<$addition>().unwrap();
                 true $(&& self.$fname.is_some() == into.$fname.get_col(class_id).is_some())+
             }
 
-            fn commit(&mut self, class_id: $crate::tables::ClassId, into: &mut dyn ::std::any::Any) -> Option<usize> {
+            fn commit(&mut self, class_id: $crate::tables::ClassId, into: &mut dyn $crate::tables::partition::Addition) -> Option<usize> {
+                let into: &mut dyn ::std::any::Any = into;
                 let into = into.downcast_mut::<$addition>().unwrap();
                 let mut row = None;
                 $(
@@ -52,6 +86,18 @@ macro_rules! partition {
                     }
                 )+
                 row
+            }
+
+            fn addition_id(&self) -> ::std::any::TypeId {
+                ::std::any::TypeId::of::<$addition>()
+            }
+
+            fn as_any_ref(&self) -> &dyn ::std::any::Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+                self
             }
         }
 
@@ -66,6 +112,10 @@ macro_rules! partition {
                         col.swap_remove(row_idx);
                     }
                 )+
+            }
+
+            fn clear(&mut self) {
+                $( self.$fname.clear(); )+
             }
         }
     };

@@ -1,8 +1,9 @@
 use glam::{Vec2, Vec4};
 
+use crate::assets::SpriteEntry;
 use crate::tables::{CanvasId, MaterialId};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Brush {
     pub canvas: CanvasId,
     pub material: MaterialId,
@@ -16,6 +17,15 @@ impl Brush {
             canvas,
             material,
             scale: Vec2::ONE,
+            color: Vec4::ONE,
+        }
+    }
+
+    pub fn from_sprite(sprite: &SpriteEntry) -> Self {
+        Self {
+            canvas: sprite.canvas,
+            material: sprite.material,
+            scale: sprite.natural_scale,
             color: Vec4::ONE,
         }
     }

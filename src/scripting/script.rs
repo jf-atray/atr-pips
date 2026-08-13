@@ -1,7 +1,7 @@
 use std::any::Any;
 
-use crate::scripting::scripts::Scripts;
+use crate::scripting::context::DomainView;
 
 pub trait Script: Any {
-    fn update(&mut self, scripts: &Scripts);
+    fn update(&mut self, ctx: &mut DomainView);
 }

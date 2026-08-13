@@ -37,6 +37,7 @@ impl GrowthStrategy {
     }
 }
 
+//here is the sore thumb. nice in theory but grossly useless in practice
 pub type ClassRarity<T> = Duplex<SecondaryMap<ClassId, T>, SparseSecondaryMap<ClassId, T>>;
 
 pub mod rarity {

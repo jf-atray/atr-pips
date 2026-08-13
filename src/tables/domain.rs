@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap};
+use std::any::Any;
 
 use slotmap::SlotMap;
 
@@ -11,7 +11,11 @@ pub struct Domain {
 }
 
 impl Domain {
-    pub fn new(tables: Tables) -> Self {
+    pub fn new() -> Self {
+        Self::with_tables(Tables::new())
+    }
+
+    pub fn with_tables(tables: Tables) -> Self {
         Self {
             tables,
             heading: SlotMap::with_key(),
@@ -19,10 +23,16 @@ impl Domain {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.ids.clear();
+        self.heading.clear();
+        self.tables.clear();
+    }
+
     pub fn make<M: Maker>(&mut self, maker: M) -> PipId {
         //acquires a generational index
         let pip = self.ids.insert(ClassRowPtr::new(ClassId::default(), 0));
-        let ptr = self.commit(pip, maker);
+        let ptr = self.commit_with(pip, |scope| maker.make_into(scope));
         //backfill with what class we actually discovered
         self.ids[pip] = ptr;
         pip
@@ -49,15 +59,16 @@ impl Domain {
 
 
 
-    fn commit<M: Maker>(&mut self, pip: PipId, maker: M) -> ClassRowPtr {
+    fn commit_with<F: FnOnce(&mut Scope)>(&mut self, pip: PipId, f: F) -> ClassRowPtr {
         let mut scope = Scope::default();
 
-        for (addition_id, addition) in &self.tables.additions {
+        for (addition_id, addition) in self.tables.addition_entries() {
             let view = addition.view_default();
-            scope.additions.insert(*addition_id, view);
+            let view_id = view.as_any_ref().type_id();
+            scope.additions.insert(view_id, (*addition_id, view));
         }
 
-        maker.make_into(&mut scope);
+        f(&mut scope);
         scope.system.pip_id = Some(pip);
 
         let width = scope.width();
@@ -88,7 +99,7 @@ impl Domain {
         self.tables.core.destroy(ptr.class_id, ptr.row_idx);
         self.tables.system.destroy(ptr.class_id, ptr.row_idx);
 
-        for addition in self.tables.additions.values_mut() {
+        for addition in self.tables.addition_values_mut() {
             addition.destroy(ptr.class_id, ptr.row_idx);
         }
     }

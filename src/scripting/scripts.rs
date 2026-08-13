@@ -2,16 +2,19 @@ use std::cell::{RefCell, RefMut};
 
 use slotmap::SlotMap;
 
+use crate::assets::AssetRegistry;
+use crate::scripting::context::DomainView;
 use crate::scripting::error::ScriptGetError;
-use crate::scripting::every::EveryScript;
 use crate::scripting::host::{ScriptHost, ScriptHostMut};
 use crate::scripting::id::ScriptId;
 use crate::scripting::script::Script;
+use crate::scripting::solvers::Solvers;
+use crate::tables::domain::Domain;
 
 // making a disjoint thin view to do a dynamic check is just the same as
 // doing that check here anyway using std features
 pub struct Scripts {
-    pub scripts: SlotMap<ScriptId, RefCell<ScriptHost>>,
+    scripts: SlotMap<ScriptId, RefCell<ScriptHost>>,
 }
 
 impl Scripts {
@@ -21,9 +24,13 @@ impl Scripts {
         }
     }
 
-    fn try_borrow_host<'a>(
-        cell: &'a RefCell<ScriptHost>,
-    ) -> Result<RefMut<'a, ScriptHost>, ScriptGetError> {
+    pub fn add(&mut self, host: ScriptHost) -> ScriptId {
+        self.scripts.insert(RefCell::new(host))
+    }
+
+    fn try_borrow_host(
+        cell: &RefCell<ScriptHost>,
+    ) -> Result<RefMut<'_, ScriptHost>, ScriptGetError> {
         cell.try_borrow_mut().map_err(|_| ScriptGetError::BadAlias)
     }
 
@@ -84,10 +91,11 @@ impl Scripts {
         self.set_enabled(id, false)
     }
 
-    pub fn update_enabled(&self) {
-        self.foreach_untyped(|scripts, host| {
+    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, solvers: &Solvers, asset_registry: &AssetRegistry) {
+        let mut ctx = DomainView::new(dt, domain, self, solvers, asset_registry);
+        self.foreach_untyped(|_scripts, host| {
             if host.every.enabled {
-                host.script.update(scripts);
+                host.script.update(&mut ctx);
             }
         });
     }

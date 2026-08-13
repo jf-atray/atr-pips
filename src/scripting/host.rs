@@ -19,9 +19,9 @@ impl ScriptHost {
         Self { every, script }
     }
 
-    pub(crate) fn downcast_mut<'a, T: Script>(
-        &'a mut self,
-    ) -> Result<ScriptHostMut<'a, T>, ScriptGetError> {
+    pub(crate) fn downcast_mut<T: Script>(
+        &mut self,
+    ) -> Result<ScriptHostMut<'_, T>, ScriptGetError> {
         if (self.script.as_ref() as &dyn Any).is::<T>() {
             let script_as_any = self.script.as_mut() as &mut dyn Any;
             let Some(script_as_cast) = script_as_any.downcast_mut::<T>() else {
