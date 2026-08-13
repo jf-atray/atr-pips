@@ -99,7 +99,7 @@ impl App {
                 &game.camera,
                 &mut frame.encoder,
             );
-            frame.with_render_pass(wgpu::Color { r: 0.08, g: 0.12, b: 0.16, a: 1.0 }, |pass| {
+            frame.with_render_pass(wgpu::Color::BLACK, |pass| {
                 gpu.device.canvas_renderer.render(pass);
             });
             frame.finish(gpu.queue());
