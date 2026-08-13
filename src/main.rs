@@ -13,6 +13,7 @@ mod gpuscope;
 mod libscope;
 mod physics;
 mod query;
+mod demo;
 mod scripting;
 mod seek;
 mod spacial;

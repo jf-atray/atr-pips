@@ -1,5 +1,6 @@
 use std::iter;
 use std::mem::size_of;
+use core::range::Range;
 use zerocopy::IntoBytes as _;
 
 use glam::{Quat, Vec2, Vec3A, Vec4};
@@ -22,34 +23,45 @@ use crate::spacial::camera::Camera;
 use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 use crate::tables::tables::Tables;
 
+//todo, it's actually decently logical to have a lifetime scope
+//IE, this simply declares a slice('a) and 'a is gifted by a suballocator
+//at the gpu-scope level
 pub struct SpriteMaterial {
-    pub img_id: ImgId,
-    pub view: TextureView,
+    pub binding: BindGroup,
+
     pub uniform_buffer: Buffer,
-    pub bind_group: BindGroup,
+    pub uniform_buffer_slice: Range<u64>,
+    
     pub natural_scale: Vec2,
 }
 
+
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, zerocopy::IntoBytes, zerocopy::Immutable)]
-struct SpriteMaterialUniform {
+#[derive(Clone, Debug, zerocopy::IntoBytes, zerocopy::Immutable)]
+struct SpriteUniformDatum {
     natural_scale: Vec2,
-    _pad: [f32; 2],
-    color: Vec4,
 }
 
-pub struct SpriteCanvas {
-    uniform_buffer: Buffer,
-    bind_group: BindGroup,
-    material_layout: BindGroupLayout,
+
+
+pub struct BasicSpriteCanvas {
+    binds_layout: BindGroupLayout,
+
     materials: SecondaryMap<MaterialId, SpriteMaterial>,
-    quad_buffer: Buffer,
+
     sampler: Sampler,
     pixels_per_unit: f32,
+
+    camera_bind: BindGroup,
+    camera_buffer: Buffer,
+    camera_buffer_slice: core::range::Range<u64>,
+
+    quad_buffer: Buffer,
+    quad_buffer_slice: core::range::Range<u64>,
 }
 
-impl SpriteCanvas {
-    pub fn new(
+impl BasicSpriteCanvas {
+    pub fn make(
         device: &Device,
         format: TextureFormat,
         sample_count: u32,
@@ -70,7 +82,7 @@ impl SpriteCanvas {
             }],
         });
 
-        let material_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        let binds_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("sprite material"),
             entries: &[
                 BindGroupLayoutEntry {
@@ -102,7 +114,7 @@ impl SpriteCanvas {
             ],
         });
 
-        let shader = include_str!("green_rect.wgsl");
+        let shader = include_str!( concat!(env!("CARGO_MANIFEST_DIR"),"/assets/shaders/green_rect.wgsl"));
         let instance_stride = size_of::<SpriteInstance>() as u64;
 
         let module = device.create_shader_module(ShaderModuleDescriptor {
@@ -111,7 +123,7 @@ impl SpriteCanvas {
         });
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("sprite"),
-            bind_group_layouts: &[Some(&bind_group_layout), Some(&material_layout)],
+            bind_group_layouts: &[Some(&bind_group_layout), Some(&binds_layout)],
             ..Default::default()
         });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -194,19 +206,19 @@ impl SpriteCanvas {
         });
         let every = EveryCanvas::new(bind_group_layout, pipeline);
 
-        let uniform_buffer = device.create_buffer(&BufferDescriptor {
+        let camera_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("sprite camera"),
             size: 64,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+        let camera_bind = device.create_bind_group(&BindGroupDescriptor {
             label: Some("sprite camera"),
             layout: &every.bind_group_layout,
             entries: &[BindGroupEntry {
                 binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
+                resource: camera_buffer.as_entire_binding(),
             }],
         });
 
@@ -233,11 +245,13 @@ impl SpriteCanvas {
         });
 
         (every, Self {
-            uniform_buffer,
-            bind_group,
-            material_layout,
+            camera_buffer,
+            camera_bind,
+            camera_buffer_slice: Range::from(0..64u64),
+            binds_layout,
             materials: SecondaryMap::new(),
             quad_buffer,
+            quad_buffer_slice: Range::from(0..quad.as_bytes().len() as u64),
             sampler,
             pixels_per_unit,
         })
@@ -249,10 +263,9 @@ impl SpriteCanvas {
         queue: &Queue,
         every: &mut EveryCanvas,
         texture_scope: &mut TextureScope,
-        color: [f32; 4],
     ) -> MaterialId {
         let white = texture_scope.white_pixel(device, queue);
-        self.add_raw(device, every, texture_scope, white, Vec2::ONE, color)
+        self.add_raw(device, every, texture_scope, white, Vec2::ONE)
     }
 
     pub fn add_sprite(
@@ -262,11 +275,10 @@ impl SpriteCanvas {
         every: &mut EveryCanvas,
         texture_scope: &TextureScope,
         img_id: ImgId,
-        color: [f32; 4],
     ) -> MaterialId {
         let (w, h) = texture_scope.size(img_id).expect("missing texture for sprite");
         let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
-        self.add_raw(device, every, texture_scope, img_id, natural_scale, color)
+        self.add_raw(device, every, texture_scope, img_id, natural_scale)
     }
 
     fn add_raw(
@@ -276,15 +288,12 @@ impl SpriteCanvas {
         texture_scope: &TextureScope,
         img_id: ImgId,
         natural_scale: Vec2,
-        color: [f32; 4],
     ) -> MaterialId {
         let texture = texture_scope.get(img_id).expect("missing texture");
         let view = texture.create_view(&TextureViewDescriptor::default());
 
-        let uniform = SpriteMaterialUniform {
+        let uniform = SpriteUniformDatum {
             natural_scale,
-            _pad: [0.0; 2],
-            color: Vec4::new(color[0], color[1], color[2], color[3]),
         };
         let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("sprite material"),
@@ -294,7 +303,7 @@ impl SpriteCanvas {
 
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("sprite material"),
-            layout: &self.material_layout,
+            layout: &self.binds_layout,
             entries: &[
                 BindGroupEntry {
                     binding: 0,
@@ -313,23 +322,22 @@ impl SpriteCanvas {
 
         let id = every.material_ids.insert(());
         self.materials.insert(id, SpriteMaterial {
-            img_id,
-            view,
             uniform_buffer,
-            bind_group,
+            uniform_buffer_slice: Range::from(0..uniform.as_bytes().len() as u64),
+            binding: bind_group,
             natural_scale,
         });
         id
     }
 }
 
-impl CanvasTrait for SpriteCanvas {
+impl CanvasTrait for BasicSpriteCanvas {
     fn prepare(&mut self, camera: &Camera, encoder: &mut CommandEncoder, belt: &mut StagingBelt) {
         let array = camera.view_proj.to_cols_array();
         let bytes = array.as_bytes();
         let mut view = belt.write_buffer(
             encoder,
-            &self.uniform_buffer,
+            &self.camera_buffer,
             0,
             BufferSize::new(64).unwrap(),
         );
@@ -338,13 +346,13 @@ impl CanvasTrait for SpriteCanvas {
 
     fn begin_render_pass(&self, pass: &mut RenderPass<'_>, every: &EveryCanvas) {
         pass.set_pipeline(&every.pipeline);
-        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_bind_group(0, &self.camera_bind, &[]);
         pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
     }
 
     fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, _every: &EveryCanvas) {
         let material = self.materials.get(material).expect("missing material");
-        pass.set_bind_group(1, &material.bind_group, &[]);
+        pass.set_bind_group(1, &material.binding, &[]);
         pass.draw(0..6, instances);
     }
 }
