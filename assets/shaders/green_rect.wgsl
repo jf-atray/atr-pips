@@ -1,3 +1,5 @@
+enable f16;
+
 @group(0) @binding(0)
 var<uniform> view_proj: mat4x4<f32>;
 
@@ -8,8 +10,7 @@ var tex: texture_2d<f32>;
 var sam: sampler;
 
 struct Material {
-    natural_scale: vec2<f32>,
-    color: vec4<f32>,
+    natural_scale: vec3<f32>,
 }
 
 @group(1) @binding(2)
@@ -23,46 +24,37 @@ struct VertexOut {
 
 @vertex
 fn vs_main(
-    @location(0) local: vec2<f32>,
+    // mesh vertex
+    @location(0) local: vec3<f32>,
     @location(1) uv: vec2<f32>,
+
+    // instance data
     @location(2) pos: vec3<f32>,
-    @location(3) rot: vec4<f32>,
-    @location(4) scale: vec2<f32>,
-    @location(5) color: vec4<f32>,
+    @location(3) rot: vec4<f16>,
+    @location(4) scale: vec3<f16>,
+    @location(5) color: vec4<f16>,
 ) -> VertexOut {
-    let natural = material.natural_scale * scale;
-    let offset2 = local * 0.5 * natural;
-    let offset = vec3<f32>(offset2, 0.0);
+    
+    let q = normalize(vec4<f32>(rot));
 
-    let q = rot;
-    let x = q.x;
-    let y = q.y;
-    let z = q.z;
-    let w = q.w;
+    let scaled_local =
+        local *
+        material.natural_scale *
+        vec3<f32>(scale);
 
-    let xx = 2.0 * x * x;
-    let yy = 2.0 * y * y;
-    let zz = 2.0 * z * z;
-    let xy = 2.0 * x * y;
-    let xz = 2.0 * x * z;
-    let yz = 2.0 * y * z;
-    let wx = 2.0 * w * x;
-    let wy = 2.0 * w * y;
-    let wz = 2.0 * w * z;
-
-    let rotation = mat3x3<f32>(
-        vec3<f32>(1.0 - yy - zz, xy + wz, xz - wy),
-        vec3<f32>(xy - wz, 1.0 - xx - zz, yz + wx),
-        vec3<f32>(xz + wy, yz - wx, 1.0 - xx - yy),
-    );
-
-    let world = pos + (rotation * offset);
+    let world = pos + (rotate_vec3(scaled_local, q));
 
     var out: VertexOut;
     out.clip_position = view_proj * vec4<f32>(world, 1.0);
     out.uv = uv;
-    out.color = material.color * color;
+    out.color = vec4<f32>(color);
     return out;
+}
+
+//there should be an in-build fn somewehre
+fn rotate_vec3(v: vec3<f32>, q: vec4<f32>) -> vec3<f32> {
+    let t = 2.0 * cross(q.xyz, v);
+    return v + q.w * t + cross(q.xyz, t);
 }
 
 @fragment

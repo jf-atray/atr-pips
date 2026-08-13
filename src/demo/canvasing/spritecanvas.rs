@@ -107,7 +107,7 @@ impl BasicSpriteCanvas {
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: BufferSize::new(32),
+                        min_binding_size: BufferSize::new(size_of::<SpriteUniformDatum>() as u64),
                     },
                     count: None,
                 },

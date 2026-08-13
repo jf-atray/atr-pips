@@ -62,10 +62,11 @@ impl GpuParts {
             _ => Limits::defaults(),
         };
 
+        let required_features = Features::empty() | Features::SHADER_F16;
         let (device, queue) = adapter
             .request_device(&DeviceDescriptor {
                 label: Some("gpu"),
-                required_features: Features::empty(),
+                required_features: required_features,
                 required_limits,
                 experimental_features: ExperimentalFeatures::disabled(),
                 memory_hints: MemoryHints::Performance,
