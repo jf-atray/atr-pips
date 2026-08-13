@@ -45,9 +45,8 @@ fn unregister_common(tables: &mut Tables) {
     let _ = tables.remove::<ActorAddition>();
 }
 
-fn player_dead(domain: &Domain, player: Option<PipId>) -> bool {
-    let Some(pid) = player else { return false };
-    let Some(ptr) = domain.ids.get(pid) else {
+fn player_dead(domain: &Domain, player: PipId) -> bool {
+    let Some(ptr) = domain.ids.get(player) else {
         return true;
     };
     domain
@@ -87,10 +86,6 @@ impl SplashScene {
 impl Scene for SplashScene {
     fn name(&self) -> &'static str {
         "Splash"
-    }
-
-    fn player(&self) -> Option<PipId> {
-        self.player
     }
 
     fn register_tables(&self, tables: &mut Tables) {
@@ -177,7 +172,7 @@ impl ArenaScene {
     }
 
     fn health_dead(&self, domain: &Domain) -> bool {
-        player_dead(domain, self.player)
+        self.player.is_some_and(|p| player_dead(domain, p))
     }
 }
 
@@ -186,9 +181,6 @@ impl Scene for ArenaScene {
         "Arena"
     }
 
-    fn player(&self) -> Option<PipId> {
-        self.player
-    }
 
     fn register_tables(&self, tables: &mut Tables) {
         register_common(tables);
@@ -363,19 +355,11 @@ impl SwarmScene {
             player: None,
         }
     }
-
-    fn health_dead(&self, domain: &Domain) -> bool {
-        player_dead(domain, self.player)
-    }
 }
 
 impl Scene for SwarmScene {
     fn name(&self) -> &'static str {
         "Swarm"
-    }
-
-    fn player(&self) -> Option<PipId> {
-        self.player
     }
 
     fn register_tables(&self, tables: &mut Tables) {
@@ -500,6 +484,6 @@ impl Scene for SwarmScene {
 
     fn is_complete(&mut self, dt: f32, domain: &Domain) -> bool {
         self.timer += dt;
-        self.timer > 30.0 || self.health_dead(domain)
+        self.timer > 30.0 || self.player.is_some_and(|p| player_dead(domain, p))
     }
 }

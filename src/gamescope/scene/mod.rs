@@ -6,7 +6,6 @@ use crate::tables::PipId;
 
 pub trait Scene {
     fn name(&self) -> &'static str;
-    fn player(&self) -> Option<PipId>;
     fn register_tables(&self, tables: &mut Tables);
     fn unregister_tables(&self, tables: &mut Tables);
     fn populate(&mut self, registry: &AssetRegistry, domain: &mut Domain);
