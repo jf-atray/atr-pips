@@ -82,15 +82,20 @@ pub struct CanvasRenderer {
 
 impl CanvasRenderer {
     pub fn make(device: Device) -> Self {
-        const INSTANCE_BUFFER_BYTES: u64 = 1024 * 1024 * 1;
+        const INSTANCE_BUFFER_BYTES: u32 = 1024 * 1024 * 1; //1MiB
+        const  BELT_CHUNK_FACTOR: f64 = 1.0 / 4.0; //256KiB
 
         let instance_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("canvas instances"),
-            size: INSTANCE_BUFFER_BYTES,
+            size: u64::from(INSTANCE_BUFFER_BYTES),
             usage: BufferUsages::COPY_DST | BufferUsages::VERTEX,
             mapped_at_creation: false,
         });
-        let staging_belt = wgpu::util::StagingBelt::new(device, INSTANCE_BUFFER_BYTES);
+
+        let rough = f64::from(INSTANCE_BUFFER_BYTES) * BELT_CHUNK_FACTOR;
+        let belt = rough as u64;//explicitly saturating.
+
+        let staging_belt = wgpu::util::StagingBelt::new(device, belt);
         
         Self {
             solvers: SlotMap::with_key(),
