@@ -1,6 +1,6 @@
 #![feature(inherent_associated_types)]
 #![allow(incomplete_features)]
-
+#![allow(dead_code)]
 mod anims;
 mod appscope;
 mod assets;

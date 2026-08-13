@@ -8,8 +8,8 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
+use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteSolver};
 use crate::gamescope::game::Game;
-use crate::gamescope::green_rect::{SpriteCanvas, SpriteSolver};
 use crate::gamescope::populate;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
@@ -219,7 +219,7 @@ impl ApplicationHandler<GpuReady> for App {
             const PIXELS_PER_UNIT: f32 = 512.0;
             let device = &gpu.device.device;
             let queue = &gpu.device.queue;
-            let (every, canvas) = SpriteCanvas::new(
+            let (every, canvas) = BasicSpriteCanvas::make(
                 device,
                 gpu.surface.cfg.format,
                 gpu.targets.sample_count(),

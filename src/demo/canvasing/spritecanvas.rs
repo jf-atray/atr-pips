@@ -257,44 +257,25 @@ impl BasicSpriteCanvas {
         })
     }
 
-    pub fn add_material(
-        &mut self,
-        device: &Device,
-        queue: &Queue,
-        every: &mut EveryCanvas,
-        texture_scope: &mut TextureScope,
-    ) -> MaterialId {
-        let white = texture_scope.white_pixel(device, queue);
-        self.add_raw(device, every, texture_scope, white, Vec2::ONE)
-    }
-
     pub fn add_sprite(
         &mut self,
-        device: &Device,
+        device: &Device, //todo, should be allowed to get buffer from elsewhere
+        //OR, is there advantage to laying them out in 1 buffer claimed by canvas?
         _queue: &Queue,
         every: &mut EveryCanvas,
-        texture_scope: &TextureScope,
+        texture_scope: &TextureScope, //why ask the canvas to do the GET. Why not do the GET yourself?
         img_id: ImgId,
-    ) -> MaterialId {
-        let (w, h) = texture_scope.size(img_id).expect("missing texture for sprite");
+    ) -> Option<MaterialId> {
+        let texture = texture_scope.get(img_id) ?;
+        let (w, h) = (texture.width(), texture.height());
         let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
-        self.add_raw(device, every, texture_scope, img_id, natural_scale)
-    }
 
-    fn add_raw(
-        &mut self,
-        device: &Device,
-        every: &mut EveryCanvas,
-        texture_scope: &TextureScope,
-        img_id: ImgId,
-        natural_scale: Vec2,
-    ) -> MaterialId {
-        let texture = texture_scope.get(img_id).expect("missing texture");
         let view = texture.create_view(&TextureViewDescriptor::default());
 
         let uniform = SpriteUniformDatum {
             natural_scale,
         };
+        //ew ew etc
         let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("sprite material"),
             contents: uniform.as_bytes(),
@@ -327,8 +308,9 @@ impl BasicSpriteCanvas {
             binding: bind_group,
             natural_scale,
         });
-        id
+        Some(id)
     }
+
 }
 
 impl CanvasTrait for BasicSpriteCanvas {

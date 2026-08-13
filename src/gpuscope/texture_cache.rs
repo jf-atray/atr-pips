@@ -56,6 +56,7 @@ impl TextureScope {
         Some(self.upload(device, queue, name, rgba.as_raw(), width, height))
     }
 
+    //oh god no
     pub fn white_pixel(&mut self, device: &Device, queue: &Queue) -> ImgId {
         if let Some(id) = self.names.get("__white_pixel") {
             return *id;

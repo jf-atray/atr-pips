@@ -4,8 +4,8 @@ use glam::Vec2;
 use wgpu::{Device, Queue};
 
 use crate::assets::{AssetRegistry, SpriteEntry, SpriteRect};
+use crate::demo::canvasing::spritecanvas::BasicSpriteCanvas;
 use crate::gamescope::game::Game;
-use crate::gamescope::green_rect::SpriteCanvas;
 use crate::gpuscope::canvasing::{CanvasRenderer, EveryCanvas};
 use crate::gpuscope::texture_cache::TextureScope;
 use crate::tables::{CanvasId, MaterialId};
@@ -16,19 +16,18 @@ pub fn build_game(
     canvas_renderer: &mut CanvasRenderer,
     texture_scope: &mut TextureScope,
     mut every: EveryCanvas,
-    mut canvas: SpriteCanvas,
+    mut canvas: BasicSpriteCanvas,
     pixels_per_unit: f32,
     sprites_dir: &str,
 ) -> Game {
     let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
 
-    for (name, color) in [
-        ("green", [0.0f32, 1.0, 0.0, 1.0]),
-        ("red", [1.0f32, 0.0, 0.0, 1.0]),
-        ("blue", [0.0f32, 0.0, 1.0, 1.0]),
-        ("yellow", [1.0f32, 1.0, 0.0, 1.0]),
+    for (name) in [
+        ("green"),
     ] {
-        let material = canvas.add_material(device, queue, &mut every, texture_scope, color);
+        let white_pixel = texture_scope.white_pixel(device, queue);
+        let material = canvas.add_sprite(device, queue, &mut every, texture_scope, white_pixel)
+        .unwrap();
         pending.push((
             name.to_string(),
             material,
@@ -51,7 +50,7 @@ pub fn build_game(
                 log::warn!("failed to load sprite {}", path.display());
                 continue;
             };
-            let material = canvas.add_sprite(device, queue, &mut every, texture_scope, img_id, [1.0f32; 4]);
+            let material = canvas.add_sprite(device, queue, &mut every, texture_scope, img_id).unwrap();
             let (w, h) = texture_scope.size(img_id).unwrap();
             let natural_scale = Vec2::new(w as f32, h as f32) / pixels_per_unit;
             pending.push((
