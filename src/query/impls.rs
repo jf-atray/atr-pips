@@ -71,14 +71,6 @@ where
     }
 }
 
-// Calling `$callback(a, b)` directly on an unannotated closure literal does not let
-// rustc infer `a`/`b`'s parameter types from the concrete types of the arguments: a
-// bare `(closure)(args)` call only checks the closure body against fresh inference
-// variables, so field/method access on an unannotated parameter is ambiguous (E0282)
-// even though `a` and `b` are already fully concrete at the call site. Routing the
-// call through this generic trampoline instead pins `F: FnMut(A, B)` from `a`/`b`'s
-// (already-known) types the same way `Iterator::for_each` does, before the closure
-// body is ever type-checked.
 #[inline]
 pub fn call2<A, B, F: FnMut(A, B)>(mut f: F, a: A, b: B) {
     f(a, b)
@@ -179,6 +171,24 @@ where
     std::iter::from_fn(move || match &mut duplex {
         Duplex::T(t) => t.next(),
         Duplex::K(k) => k.next().map(|(k, t)| (t, k)),
+    })
+}
+
+pub fn query_mut_ref<'a, T, K, TKey, KKey>(
+    t: &'a mut Class<T, TKey>,
+    t_key: &'a TKey,
+    k: &'a Class<K, KKey>,
+    k_key: &'a KKey,
+) -> impl Iterator<Item = (&'a mut Columnar<T, TKey>, &'a Columnar<K, KKey>)>
+where
+    T: 'a,
+    K: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
+{
+    t.columns_mut().filter_map(move |(class_id, t_col)| {
+        let k_col = k.get_col(class_id)?;
+        (&t_col.key == t_key && &k_col.key == k_key).then_some((t_col, k_col))
     })
 }
 
