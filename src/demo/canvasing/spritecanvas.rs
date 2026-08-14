@@ -1,4 +1,3 @@
-use std::iter;
 use std::mem::size_of;
 use core::range::Range;
 use std::num::NonZero;
@@ -20,7 +19,6 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 
 use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, DrawWriter, EveryCanvas};
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
-use crate::query::impls::query_ref_ref;
 use crate::spacial::camera::Camera;
 use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 use crate::tables::tables::Tables;
@@ -407,9 +405,9 @@ impl SpriteCanvasSolver {
 
     fn collect_from(&mut self, tables: &Tables, _my_id: CanvasSolverId) {
         self.sort.clear();
-        for (xforms, brushes) in query_ref_ref(&tables.core.xforms, &(), &tables.core.brushes, &())
-        {
-            for (xform, brush) in iter::zip(xforms, brushes) {
+        crate::query!(
+            [&tables.core.xforms, &tables.core.brushes],
+            |xform, brush| {
                 let to = |x: f32| x as f16;
                 let instance = SpriteInstance {
                     position: [xform.xyz.x, xform.xyz.y, xform.xyz.z],
@@ -419,7 +417,7 @@ impl SpriteCanvasSolver {
                 };
                 self.sort.push((instance, brush.canvas, brush.material));
             }
-        }
+        );
     }
 
     fn pack(&mut self, adr: u32, sink: &mut DrawWriter) {
