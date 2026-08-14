@@ -8,12 +8,13 @@ use glam::Vec2;
 use slotmap::SecondaryMap;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferDescriptor, BufferSize,
-    BufferUsages, ColorTargetState, ColorWrites, CommandEncoder, CompareFunction, DepthStencilState,
-    Device, FragmentState, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPass,
-    RenderPipelineDescriptor, Sampler, SamplerDescriptor, ShaderModuleDescriptor, ShaderStages,
-    BindingResource, Queue, TextureFormat, TextureViewDescriptor,
-    VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
+    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType,
+    BufferDescriptor, BufferSize, BufferUsages, ColorTargetState, ColorWrites, CommandEncoder,
+    CompareFunction, DepthStencilState, Device, FragmentState, MultisampleState,
+    PipelineLayoutDescriptor, PrimitiveState, RenderPass, RenderPipelineDescriptor, Sampler,
+    SamplerDescriptor, ShaderModuleDescriptor, ShaderStages, Queue, TextureFormat, TextureView,
+    TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState,
+    VertexStepMode,
 };
 use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 
@@ -24,42 +25,54 @@ use crate::spacial::camera::Camera;
 use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 use crate::tables::tables::Tables;
 
-//todo, it's actually decently logical to have a lifetime scope
-//IE, this simply declares a slice('a) and 'a is gifted by a suballocator
-//at the gpu-scope level
+const MAX_MATERIALS: u64 = 32;
+
+
+//todo, it should be allowed to get a texture view from elsewhere
 pub struct SpriteMaterial {
     pub binding: BindGroup,
-
-    pub uniform_buffer: Buffer,
-    pub uniform_buffer_slice: Range<u64>,
-    
     pub natural_scale: Vec2,
 }
 
 
 #[repr(C)]
-#[derive(Clone, Debug, zerocopy::IntoBytes, zerocopy::Immutable)]
+#[derive(Clone, Copy, Debug, zerocopy::IntoBytes, zerocopy::Immutable)]
 struct SpriteUniformDatum {
     natural_scale: [f32; 3],
     _pad: f32,
 }
 
 
+struct CameraUniforms {
+    bind: BindGroup,
+    buffer: Buffer,
+    slice: Range<u64>,
+}
+
+
+struct QuadGeometry {
+    buffer: Buffer,
+    slice: Range<u64>,
+}
+
+
+struct MaterialUniforms {
+    buffer: Buffer,
+    stride: u64,
+}
+
 
 pub struct BasicSpriteCanvas {
     binds_layout: BindGroupLayout,
 
     materials: SecondaryMap<MaterialId, SpriteMaterial>,
+    material_uniforms: MaterialUniforms,
 
     sampler: Sampler,
     pixels_per_unit: f32,
 
-    camera_bind: BindGroup,
-    camera_buffer: Buffer,
-    camera_buffer_slice: core::range::Range<u64>,
-
-    quad_buffer: Buffer,
-    quad_buffer_slice: core::range::Range<u64>,
+    camera: CameraUniforms,
+    quad: QuadGeometry,
 }
 
 impl BasicSpriteCanvas {
@@ -115,6 +128,8 @@ impl BasicSpriteCanvas {
                 },
             ],
         });
+
+        let material_uniforms = make_material_uniforms(device);
 
         let shader = include_str!( concat!(env!("CARGO_MANIFEST_DIR"),"/assets/shaders/green_rect.wgsl"));
         let instance_stride = size_of::<SpriteInstance>() as u64;
@@ -208,9 +223,11 @@ impl BasicSpriteCanvas {
         });
         let every = EveryCanvas::new(bind_group_layout, pipeline);
 
+        let camera_slice = Range::from(0..64u64);
+
         let camera_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("sprite camera"),
-            size: 64,
+            size: camera_slice.end,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -220,7 +237,11 @@ impl BasicSpriteCanvas {
             layout: &every.bind_group_layout,
             entries: &[BindGroupEntry {
                 binding: 0,
-                resource: camera_buffer.as_entire_binding(),
+                resource: BindingResource::Buffer(BufferBinding {
+                    buffer: &camera_buffer,
+                    offset: camera_slice.start,
+                    size: BufferSize::new(camera_slice.end - camera_slice.start),
+                }),
             }],
         });
 
@@ -240,6 +261,8 @@ impl BasicSpriteCanvas {
             [-1.0, -1.0, 0.0, 0.0, 1.0],
             [ 1.0,  1.0, 0.0, 1.0, 0.0],
         ];
+        let quad_slice = Range::from(0..quad.as_bytes().len() as u64);
+
         let quad_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("quad"),
             contents: quad.as_bytes(),
@@ -247,27 +270,35 @@ impl BasicSpriteCanvas {
         });
 
         (every, Self {
-            camera_buffer,
-            camera_bind,
-            camera_buffer_slice: Range::from(0..64u64),
             binds_layout,
             materials: SecondaryMap::new(),
-            quad_buffer,
-            quad_buffer_slice: Range::from(0..quad.as_bytes().len() as u64),
+            material_uniforms,
             sampler,
             pixels_per_unit,
+            camera: CameraUniforms {
+                bind: camera_bind,
+                buffer: camera_buffer,
+                slice: camera_slice,
+            },
+            quad: QuadGeometry {
+                buffer: quad_buffer,
+                slice: quad_slice,
+            },
         })
     }
 
     pub fn add_sprite(
         &mut self,
-        device: &Device, //todo, should be allowed to get buffer from elsewhere
-        //OR, is there advantage to laying them out in 1 buffer claimed by canvas?
-        _queue: &Queue,
+        device: &Device,
+        queue: &Queue,
         every: &mut EveryCanvas,
-        texture_scope: &TextureScope, //why ask the canvas to do the GET. Why not do the GET yourself?
+        texture_scope: &TextureScope,
         img_id: ImgId,
     ) -> Option<MaterialId> {
+        if self.materials.len() as u64 >= MAX_MATERIALS {
+            return None;
+        }
+
         let texture = texture_scope.get(img_id) ?;
         let (w, h) = (texture.width(), texture.height());
         let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
@@ -278,40 +309,63 @@ impl BasicSpriteCanvas {
             natural_scale: [natural_scale.x, natural_scale.y, 1.0],
             _pad: 0.0,
         };
-        //ew ew etc
-        let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("sprite material"),
-            contents: uniform.as_bytes(),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
 
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("sprite material"),
-            layout: &self.binds_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&self.sampler),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: uniform_buffer.as_entire_binding(),
-                },
-            ],
-        });
+        let material_index = self.materials.len() as u64;
+        let offset = material_index * self.material_uniforms.stride;
+
+        queue.write_buffer(
+            &self.material_uniforms.buffer,
+            offset,
+            uniform.as_bytes(),
+        );
+
+        let binding = Self::create_material_binding(
+            device,
+            &self.binds_layout,
+            &self.sampler,
+            &self.material_uniforms.buffer,
+            &view,
+            offset,
+        );
 
         let id = every.material_ids.insert(());
         self.materials.insert(id, SpriteMaterial {
-            uniform_buffer,
-            uniform_buffer_slice: Range::from(0..uniform.as_bytes().len() as u64),
-            binding: bind_group,
+            binding,
             natural_scale,
         });
         Some(id)
+    }
+
+    fn create_material_binding(
+        device: &Device,
+        layout: &BindGroupLayout,
+        sampler: &Sampler,
+        buffer: &Buffer,
+        view: &TextureView,
+        offset: u64,
+    ) -> BindGroup {
+        device.create_bind_group(&BindGroupDescriptor {
+            label: Some("sprite material"),
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Buffer(BufferBinding {
+                        buffer,
+                        offset,
+                        size: BufferSize::new(size_of::<SpriteUniformDatum>() as u64),
+                    }),
+                },
+            ],
+        })
     }
 
 }
@@ -322,17 +376,17 @@ impl CanvasTrait for BasicSpriteCanvas {
         let bytes = array.as_bytes();
         let mut view = belt.write_buffer(
             encoder,
-            &self.camera_buffer,
-            0,
-            BufferSize::new(64).unwrap(),
+            &self.camera.buffer,
+            self.camera.slice.start,
+            BufferSize::new(self.camera.slice.end - self.camera.slice.start).unwrap(),
         );
         view.copy_from_slice(bytes);
     }
 
     fn begin_render_pass(&self, pass: &mut RenderPass<'_>, every: &EveryCanvas) {
         pass.set_pipeline(&every.pipeline);
-        pass.set_bind_group(0, &self.camera_bind, &[]);
-        pass.set_vertex_buffer(0, self.quad_buffer.slice(..));
+        pass.set_bind_group(0, &self.camera.bind, &[]);
+        pass.set_vertex_buffer(0, self.quad.buffer.slice(self.quad.slice.start..self.quad.slice.end));
     }
 
     fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, _every: &EveryCanvas) {
@@ -442,3 +496,22 @@ struct SpriteInstance {
     scale: [f16; 4],
     color: [f16; 4],
 }
+
+fn make_material_uniforms(device: &Device) -> MaterialUniforms {
+    let stride = (size_of::<SpriteUniformDatum>() as u64)
+        .next_multiple_of(device.limits().min_uniform_buffer_offset_alignment as u64);
+
+    let buffer = device.create_buffer(&BufferDescriptor {
+        label: Some("sprite materials"),
+        size: MAX_MATERIALS * stride,
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    MaterialUniforms {
+        buffer,
+        stride,
+    }
+}
+
+
