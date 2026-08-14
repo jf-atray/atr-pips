@@ -51,18 +51,17 @@ impl Demo {
     }
 
     fn load_sprites(&mut self, ctx: &mut SceneContext) -> CanvasId {
-        let device = ctx.gpu.device().clone();
-        let queue = ctx.gpu.queue().clone();
-        let format = ctx.gpu.surface_cfg().format;
-        let sample_count = ctx.gpu.targets().sample_count();
+        let gpu_context = &mut ctx.gpu.device;
+        let format = ctx.gpu.surface.cfg.format;
+        let sample_count = ctx.gpu.targets.sample_count();
         let depth_format = ctx
             .gpu
-            .targets()
+            .targets
             .depth_enabled()
             .then_some(wgpu::TextureFormat::Depth32Float);
 
         let (mut every, mut canvas) = BasicSpriteCanvas::make(
-            &device,
+            &gpu_context.device,
             format,
             sample_count,
             depth_format,
@@ -72,11 +71,11 @@ impl Demo {
         let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
 
         {
-            let texture_scope = ctx.gpu.texture_scope_mut();
+            let texture_scope = &mut gpu_context.texture_scope;
 
-            let white_pixel = texture_scope.white_pixel(&device, &queue);
+            let white_pixel = texture_scope.white_pixel(&gpu_context.device, &gpu_context.queue);
             let white_material = canvas
-                .add_sprite(&device, &queue, &mut every, texture_scope, white_pixel)
+                .add_sprite(&gpu_context.device, &gpu_context.queue, &mut every, texture_scope, white_pixel)
                 .expect("failed to add white pixel sprite");
             pending.push((
                 "green".to_string(),
@@ -95,13 +94,13 @@ impl Demo {
                         continue;
                     };
                     let Some(img_id) =
-                        texture_scope.load_image(&device, &queue, path.to_str().unwrap_or(""))
+                        texture_scope.load_image(&gpu_context.device, &gpu_context.queue, path.to_str().unwrap_or(""))
                     else {
                         log::warn!("failed to load sprite {}", path.display());
                         continue;
                     };
                     let Some(material) =
-                        canvas.add_sprite(&device, &queue, &mut every, texture_scope, img_id)
+                        canvas.add_sprite(&gpu_context.device, &gpu_context.queue, &mut every, texture_scope, img_id)
                     else {
                         continue;
                     };
