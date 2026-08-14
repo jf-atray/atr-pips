@@ -31,7 +31,6 @@ const MAX_MATERIALS: u64 = 32;
 //todo, it should be allowed to get a texture view from elsewhere
 pub struct SpriteMaterial {
     pub binding: BindGroup,
-    pub natural_scale: Vec2,
 }
 
 
@@ -329,10 +328,7 @@ impl BasicSpriteCanvas {
         );
 
         let id = every.material_ids.insert(());
-        self.materials.insert(id, SpriteMaterial {
-            binding,
-            natural_scale,
-        });
+        self.materials.insert(id, SpriteMaterial { binding });
         Some(id)
     }
 
