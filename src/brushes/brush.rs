@@ -1,4 +1,5 @@
-use glam::{Vec2, Vec4};
+use glam::prelude::Vec3;
+use glam::Vec4;
 
 use crate::assets::SpriteEntry;
 use crate::tables::{CanvasId, MaterialId};
@@ -7,7 +8,7 @@ use crate::tables::{CanvasId, MaterialId};
 pub struct Brush {
     pub canvas: CanvasId,
     pub material: MaterialId,
-    pub scale: Vec2,
+    pub scale: Vec3,
     pub color: Vec4,
 }
 
@@ -16,7 +17,7 @@ impl Brush {
         Self {
             canvas,
             material,
-            scale: Vec2::ONE,
+            scale: Vec3::ONE,
             color: Vec4::ONE,
         }
     }
@@ -25,7 +26,7 @@ impl Brush {
         Self {
             canvas: sprite.canvas,
             material: sprite.material,
-            scale: sprite.natural_scale,
+            scale: Vec3::ONE,
             color: Vec4::ONE,
         }
     }
