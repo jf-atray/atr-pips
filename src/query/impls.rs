@@ -71,6 +71,19 @@ where
     }
 }
 
+// Calling `$callback(a, b)` directly on an unannotated closure literal does not let
+// rustc infer `a`/`b`'s parameter types from the concrete types of the arguments: a
+// bare `(closure)(args)` call only checks the closure body against fresh inference
+// variables, so field/method access on an unannotated parameter is ambiguous (E0282)
+// even though `a` and `b` are already fully concrete at the call site. Routing the
+// call through this generic trampoline instead pins `F: FnMut(A, B)` from `a`/`b`'s
+// (already-known) types the same way `Iterator::for_each` does, before the closure
+// body is ever type-checked.
+#[inline]
+pub fn call2<A, B, F: FnMut(A, B)>(mut f: F, a: A, b: B) {
+    f(a, b)
+}
+
 pub fn query_ref<'a, T, K>(class: &'a Class<T, K>) -> impl Iterator<Item = &'a Columnar<T, K>>
 where
     T: 'a,
