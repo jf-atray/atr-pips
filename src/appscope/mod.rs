@@ -8,9 +8,9 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
-use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteSolver};
+use crate::assets::AssetRegistry;
+use crate::demo::scene::Demo;
 use crate::gamescope::game::Game;
-use crate::gamescope::populate;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -91,7 +91,7 @@ impl App {
         self.prev_tick = Some(now);
 
         let aspect = windowing.width as f32 / windowing.height as f32;
-        game.update(elapsed, aspect);
+        game.update(elapsed, aspect, gpu);
 
         if let Some(mut frame) = gpu.begin_frame() {
             gpu.device.canvas_renderer.prepare(
@@ -217,33 +217,10 @@ impl ApplicationHandler<GpuReady> for App {
             gpu.reconfigure(windowing.width, windowing.height);
 
             const PIXELS_PER_UNIT: f32 = 512.0;
-            let device = &gpu.device.device;
-            let queue = &gpu.device.queue;
-            let (every, canvas) = BasicSpriteCanvas::make(
-                device,
-                gpu.surface.cfg.format,
-                gpu.targets.sample_count(),
-                gpu.targets
-                    .depth_enabled()
-                    .then_some(wgpu::TextureFormat::Depth32Float),
-                PIXELS_PER_UNIT,
-            );
-            let _solver_id = gpu
-                .device
-                .canvas_renderer
-                .solvers
-                .insert(Box::new(SpriteSolver::new()));
 
-            let game = populate::build_game(
-                device,
-                queue,
-                &mut gpu.device.canvas_renderer,
-                &mut gpu.device.texture_scope,
-                every,
-                canvas,
-                PIXELS_PER_UNIT,
-                "assets/sprites",
-            );
+            let mut game = Game::new(AssetRegistry::new());
+            game.set_scene(Box::new(Demo::new("assets/sprites", PIXELS_PER_UNIT)));
+
             self.state = AppState::Ready {
                 windowing,
                 gpu,

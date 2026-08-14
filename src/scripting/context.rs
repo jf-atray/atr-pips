@@ -9,11 +9,11 @@ use crate::tables::domain::Domain;
 use crate::tables::tables::Tables;
 
 pub struct DomainView<'a> {
-    dt: f32,
-    domain: &'a mut Domain,
-    scripts: &'a Scripts,
-    solvers: &'a Solvers,
-    asset_registry: &'a AssetRegistry,
+    pub dt: f32,
+    pub domain: &'a mut Domain,
+    pub scripts: &'a Scripts,
+    pub solvers: &'a Solvers,
+    pub asset_registry: &'a AssetRegistry,
 }
 
 impl<'a> DomainView<'a> {
@@ -33,22 +33,10 @@ impl<'a> DomainView<'a> {
         }
     }
 
-    pub fn dt(&self) -> f32 {
-        self.dt
-    }
-
-    pub fn domain(&mut self) -> &mut Domain {
-        self.domain
-    }
-
     pub fn split(&mut self) -> (&slotmap::SlotMap<crate::tables::PipId, crate::tables::ClassRowPtr>, &mut Tables) {
         (&self.domain.ids, &mut self.domain.tables)
     }
-
-    pub fn asset_registry(&self) -> &AssetRegistry {
-        self.asset_registry
-    }
-
+    
     pub fn with_script_mut<T: Script>(
         &self,
         id: ScriptId,

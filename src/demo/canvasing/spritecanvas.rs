@@ -392,12 +392,12 @@ impl CanvasTrait for BasicSpriteCanvas {
     }
 }
 
-pub struct SpriteSolver {
+pub struct SpriteCanvasSolver {
     sort: Vec<(SpriteInstance, CanvasId, MaterialId)>,
     instances: Vec<SpriteInstance>,
 }
 
-impl SpriteSolver {
+impl SpriteCanvasSolver {
     pub fn new() -> Self {
         Self {
             sort: Vec::new(),
@@ -465,7 +465,7 @@ impl SpriteSolver {
     }
 }
 
-impl CanvasSolver for SpriteSolver {
+impl CanvasSolver for SpriteCanvasSolver {
     fn solve(
         &mut self,
         tables: &Tables,

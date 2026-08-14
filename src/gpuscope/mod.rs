@@ -173,8 +173,32 @@ impl Gpu {
         }
     }
 
+    pub fn device(&self) -> &Device {
+        &self.device.device
+    }
+
     pub fn queue(&self) -> &Queue {
         &self.device.queue
+    }
+
+    pub fn texture_scope(&self) -> &TextureScope {
+        &self.device.texture_scope
+    }
+
+    pub fn texture_scope_mut(&mut self) -> &mut TextureScope {
+        &mut self.device.texture_scope
+    }
+
+    pub fn canvas_renderer(&self) -> &CanvasRenderer {
+        &self.device.canvas_renderer
+    }
+
+    pub fn canvas_renderer_mut(&mut self) -> &mut CanvasRenderer {
+        &mut self.device.canvas_renderer
+    }
+
+    pub fn targets(&self) -> &RenderTargets {
+        &self.targets
     }
 
     pub fn surface_cfg(&self) -> &SurfaceConfiguration {
