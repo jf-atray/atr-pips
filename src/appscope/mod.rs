@@ -9,8 +9,8 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
 use crate::assets::AssetRegistry;
-use crate::demo::scene::Demo;
 use crate::gamescope::game::Game;
+use crate::you_first::gamejam::roller::overworld::OverworldScene;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -219,7 +219,7 @@ impl ApplicationHandler<GpuReady> for App {
             const PIXELS_PER_UNIT: f32 = 512.0;
 
             let mut game = Game::new(AssetRegistry::new());
-            game.set_scene(Box::new(Demo::new("assets/sprites", PIXELS_PER_UNIT)));
+            game.set_scene(Box::new(OverworldScene::new(PIXELS_PER_UNIT)));
 
             self.state = AppState::Ready {
                 windowing,
