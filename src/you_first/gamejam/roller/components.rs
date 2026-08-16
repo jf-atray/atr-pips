@@ -17,5 +17,17 @@ crate::partition! {
     pub struct RollerAddition as RollerView {
         pub roller_depths: Class<RollerDepth>,
         pub roller_players: Class<RollerPlayer>,
+        pub brush_flips: Class<BrushFlip>,
     }
+}
+
+
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
+pub struct BrushFlip {
+    pub is_flipped: bool,
+}
+
+pub fn solve_flip(brush: &mut Brush, flip: &BrushFlip) {
+    let sign = if flip.is_flipped { -1.0 } else { 1.0 };
+    brush.scale.x = brush.scale.x.copysign(sign);
 }
