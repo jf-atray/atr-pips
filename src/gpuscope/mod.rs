@@ -179,6 +179,9 @@ impl Gpu {
     pub fn wgpu_mut(&mut self) -> (&mut Device, &mut Queue) {
         (&mut self.device.device, &mut self.device.queue)
     }
+    pub fn queue(&self) -> &Queue {
+        &self.device.queue
+    }
 
     pub fn texture_scope(&self) -> &TextureScope {
         &self.device.texture_scope
