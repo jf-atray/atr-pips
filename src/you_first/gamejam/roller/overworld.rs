@@ -14,17 +14,33 @@ use crate::you_first::gamejam::roller::components::{
 use crate::you_first::gamejam::roller::projection::{FAR_Z, WALK_SPEED};
 use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
 
+use crate::gamejam::bundles::SpriteBundle;
+use crate::gamejam::roller::bundle::PlayerRollerBundle;
+use crate::gamejam::roller::camera::OverworldCamera;
+use crate::gamejam::roller::system::{
+    CloudDriftSystem, PlayerLateralController, RollerProjectionSystem, RollerSpawner,
+};
+
 const DESIGN_W: f32 = 1280.0;
 const DESIGN_H: f32 = 720.0;
 const HORIZON_NDC_Y: f32 = 1.0 / 3.0;
 const CAMERA_BOUNDS: f32 = 8.0;
 const CAMERA_MARGIN: f32 = 3.0;
 
+const WALK_HORIZON_Y: f32 = 0.0;
+const GROUND_STRIP_HEIGHT: f32 = 20.0;
+const TILTED_GROUND_HEIGHT: f32 = 1.4;
+const GROUND_TILT_DEG: f32 = 5.0;
+
 pub struct OverworldScene {
     state: State,
     pixels_per_unit: f32,
     player: Option<PipId>,
     camera_x: f32,
+    ground: Option<PipId>,
+    tilted_ground: Option<PipId>,
+    sky: Option<PipId>,
+    sun: Option<PipId>,
 }
 
 enum State {
@@ -39,6 +55,10 @@ impl OverworldScene {
             pixels_per_unit,
             player: None,
             camera_x: 0.0,
+            ground: None,
+            tilted_ground: None,
+            sky: None,
+            sun: None,
         }
     }
 }
@@ -66,6 +86,62 @@ impl OverworldScene {
 
         self.player = Some(self.spawn_player(ctx, canvas, player_mat));
         self.spawn_objects(ctx, canvas, cactus_mat);
+
+        let world = &mut ctx.world;
+        let resources = &ctx.resources;
+        let player = self.player.unwrap();
+
+        let ground = SpriteBundle::from_asset(
+            Vec3::new(0.0, WALK_HORIZON_Y - GROUND_STRIP_HEIGHT * 0.5, 0.25 + (0.5 * 0.66396803) ),
+            Vec2::new(20.0, GROUND_STRIP_HEIGHT),
+            [0.25, 0.2, 0.15, 1.0],
+            "ground",
+            resources,
+        )
+        .spawn(world);
+        self.ground = Some(ground);
+
+        let ground_z = 0.25 + (0.5 * 0.66396803);
+        let tilt_rad = GROUND_TILT_DEG.to_radians();
+        let half_h = TILTED_GROUND_HEIGHT * 0.5;
+        let tilted_z = (ground_z - half_h * tilt_rad.sin());
+        let tilted_y = WALK_HORIZON_Y - half_h * tilt_rad.cos();
+        let mut tilted = SpriteBundle::from_asset(
+            Vec3::new(0.0, tilted_y, tilted_z),
+            Vec2::new(20.0, TILTED_GROUND_HEIGHT),
+            [0.25, 0.2, 0.15, 1.0],
+            "tilted_ground",
+            resources,
+        );
+        tilted.transform.rot = Quat::from_rotation_x(tilt_rad);
+        let tilted = tilted.spawn(world);
+        self.tilted_ground = Some(tilted);
+
+        let sky = SpriteBundle::from_asset(
+            Vec3::new(0.0, WALK_HORIZON_Y + 5.0, 0.95),
+            Vec2::new(20.0, 10.0),
+            [0.6, 0.75, 0.9, 1.0],
+            "sky",
+            resources,
+        )
+        .spawn(world);
+        self.sky = Some(sky);
+
+        let sun = SpriteBundle::from_asset(
+            Vec3::new(-0.3, 0.9, 0.93),
+            Vec2::new(0.25, 0.25),
+            [1.0, 1.0, 0.6, 1.0],
+            "sun",
+            resources,
+        )
+        .spawn(world);
+        self.sun = Some(sun);
+
+        ctx.scripts.register(Box::new(OverworldCamera::new(player)));
+        ctx.scripts.register(Box::new(RollerProjectionSystem::new(player)));
+        ctx.scripts.register(Box::new(PlayerLateralController::new(player)));
+        ctx.scripts.register(Box::new(RollerSpawner::new(player)));
+        ctx.scripts.register(Box::new(CloudDriftSystem::new()));
     }
 
     fn make_canvas(&mut self, ctx: &mut SceneContext) -> (CanvasId, MaterialId, MaterialId) {
