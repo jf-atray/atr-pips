@@ -1,3 +1,4 @@
+use glam::prelude::Vec4;
 use glam::{Quat, Vec2, Vec3};
 
 use std::fs;
