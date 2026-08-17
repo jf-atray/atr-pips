@@ -1,4 +1,5 @@
 pub mod biome;
+pub mod brush_flip;
 pub mod bundles;
 pub mod camera;
 pub mod clouds;

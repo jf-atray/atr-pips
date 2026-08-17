@@ -8,18 +8,12 @@ use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::scope::Scope;
 use crate::tables::{CanvasId, MaterialId, PipId};
-use crate::you_first::gamejam::roller::components::{
-    RollerAddition, RollerDepth, RollerPlayer, RollerView,
-};
-use crate::you_first::gamejam::roller::projection::{FAR_Z, WALK_SPEED};
+use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
+use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
+use crate::you_first::gamejam::roller::components::RollerAddition;
+use crate::you_first::gamejam::roller::projection::FAR_Z;
 use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
 
-use crate::gamejam::bundles::SpriteBundle;
-use crate::gamejam::roller::bundle::PlayerRollerBundle;
-use crate::gamejam::roller::camera::OverworldCamera;
-use crate::gamejam::roller::system::{
-    CloudDriftSystem, PlayerLateralController, RollerProjectionSystem, RollerSpawner,
-};
 
 const DESIGN_W: f32 = 1280.0;
 const DESIGN_H: f32 = 720.0;
@@ -83,65 +77,84 @@ impl OverworldScene {
             .solvers
             .insert(Box::new(SpriteCanvasSolver::new()));
         ctx.solvers.register(RollerProjectionSolver);
+        ctx.solvers.register(BrushFlipSolver);
 
         self.player = Some(self.spawn_player(ctx, canvas, player_mat));
         self.spawn_objects(ctx, canvas, cactus_mat);
 
-        let world = &mut ctx.world;
-        let resources = &ctx.resources;
-        let player = self.player.unwrap();
-
-        let ground = SpriteBundle::from_asset(
-            Vec3::new(0.0, WALK_HORIZON_Y - GROUND_STRIP_HEIGHT * 0.5, 0.25 + (0.5 * 0.66396803) ),
-            Vec2::new(20.0, GROUND_STRIP_HEIGHT),
-            [0.25, 0.2, 0.15, 1.0],
-            "ground",
-            resources,
-        )
-        .spawn(world);
+        let ground_z = 0.25 + (0.5 * 0.66396803);
+        let ground_sprite = ctx.asset_registry.get("ground");
+        let ground = ctx.domain.make(|scope: &mut Scope| {
+            let mut brush = Brush::new(ground_sprite.canvas, ground_sprite.material);
+            brush.scale = Vec3::new(20.0, GROUND_STRIP_HEIGHT, 1.0);
+            brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
+            scope.core.with(
+                Transform {
+                    xyz: Vec3::new(0.0, WALK_HORIZON_Y - GROUND_STRIP_HEIGHT * 0.5, ground_z),
+                    rot: Quat::IDENTITY,
+                },
+                brush,
+                "ground".to_string(),
+                Motion::default(),
+            );
+        });
         self.ground = Some(ground);
 
-        let ground_z = 0.25 + (0.5 * 0.66396803);
         let tilt_rad = GROUND_TILT_DEG.to_radians();
         let half_h = TILTED_GROUND_HEIGHT * 0.5;
         let tilted_z = (ground_z - half_h * tilt_rad.sin());
         let tilted_y = WALK_HORIZON_Y - half_h * tilt_rad.cos();
-        let mut tilted = SpriteBundle::from_asset(
-            Vec3::new(0.0, tilted_y, tilted_z),
-            Vec2::new(20.0, TILTED_GROUND_HEIGHT),
-            [0.25, 0.2, 0.15, 1.0],
-            "tilted_ground",
-            resources,
-        );
-        tilted.transform.rot = Quat::from_rotation_x(tilt_rad);
-        let tilted = tilted.spawn(world);
+        let tilted_sprite = ctx.asset_registry.get("tilted_ground");
+        let tilted = ctx.domain.make(|scope: &mut Scope| {
+            let mut brush = Brush::new(tilted_sprite.canvas, tilted_sprite.material);
+            brush.scale = Vec3::new(20.0, TILTED_GROUND_HEIGHT, 1.0);
+            brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
+            scope.core.with(
+                Transform {
+                    xyz: Vec3::new(0.0, tilted_y, tilted_z),
+                    rot: Quat::from_rotation_x(tilt_rad),
+                },
+                brush,
+                "tilted_ground".to_string(),
+                Motion::default(),
+            );
+        });
         self.tilted_ground = Some(tilted);
 
-        let sky = SpriteBundle::from_asset(
-            Vec3::new(0.0, WALK_HORIZON_Y + 5.0, 0.95),
-            Vec2::new(20.0, 10.0),
-            [0.6, 0.75, 0.9, 1.0],
-            "sky",
-            resources,
-        )
-        .spawn(world);
+        let sky_sprite = ctx.asset_registry.get("sky");
+        let sky = ctx.domain.make(|scope: &mut Scope| {
+            let mut brush = Brush::new(sky_sprite.canvas, sky_sprite.material);
+            brush.scale = Vec3::new(20.0, 10.0, 1.0);
+            brush.color = Vec4::new(0.6, 0.75, 0.9, 1.0);
+            scope.core.with(
+                Transform {
+                    xyz: Vec3::new(0.0, WALK_HORIZON_Y + 5.0, 0.95),
+                    rot: Quat::IDENTITY,
+                },
+                brush,
+                "sky".to_string(),
+                Motion::default(),
+            );
+        });
         self.sky = Some(sky);
 
-        let sun = SpriteBundle::from_asset(
-            Vec3::new(-0.3, 0.9, 0.93),
-            Vec2::new(0.25, 0.25),
-            [1.0, 1.0, 0.6, 1.0],
-            "sun",
-            resources,
-        )
-        .spawn(world);
+        let sun_sprite = ctx.asset_registry.get("sun");
+        let sun = ctx.domain.make(|scope: &mut Scope| {
+            let mut brush = Brush::new(sun_sprite.canvas, sun_sprite.material);
+            brush.scale = Vec3::new(0.25, 0.25, 1.0);
+            brush.color = Vec4::new(1.0, 1.0, 0.6, 1.0);
+            scope.core.with(
+                Transform {
+                    xyz: Vec3::new(-0.3, 0.9, 0.93),
+                    rot: Quat::IDENTITY,
+                },
+                brush,
+                "sun".to_string(),
+                Motion::default(),
+            );
+        });
         self.sun = Some(sun);
 
-        ctx.scripts.register(Box::new(OverworldCamera::new(player)));
-        ctx.scripts.register(Box::new(RollerProjectionSystem::new(player)));
-        ctx.scripts.register(Box::new(PlayerLateralController::new(player)));
-        ctx.scripts.register(Box::new(RollerSpawner::new(player)));
-        ctx.scripts.register(Box::new(CloudDriftSystem::new()));
     }
 
     fn make_canvas(&mut self, ctx: &mut SceneContext) -> (CanvasId, MaterialId, MaterialId) {
@@ -232,53 +245,29 @@ impl OverworldScene {
         canvas: CanvasId,
         material: MaterialId,
     ) -> PipId {
-        let transform = Transform {
-            xyz: Vec3::ZERO,
-            rot: Quat::IDENTITY,
-        };
-        let brush = Brush::new(canvas, material);
-        let name = "player".to_string();
-        let roller_player = RollerPlayer {
-            walk_distance: 0.0,
-            lateral: 0.0,
-        };
-        let roller_depth = RollerDepth {
-            d: 2.0,
-            lateral: 0.0,
-            speed: -WALK_SPEED,
-            scalar: 1.0,
-            lateral_speed: 0.0,
-        };
-
-        ctx.domain.make(|scope: &mut Scope| {
-            scope.core.with(transform, brush, name, Motion::default());
-            scope
-                .view::<RollerView>()
-                .map(|rv| rv.with(roller_depth, roller_player));
-        })
+        ctx.domain.make(player_roller_bundle(
+            canvas,
+            material,
+            0.0,
+            2.0,
+            [255, 255, 255, 255],
+            1.0,
+        ))
     }
 
     fn spawn_objects(&mut self, ctx: &mut SceneContext, canvas: CanvasId, material: MaterialId) {
         for i in -2..=2 {
             let lateral = i as f32 * 1.5;
-            let transform = Transform {
-                xyz: Vec3::ZERO,
-                rot: Quat::IDENTITY,
-            };
-            let brush = Brush::new(canvas, material);
-            let name = format!("roller_{}", i);
-            let roller_depth = RollerDepth {
-                d: FAR_Z,
+            ctx.domain.make(roller_sprite_bundle(
+                canvas,
+                material,
                 lateral,
-                speed: 0.0,
-                scalar: 1.0,
-                lateral_speed: 0.0,
-            };
-
-            ctx.domain.make(|scope: &mut Scope| {
-                scope.core.with(transform, brush, name, Motion::default());
-                scope.view::<RollerView>().map(|rv| rv.roller_depths = Some(roller_depth));
-            });
+                FAR_Z,
+                [255, 255, 255, 255],
+                1.0,
+                0.0,
+                i % 2 == 0,
+            ));
         }
     }
 }

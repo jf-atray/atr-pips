@@ -1,10 +1,7 @@
-use glam::Vec2;
-
-use crate::gamejam::duel::state::{LivingAnimLib, TumbleweedAnimLib};
-use crate::gamejam::roller::bundle::{LivingRollerBundle, RollerSpriteBundle, TumbleweedRollerBundle};
-use crate::gamejam::roller::projection::{FAR_Z, NEAR_Z};
-use crate::scenes::SceneResources;
-use crate::world::World;
+use crate::assets::AssetRegistry;
+use crate::you_first::gamejam::roller::bundles::roller_sprite_bundle_from_asset;
+use crate::you_first::gamejam::roller::projection::{FAR_Z, NEAR_Z};
+use crate::tables::domain::Domain;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Placement {
@@ -38,23 +35,14 @@ impl Default for ScatterMotion {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AnimKind {
-    None,
-    Living,
-    Tumbleweed,
-}
-
 pub struct ScatterChannel {
     material: &'static str,
     interval: f32,
     lateral_range: f32,
-    size: Vec2,
     color: [u8; 4],
     scalar: f32,
     placement: Placement,
     flip_mode: FlipMode,
-    anim_kind: AnimKind,
     motion: ScatterMotion,
     next_spawn: f32,
     left_side: bool,
@@ -94,58 +82,30 @@ impl ScatterChannel {
         (offset, is_left)
     }
 
-    fn spawn(&self, world: &mut World, resources: &SceneResources<'_>, living_anim: LivingAnimLib, tumbleweed_anim: TumbleweedAnimLib, lateral: f32, d: f32, is_left: bool, rng: &mut u32) {
+    fn spawn(
+        &self,
+        domain: &mut Domain,
+        asset_registry: &AssetRegistry,
+        lateral: f32,
+        d: f32,
+        is_left: bool,
+        rng: &mut u32,
+    ) {
         let is_flipped = match self.flip_mode {
             FlipMode::None => false,
             FlipMode::BySide => is_left,
             FlipMode::Random => next_random(rng) < 0.5,
         };
-        match self.anim_kind {
-            AnimKind::None => {
-                let mut bundle = RollerSpriteBundle::from_asset(
-                    lateral,
-                    d,
-                    self.size,
-                    self.color,
-                    self.material,
-                    resources,
-                );
-                bundle.roller_depth.scalar = self.scalar;
-                bundle.roller_depth.lateral_speed = self.motion.lateral_speed;
-                bundle.brush_flip.is_flipped = is_flipped;
-                bundle.spawn(world);
-            }
-            AnimKind::Living => {
-                let mut bundle = LivingRollerBundle::from_asset(
-                    lateral,
-                    d,
-                    self.size,
-                    self.color,
-                    self.material,
-                    living_anim,
-                    resources,
-                );
-                bundle.roller_depth.scalar = self.scalar;
-                bundle.roller_depth.lateral_speed = self.motion.lateral_speed;
-                bundle.brush_flip.is_flipped = is_flipped;
-                bundle.spawn(world);
-            }
-            AnimKind::Tumbleweed => {
-                let mut bundle = TumbleweedRollerBundle::from_asset(
-                    lateral,
-                    d,
-                    self.size,
-                    self.color,
-                    self.material,
-                    tumbleweed_anim,
-                    resources,
-                );
-                bundle.roller_depth.scalar = self.scalar;
-                bundle.roller_depth.lateral_speed = self.motion.lateral_speed;
-                bundle.brush_flip.is_flipped = is_flipped;
-                bundle.spawn(world);
-            }
-        }
+        domain.make(roller_sprite_bundle_from_asset(
+            self.material,
+            asset_registry,
+            lateral,
+            d,
+            self.color,
+            self.scalar,
+            self.motion.lateral_speed,
+            is_flipped,
+        ));
     }
 }
 
@@ -154,12 +114,10 @@ pub struct Biome {
 }
 
 impl Biome {
-    fn pre_seed(
+    pub fn pre_seed(
         &mut self,
-        world: &mut World,
-        resources: &SceneResources<'_>,
-        living_anim: LivingAnimLib,
-        tumbleweed_anim: TumbleweedAnimLib,
+        domain: &mut Domain,
+        asset_registry: &AssetRegistry,
         rng: &mut u32,
     ) {
         for channel in &mut self.channels {
@@ -175,26 +133,15 @@ impl Biome {
                 }
 
                 let (lateral, is_left) = channel.place(rng);
-                channel.spawn(
-                    world,
-                    resources,
-                    living_anim,
-                    tumbleweed_anim,
-                    lateral,
-                    d,
-                    is_left,
-                    rng,
-                );
+                channel.spawn(domain, asset_registry, lateral, d, is_left, rng);
             }
         }
     }
 
-    fn update(
+    pub fn update(
         &mut self,
-        world: &mut World,
-        resources: &SceneResources<'_>,
-        living_anim: LivingAnimLib,
-        tumbleweed_anim: TumbleweedAnimLib,
+        domain: &mut Domain,
+        asset_registry: &AssetRegistry,
         walk_distance: f32,
         rng: &mut u32,
     ) {
@@ -204,16 +151,7 @@ impl Biome {
 
                 let d = channel.motion.spawn_depth;
                 let (lateral, is_left) = channel.place(rng);
-                channel.spawn(
-                    world,
-                    resources,
-                    living_anim,
-                    tumbleweed_anim,
-                    lateral,
-                    d,
-                    is_left,
-                    rng,
-                );
+                channel.spawn(domain, asset_registry, lateral, d, is_left, rng);
             }
         }
     }
@@ -225,12 +163,10 @@ impl Biome {
                     material: "cactus",
                     interval: 3.0,
                     lateral_range: 3.5,
-                    size: Vec2::new(0.6, 1.0),
                     color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Alternate,
                     flip_mode: FlipMode::Random,
-                    anim_kind: AnimKind::Living,
                     motion: ScatterMotion::default(),
                     next_spawn: 0.0,
                     left_side: true,
@@ -246,12 +182,10 @@ impl Biome {
                     material: "cactus",
                     interval: 2.0,
                     lateral_range: 4.0,
-                    size: Vec2::new(0.6, 1.0),
                     color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::Random,
-                    anim_kind: AnimKind::Living,
                     motion: ScatterMotion::default(),
                     next_spawn: 0.0,
                     left_side: true,
@@ -260,12 +194,10 @@ impl Biome {
                     material: "tumbleweed",
                     interval: 5.0,
                     lateral_range: 5.0,
-                    size: Vec2::new(0.4, 0.4),
                     color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Fixed(true),
                     flip_mode: FlipMode::BySide,
-                    anim_kind: AnimKind::Tumbleweed,
                     motion: ScatterMotion {
                         spawn_depth: FAR_Z,
                         lateral_speed: 1.2,
