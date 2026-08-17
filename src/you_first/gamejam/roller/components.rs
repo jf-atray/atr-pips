@@ -1,3 +1,5 @@
+use crate::brushes::Brush;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RollerDepth {
     pub d: f32,
