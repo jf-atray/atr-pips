@@ -9,12 +9,11 @@ use crate::you_first::gamejam::roller::projection::WALK_SPEED;
 pub struct RollerSpawner {
     player: PipId,
     biome: Biome,
-    rng: u32,
 }
 
 impl RollerSpawner {
-    pub fn new(player: PipId, biome: Biome, rng: u32) -> Self {
-        Self { player, biome, rng }
+    pub fn new(player: PipId, biome: Biome) -> Self {
+        Self { player, biome }
     }
 }
 
@@ -34,6 +33,6 @@ impl Script for RollerSpawner {
         };
 
         self.biome
-            .update(&mut ctx.domain, ctx.asset_registry, walk_distance, &mut self.rng);
+            .update(&mut ctx.domain, ctx.asset_registry, walk_distance);
     }
 }

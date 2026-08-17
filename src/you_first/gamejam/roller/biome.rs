@@ -49,7 +49,7 @@ pub struct ScatterChannel {
 }
 
 impl ScatterChannel {
-    fn place(&mut self, rng: &mut u32) -> (f32, bool) {
+    fn place(&mut self) -> (f32, bool) {
         let (offset, is_left) = match self.placement {
             Placement::Alternate => {
                 let is_left = self.left_side;
@@ -62,7 +62,7 @@ impl ScatterChannel {
                 (o, is_left)
             }
             Placement::Random => {
-                let r = next_random(rng) * 2.0 - 1.0;
+                let r = rand::random::<f32>() * 2.0 - 1.0;
                 (r * self.lateral_range, r < 0.0)
             }
             Placement::Fixed(is_left) => {
@@ -70,8 +70,8 @@ impl ScatterChannel {
                 (o, is_left)
             }
             Placement::SideRandom { min_offset } => {
-                let is_left = next_random(rng) < 0.5;
-                let r = next_random(rng);
+                let is_left = rand::random::<bool>();
+                let r = rand::random::<f32>();
                 if is_left {
                     (-(min_offset + r * (self.lateral_range - min_offset)), true)
                 } else {
@@ -89,12 +89,11 @@ impl ScatterChannel {
         lateral: f32,
         d: f32,
         is_left: bool,
-        rng: &mut u32,
     ) {
         let is_flipped = match self.flip_mode {
             FlipMode::None => false,
             FlipMode::BySide => is_left,
-            FlipMode::Random => next_random(rng) < 0.5,
+            FlipMode::Random => rand::random::<bool>(),
         };
         domain.make(roller_sprite_bundle_from_asset(
             self.material,
@@ -118,7 +117,6 @@ impl Biome {
         &mut self,
         domain: &mut Domain,
         asset_registry: &AssetRegistry,
-        rng: &mut u32,
     ) {
         for channel in &mut self.channels {
             if !channel.motion.pre_seed {
@@ -132,8 +130,8 @@ impl Biome {
                     break;
                 }
 
-                let (lateral, is_left) = channel.place(rng);
-                channel.spawn(domain, asset_registry, lateral, d, is_left, rng);
+                let (lateral, is_left) = channel.place();
+                channel.spawn(domain, asset_registry, lateral, d, is_left);
             }
         }
     }
@@ -143,15 +141,14 @@ impl Biome {
         domain: &mut Domain,
         asset_registry: &AssetRegistry,
         walk_distance: f32,
-        rng: &mut u32,
     ) {
         for channel in &mut self.channels {
             if walk_distance >= channel.next_spawn {
                 channel.next_spawn = walk_distance + channel.interval;
 
                 let d = channel.motion.spawn_depth;
-                let (lateral, is_left) = channel.place(rng);
-                channel.spawn(domain, asset_registry, lateral, d, is_left, rng);
+                let (lateral, is_left) = channel.place();
+                channel.spawn(domain, asset_registry, lateral, d, is_left);
             }
         }
     }
@@ -211,7 +208,4 @@ impl Biome {
     }
 }
 
-fn next_random(rng: &mut u32) -> f32 {
-    *rng = rng.wrapping_mul(1103515245).wrapping_add(12345);
-    ((*rng & 0x7fff) as f32) / 32768.0
-}
+

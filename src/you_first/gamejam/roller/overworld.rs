@@ -14,6 +14,7 @@ use crate::tables::{CanvasId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
 use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
 use crate::you_first::gamejam::roller::biome::Biome;
+use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::FAR_Z;
 use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
@@ -167,11 +168,11 @@ impl OverworldScene {
         });
         self.sun = Some(sun);
 
-        let mut rng = 0;
         let mut biome = Biome::default_desert();
-        biome.pre_seed(&mut ctx.domain, ctx.asset_registry, &mut rng);
+        biome.pre_seed(&mut ctx.domain, ctx.asset_registry);
         ctx.solvers
-            .register(RollerSpawner::new(player_id, biome, rng));
+            .register(RollerSpawner::new(player_id, biome));
+        ctx.solvers.register(CloudDriftSystem::new());
 
     }
 
