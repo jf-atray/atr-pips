@@ -12,6 +12,7 @@ mod clip;
 mod gamescope;
 mod gather;
 mod gpuscope;
+mod input;
 mod libscope;
 mod physics;
 mod query;

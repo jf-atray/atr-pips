@@ -1,4 +1,5 @@
 use crate::assets::AssetRegistry;
+use crate::input::Input;
 use crate::scripting::error::ScriptGetError;
 use crate::scripting::host::ScriptHostMut;
 use crate::scripting::id::ScriptId;
@@ -13,6 +14,7 @@ pub struct DomainView<'a> {
     pub domain: &'a mut Domain,
     pub scripts: &'a Scripts,
     pub solvers: &'a Solvers,
+    pub input: &'a Input,
     pub asset_registry: &'a AssetRegistry,
 }
 
@@ -22,6 +24,7 @@ impl<'a> DomainView<'a> {
         domain: &'a mut Domain,
         scripts: &'a Scripts,
         solvers: &'a Solvers,
+        input: &'a Input,
         asset_registry: &'a AssetRegistry,
     ) -> Self {
         Self {
@@ -29,6 +32,7 @@ impl<'a> DomainView<'a> {
             domain,
             scripts,
             solvers,
+            input,
             asset_registry,
         }
     }

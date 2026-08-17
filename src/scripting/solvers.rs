@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use slotmap::SlotMap;
 
 use crate::assets::AssetRegistry;
+use crate::input::Input;
 use crate::scripting::context::DomainView;
 use crate::scripting::error::ScriptGetError;
 use crate::scripting::every::EveryScript;
@@ -83,8 +84,8 @@ impl Solvers {
         self.set_enabled::<T>(false)
     }
 
-    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, scripts: &Scripts, asset_registry: &AssetRegistry) {
-        let mut ctx = DomainView::new(dt, domain, scripts, self, asset_registry);
+    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, scripts: &Scripts, asset_registry: &AssetRegistry, input: &Input) {
+        let mut ctx = DomainView::new(dt, domain, scripts, self, input, asset_registry);
         for cell in self.solvers.values() {
             if let Ok(mut guard) = Self::try_borrow_host(cell) {
                 let host = &mut *guard;

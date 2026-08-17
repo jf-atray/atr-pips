@@ -1,4 +1,5 @@
 use glam::{Quat, Vec2, Vec3, Vec4};
+use winit::keyboard::KeyCode;
 
 use std::fs;
 
@@ -12,9 +13,11 @@ use crate::spacial::transform::Transform;
 use crate::tables::scope::Scope;
 use crate::tables::{CanvasId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
+use crate::input::AxisConfig;
 use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
 use crate::you_first::gamejam::roller::biome::Biome;
 use crate::you_first::gamejam::roller::camera::CameraDirector;
+use crate::you_first::gamejam::roller::controller::PlayerLateralController;
 use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::FAR_Z;
@@ -176,6 +179,23 @@ impl OverworldScene {
 
         let mut biome = Biome::default_desert();
         biome.pre_seed(&mut ctx.domain, ctx.asset_registry);
+
+        ctx.input.add_axis(
+            "Horizontal",
+            AxisConfig::new(
+                vec![KeyCode::ArrowRight, KeyCode::KeyD],
+                vec![KeyCode::ArrowLeft, KeyCode::KeyA],
+            ),
+        );
+        ctx.input.add_axis(
+            "Vertical",
+            AxisConfig::new(
+                vec![KeyCode::ArrowUp, KeyCode::KeyW],
+                vec![KeyCode::ArrowDown, KeyCode::KeyS],
+            ),
+        );
+
+        ctx.solvers.register(PlayerLateralController::new(player_id));
         ctx.solvers
             .register(RollerSpawner::new(player_id, biome));
         ctx.solvers.register(CloudDriftSystem::new());
@@ -304,7 +324,7 @@ impl OverworldScene {
         let camera_y = -HORIZON_NDC_Y * CAMERA_BOUNDS * aspect;
         let zoom = 10.0 / CAMERA_BOUNDS;
 
-        let current_x = self.camera_director.pan.current.x;
+        let current_x = ctx.camera.pos.x;
         let target_x = if let Some(player) = self.player
             && let Some(xform) = gather_ref(&ctx.domain.ids, &ctx.domain.tables.core.xforms, player)
         {

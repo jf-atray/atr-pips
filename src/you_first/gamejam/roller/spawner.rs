@@ -1,10 +1,9 @@
-use crate::gather::impls::gather_mut;
+use crate::gather::impls::gather_ref;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::tables::PipId;
 use crate::you_first::gamejam::roller::biome::Biome;
 use crate::you_first::gamejam::roller::components::{RollerAddition, RollerPlayer};
-use crate::you_first::gamejam::roller::projection::WALK_SPEED;
 
 pub struct RollerSpawner {
     player: PipId,
@@ -20,15 +19,14 @@ impl RollerSpawner {
 impl Script for RollerSpawner {
     fn update(&mut self, ctx: &mut DomainView) {
         let walk_distance = {
-            let tables = &mut ctx.domain.tables;
-            let Some(roller) = tables.get_mut::<RollerAddition>() else {
+            let tables = &ctx.domain.tables;
+            let Some(roller) = tables.get::<RollerAddition>() else {
                 return;
             };
-            let Some(player) = gather_mut(&ctx.domain.ids, &mut roller.roller_players, self.player) else {
+            let Some(player) = gather_ref(&ctx.domain.ids, &roller.roller_players, self.player) else {
                 return;
             };
 
-            player.walk_distance += WALK_SPEED * ctx.dt;
             player.walk_distance
         };
 

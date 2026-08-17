@@ -1,6 +1,7 @@
 use crate::assets::AssetRegistry;
 use crate::gamescope::scene::{NoopScene, Scene, SceneContext};
 use crate::gpuscope::Gpu;
+use crate::input::Input;
 use crate::scripting::{Scripts, Solvers};
 use crate::spacial::camera::Camera;
 use crate::tables::domain::Domain;
@@ -9,6 +10,7 @@ pub struct Game {
     pub domain: Domain,
     pub camera: Camera,
     pub asset_registry: AssetRegistry,
+    pub input: Input,
     pub scripts: Scripts,
     pub solvers: Solvers,
     pub scene: Box<dyn Scene>,
@@ -20,6 +22,7 @@ impl Game {
             domain: Domain::new(),
             camera: Camera::new(),
             asset_registry,
+            input: Input::new(),
             scripts: Scripts::new(),
             solvers: Solvers::new(),
             scene: Box::new(NoopScene),
@@ -36,6 +39,7 @@ impl Game {
             aspect,
             domain: &mut self.domain,
             asset_registry: &mut self.asset_registry,
+            input: &mut self.input,
             scripts: &mut self.scripts,
             solvers: &mut self.solvers,
             camera: &mut self.camera,
@@ -43,9 +47,12 @@ impl Game {
         };
         self.scene.update(&mut ctx);
 
-        self.scripts.update_enabled(dt, &mut self.domain, &self.solvers, &self.asset_registry);
-        self.solvers.update_enabled(dt, &mut self.domain, &self.scripts, &self.asset_registry);
+        self.scripts
+            .update_enabled(dt, &mut self.domain, &self.solvers, &self.asset_registry, &self.input);
+        self.solvers
+            .update_enabled(dt, &mut self.domain, &self.scripts, &self.asset_registry, &self.input);
 
         self.camera.update(aspect);
+        self.input.end_frame();
     }
 }

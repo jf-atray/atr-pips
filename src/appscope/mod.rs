@@ -204,6 +204,53 @@ impl ApplicationHandler<GpuReady> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => self.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => self.draw(),
+            WindowEvent::KeyboardInput { event, .. } => {
+                if let AppState::Ready { game, .. } = &mut self.state {
+                    if let winit::keyboard::PhysicalKey::Code(code) = event.physical_key {
+                        game.input.handle_event(crate::input::InputEvent::Key {
+                            code,
+                            state: event.state,
+                            repeat: event.repeat,
+                        });
+                    }
+                    if let Some(text) = event.text.as_ref() {
+                        for c in text.chars() {
+                            game.input.handle_event(crate::input::InputEvent::Char(c));
+                        }
+                    }
+                }
+            }
+            WindowEvent::Ime(ime) => {
+                if let AppState::Ready { game, .. } = &mut self.state {
+                    if let winit::event::Ime::Commit(text) = ime {
+                        game.input.handle_event(crate::input::InputEvent::ImeCommit(text));
+                    }
+                }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                if let AppState::Ready { game, .. } = &mut self.state {
+                    game.input.handle_event(crate::input::InputEvent::MouseMove(glam::Vec2::new(
+                        position.x as f32,
+                        position.y as f32,
+                    )));
+                }
+            }
+            WindowEvent::MouseInput { button, state, .. } => {
+                if let AppState::Ready { game, .. } = &mut self.state {
+                    game.input.handle_event(crate::input::InputEvent::MouseButton { button, state });
+                }
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                if let AppState::Ready { game, .. } = &mut self.state {
+                    let scroll = match delta {
+                        winit::event::MouseScrollDelta::LineDelta(x, y) => glam::Vec2::new(x, y),
+                        winit::event::MouseScrollDelta::PixelDelta(p) => {
+                            glam::Vec2::new(p.x as f32, p.y as f32) * 0.01
+                        }
+                    };
+                    game.input.handle_event(crate::input::InputEvent::MouseScroll(scroll));
+                }
+            }
             _ => {}
         }
     }
