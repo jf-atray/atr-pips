@@ -1,75 +1,158 @@
-use crate::camera::camera_man::CameraMan;
-use crate::gamejam::roller::projection::GROUND_Y;
-use crate::pip::Transform;
-use crate::scenes::SceneAction;
-use crate::scripts::{InputContext, Script, SimulationContext};
-use crate::tables::PipId;
-use crate::world::World;
+use glam::{Vec2, Vec3};
 
-const DESIGN_W: f32 = 1280.0;
-const DESIGN_H: f32 = 720.0;
+use crate::spacial::camera::Camera;
 
-const CAMERA_MARGIN: f32 = 3.0;
-
-pub struct OverworldCamera {
-    player: PipId,
-    camera_x: f32,
+pub trait Norm: Copy {
+    fn length(self) -> f32;
+    fn normalize(self) -> Self;
 }
 
-impl OverworldCamera {
-    pub fn new(player: PipId) -> Self {
+impl Norm for f32 {
+    fn length(self) -> f32 {
+        self.abs()
+    }
+
+    fn normalize(self) -> Self {
+        if self == 0.0 {
+            0.0
+        } else {
+            self.signum()
+        }
+    }
+}
+
+impl Norm for Vec2 {
+    fn length(self) -> f32 {
+        self.length()
+    }
+
+    fn normalize(self) -> Self {
+        self.normalize_or(Vec2::ZERO)
+    }
+}
+
+impl Norm for Vec3 {
+    fn length(self) -> f32 {
+        self.length()
+    }
+
+    fn normalize(self) -> Self {
+        self.normalize_or(Vec3::ZERO)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Seek<T> {
+    pub goal: T,
+    pub speed: f32,
+    pub deadzone: f32,
+}
+
+impl<T> Seek<T> {
+    pub fn new(goal: T) -> Self {
         Self {
-            player,
-            camera_x: 0.0,
+            goal,
+            speed: 0.0,
+            deadzone: 0.0,
         }
     }
 
-    fn compute_camera_y(bounds: f32) -> f32 {
-        let aspect = DESIGN_H / DESIGN_W / 2.0;
-        let horizon_ndc_y = 1.0 / 3.0;
-        -horizon_ndc_y * bounds * aspect
-    }
-}
-
-impl Script for OverworldCamera {
-    fn fixed_update(
-        &mut self,
-        world: &mut World,
-        _input: &InputContext,
-        ctx: &mut SimulationContext,
-    ) -> Option<SceneAction> {
-        use crate::gather;
-        if let Some(transform) = gather!(self.player, &world.heading, [&world.tables.transforms]) {
-            let player_x = transform.xyz.x;
-            let delta = player_x - self.camera_x;
-            if delta > CAMERA_MARGIN {
-                self.camera_x = player_x - CAMERA_MARGIN;
-            } else if delta < -CAMERA_MARGIN {
-                self.camera_x = player_x + CAMERA_MARGIN;
-            }
+    pub fn with_speed(goal: T, speed: f32) -> Self {
+        Self {
+            goal,
+            speed,
+            deadzone: 0.0,
         }
-
-        let camera_y = Self::compute_camera_y(ctx.camera.camera.bounds);
-        *ctx.camera.camera_man =
-            CameraMan::move_to(glam::vec3(self.camera_x, camera_y, 0.0));
-        None
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    pub fn with_params(goal: T, speed: f32, deadzone: f32) -> Self {
+        Self {
+            goal,
+            speed,
+            deadzone,
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl<T> Seek<T> {
+    pub fn into_option(self) -> Seek<Option<T>> {
+        Seek::with_params(Some(self.goal), self.speed, self.deadzone)
+    }
+}
 
-    #[test]
-    fn horizon_maps_to_top_third() {
-        const CAMERA_BOUNDS: f32 = 8.0;
-        let camera_y = OverworldCamera::compute_camera_y(CAMERA_BOUNDS);
-        let aspect = DESIGN_H / DESIGN_W / 2.0;
-        let horizon_world_y = camera_y + (1.0 / 3.0) * CAMERA_BOUNDS * aspect;
-        assert!((horizon_world_y).abs() < 0.001);
+pub fn solve_seek_core<T>(
+    current: &mut T,
+    goal: T,
+    speed: f32,
+    deadzone: f32,
+    dt: f32,
+) where
+    T: Norm + std::ops::Sub<Output = T> + std::ops::Add<Output = T> + std::ops::Mul<f32, Output = T>,
+{
+    let dif = goal - *current;
+    let length = dif.length();
+
+    if length < deadzone {
+        return;
+    }
+
+    if !speed.is_normal() {
+        *current = goal;
+        return;
+    }
+
+    let normal = dif.normalize();
+    let rate = speed * dt;
+
+    if length < rate {
+        *current = goal;
+        return;
+    }
+
+    *current = *current + normal * rate;
+}
+
+pub fn solve_seek<T>(current: &mut T, seek: &Seek<T>, dt: f32)
+where
+    T: Copy + Norm + std::ops::Sub<Output = T> + std::ops::Add<Output = T> + std::ops::Mul<f32, Output = T>,
+{
+    solve_seek_core(current, seek.goal, seek.speed, seek.deadzone, dt);
+}
+
+pub fn solve_seek_option<T>(current: &mut T, seek: &Seek<Option<T>>, dt: f32)
+where
+    T: Copy + Norm + std::ops::Sub<Output = T> + std::ops::Add<Output = T> + std::ops::Mul<f32, Output = T>,
+{
+    let Some(goal) = seek.goal else {
+        return;
+    };
+    solve_seek_core(current, goal, seek.speed, seek.deadzone, dt);
+}
+
+#[derive(Clone, Debug)]
+pub struct CameraDirector {
+    pub pan: Seek<Vec2>,
+    pub zoom: Seek<f32>,
+}
+
+impl CameraDirector {
+    pub fn new(initial_pos: Vec2, initial_zoom: f32, pan_speed: f32, zoom_speed: f32) -> Self {
+        Self {
+            pan: Seek::with_speed(initial_pos, pan_speed),
+            zoom: Seek::with_speed(initial_zoom, zoom_speed),
+        }
+    }
+
+    pub fn set_pan_target(&mut self, target: Vec2) {
+        self.pan.goal = target;
+    }
+
+    pub fn set_zoom_target(&mut self, target: f32) {
+        self.zoom.goal = target;
+    }
+
+    pub fn update(&mut self, camera: &mut Camera, dt: f32) {
+        solve_seek(&mut camera.pos, &self.pan, dt);
+        solve_seek(&mut camera.zoom, &self.zoom, dt);
     }
 }

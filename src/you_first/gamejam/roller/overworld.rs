@@ -1,5 +1,4 @@
-use glam::prelude::Vec4;
-use glam::{Quat, Vec2, Vec3};
+use glam::{Quat, Vec2, Vec3, Vec4};
 
 use std::fs;
 
@@ -15,6 +14,7 @@ use crate::tables::{CanvasId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
 use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
 use crate::you_first::gamejam::roller::biome::Biome;
+use crate::you_first::gamejam::roller::camera::CameraDirector;
 use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::FAR_Z;
@@ -38,7 +38,7 @@ pub struct OverworldScene {
     sprites_dir: String,
     pixels_per_unit: f32,
     player: Option<PipId>,
-    camera_x: f32,
+    camera_director: CameraDirector,
     ground: Option<PipId>,
     tilted_ground: Option<PipId>,
     sky: Option<PipId>,
@@ -57,7 +57,12 @@ impl OverworldScene {
             sprites_dir: "assets/sprites".to_string(),
             pixels_per_unit,
             player: None,
-            camera_x: 0.0,
+            camera_director: CameraDirector::new(
+                Vec2::ZERO,
+                10.0 / CAMERA_BOUNDS,
+                8.0,
+                8.0,
+            ),
             ground: None,
             tilted_ground: None,
             sky: None,
@@ -295,23 +300,30 @@ impl OverworldScene {
     }
 
     fn update_camera(&mut self, ctx: &mut SceneContext) {
-        if let Some(player) = self.player
-            && let Some(xform) = gather_ref(&ctx.domain.ids, &ctx.domain.tables.core.xforms, player)
-        {
-            let player_x = xform.xyz.x;
-            let delta = player_x - self.camera_x;
-            if delta > CAMERA_MARGIN {
-                self.camera_x = player_x - CAMERA_MARGIN;
-            } else if delta < -CAMERA_MARGIN {
-                self.camera_x = player_x + CAMERA_MARGIN;
-            }
-        }
-
         let aspect = DESIGN_H / DESIGN_W / 2.0;
         let camera_y = -HORIZON_NDC_Y * CAMERA_BOUNDS * aspect;
         let zoom = 10.0 / CAMERA_BOUNDS;
-        ctx.camera.pos = Vec2::new(self.camera_x, camera_y);
-        ctx.camera.zoom = zoom;
+
+        let current_x = self.camera_director.pan.current.x;
+        let target_x = if let Some(player) = self.player
+            && let Some(xform) = gather_ref(&ctx.domain.ids, &ctx.domain.tables.core.xforms, player)
+        {
+            let player_x = xform.xyz.x;
+            let delta = player_x - current_x;
+            if delta > CAMERA_MARGIN {
+                player_x - CAMERA_MARGIN
+            } else if delta < -CAMERA_MARGIN {
+                player_x + CAMERA_MARGIN
+            } else {
+                current_x
+            }
+        } else {
+            current_x
+        };
+
+        self.camera_director.set_pan_target(Vec2::new(target_x, camera_y));
+        self.camera_director.set_zoom_target(zoom);
+        self.camera_director.update(&mut ctx.camera, ctx.dt);
     }
 
     fn spawn_player(
