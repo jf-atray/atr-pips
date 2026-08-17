@@ -30,14 +30,13 @@ impl Script for RollerProjectionSolver {
                 rd.lateral += rd.lateral_speed * ctx.dt;
 
                 if rd.d < DESPAWN_T || rd.lateral.abs() > 20.0 {
-                    to_despawn.push(id);
-                    continue;
+                    to_despawn.push(id.clone());
                 }
             });
-            query!([&roller.roller_depths, &ctx.domain.tables.core.xforms, &ctx.domain.tables.core.brushes], |rd, xform, brush| {
-                let (pos, s) = project(depth.lateral, depth.d, 0.0, depth.scalar, GROUND_Y, HORIZON_Y);
-                xform.xyz = pos.extend(world_z(depth.d));
-                brush.scale = Vec3::new(s * depth.scalar, s * depth.scalar, 1.0);
+            query!([&mut roller.roller_depths, &mut ctx.domain.tables.core.xforms, &mut ctx.domain.tables.core.brushes], |rd, xform, brush| {
+                let (pos, s) = project(rd.lateral, rd.d, 0.0, rd.scalar, GROUND_Y, HORIZON_Y);
+                xform.xyz = pos.extend(world_z(rd.d));
+                brush.scale = Vec3::new(s * rd.scalar, s * rd.scalar, 1.0);
             });
         }
 

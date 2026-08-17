@@ -13,9 +13,11 @@ use crate::tables::scope::Scope;
 use crate::tables::{CanvasId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
 use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
+use crate::you_first::gamejam::roller::biome::Biome;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::FAR_Z;
 use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
+use crate::you_first::gamejam::roller::spawner::RollerSpawner;
 
 
 const DESIGN_W: f32 = 1280.0;
@@ -88,7 +90,8 @@ impl OverworldScene {
         let cactus = ctx.asset_registry.get("cactus");
         let canvas = player.canvas;
 
-        self.player = Some(self.spawn_player(ctx, canvas, player.material));
+        let player_id = self.spawn_player(ctx, canvas, player.material);
+        self.player = Some(player_id.clone());
         self.spawn_objects(ctx, canvas, cactus.material);
 
         let ground_z = 0.25 + (0.5 * 0.66396803);
@@ -163,6 +166,12 @@ impl OverworldScene {
             );
         });
         self.sun = Some(sun);
+
+        let mut rng = 0;
+        let mut biome = Biome::default_desert();
+        biome.pre_seed(&mut ctx.domain, ctx.asset_registry, &mut rng);
+        ctx.solvers
+            .register(RollerSpawner::new(player_id, biome, rng));
 
     }
 
