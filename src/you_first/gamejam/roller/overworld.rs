@@ -1,5 +1,8 @@
 use glam::{Quat, Vec2, Vec3};
 
+use std::fs;
+
+use crate::assets::{SpriteEntry, SpriteRect};
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver};
 use crate::gamescope::scene::{Scene, SceneContext};
@@ -28,6 +31,7 @@ const GROUND_TILT_DEG: f32 = 5.0;
 
 pub struct OverworldScene {
     state: State,
+    sprites_dir: String,
     pixels_per_unit: f32,
     player: Option<PipId>,
     camera_x: f32,
@@ -46,6 +50,7 @@ impl OverworldScene {
     pub fn new(pixels_per_unit: f32) -> Self {
         Self {
             state: State::Setup,
+            sprites_dir: "assets/sprites".to_string(),
             pixels_per_unit,
             player: None,
             camera_x: 0.0,
@@ -71,7 +76,7 @@ impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
         ctx.domain.tables.add(RollerAddition::new());
 
-        let (canvas, player_mat, cactus_mat) = self.make_canvas(ctx);
+        self.make_canvas(ctx);
         ctx.gpu
             .canvas_renderer_mut()
             .solvers
@@ -79,8 +84,12 @@ impl OverworldScene {
         ctx.solvers.register(RollerProjectionSolver);
         ctx.solvers.register(BrushFlipSolver);
 
-        self.player = Some(self.spawn_player(ctx, canvas, player_mat));
-        self.spawn_objects(ctx, canvas, cactus_mat);
+        let player = ctx.asset_registry.get("player_happy");
+        let cactus = ctx.asset_registry.get("cactus");
+        let canvas = player.canvas;
+
+        self.player = Some(self.spawn_player(ctx, canvas, player.material));
+        self.spawn_objects(ctx, canvas, cactus.material);
 
         let ground_z = 0.25 + (0.5 * 0.66396803);
         let ground_sprite = ctx.asset_registry.get("ground");
@@ -157,7 +166,7 @@ impl OverworldScene {
 
     }
 
-    fn make_canvas(&mut self, ctx: &mut SceneContext) -> (CanvasId, MaterialId, MaterialId) {
+    fn make_canvas(&mut self, ctx: &mut SceneContext) {
         let gpu_context = &mut ctx.gpu.device;
         let format = ctx.gpu.surface.cfg.format;
         let sample_count = ctx.gpu.targets.sample_count();
@@ -175,40 +184,85 @@ impl OverworldScene {
             self.pixels_per_unit,
         );
 
-        let texture_scope = &mut gpu_context.texture_scope;
-        let player_img = texture_scope
-            .load_image(
-                &gpu_context.device,
-                &gpu_context.queue,
-                "assets/sprites/player_happy.png",
-            )
-            .expect("failed to load player sprite");
-        let cactus_img = texture_scope
-            .load_image(
-                &gpu_context.device,
-                &gpu_context.queue,
-                "assets/sprites/cactus.png",
-            )
-            .expect("failed to load cactus sprite");
+        let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
 
-        let player_mat = canvas
-            .add_sprite(
-                &gpu_context.device,
-                &gpu_context.queue,
-                &mut every,
-                texture_scope,
-                player_img,
-            )
-            .expect("failed to add player material");
-        let cactus_mat = canvas
-            .add_sprite(
-                &gpu_context.device,
-                &gpu_context.queue,
-                &mut every,
-                texture_scope,
-                cactus_img,
-            )
-            .expect("failed to add cactus material");
+        {
+            let texture_scope = &mut gpu_context.texture_scope;
+
+            let white_pixel = texture_scope.white_pixel(&gpu_context.device, &gpu_context.queue);
+            let white_material = canvas
+                .add_sprite(
+                    &gpu_context.device,
+                    &gpu_context.queue,
+                    &mut every,
+                    texture_scope,
+                    white_pixel,
+                )
+                .expect("failed to add white pixel sprite");
+            pending.push((
+                "ground".to_string(),
+                white_material,
+                Vec2::ONE,
+                SpriteRect::full(1.0, 1.0),
+            ));
+            pending.push((
+                "tilted_ground".to_string(),
+                white_material,
+                Vec2::ONE,
+                SpriteRect::full(1.0, 1.0),
+            ));
+            pending.push((
+                "sky".to_string(),
+                white_material,
+                Vec2::ONE,
+                SpriteRect::full(1.0, 1.0),
+            ));
+            pending.push((
+                "sun".to_string(),
+                white_material,
+                Vec2::ONE,
+                SpriteRect::full(1.0, 1.0),
+            ));
+
+            if let Ok(entries) = fs::read_dir(&self.sprites_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().and_then(|e| e.to_str()) != Some("png") {
+                        continue;
+                    }
+                    let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+                        continue;
+                    };
+                    let Some(img_id) = texture_scope.load_image(
+                        &gpu_context.device,
+                        &gpu_context.queue,
+                        path.to_str().unwrap_or(""),
+                    ) else {
+                        log::warn!("failed to load sprite {}", path.display());
+                        continue;
+                    };
+                    let Some(material) = canvas.add_sprite(
+                        &gpu_context.device,
+                        &gpu_context.queue,
+                        &mut every,
+                        texture_scope,
+                        img_id,
+                    ) else {
+                        continue;
+                    };
+                    let Some((w, h)) = texture_scope.size(img_id) else {
+                        continue;
+                    };
+                    let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
+                    pending.push((
+                        name.to_string(),
+                        material,
+                        natural_scale,
+                        SpriteRect::full(w as f32, h as f32),
+                    ));
+                }
+            }
+        }
 
         let canvas_id = ctx
             .gpu
@@ -216,7 +270,17 @@ impl OverworldScene {
             .canvases
             .insert((every, Box::new(canvas)));
 
-        (canvas_id, player_mat, cactus_mat)
+        for (name, material, natural_scale, rect) in pending {
+            ctx.asset_registry.register(
+                name,
+                SpriteEntry {
+                    canvas: canvas_id,
+                    material,
+                    natural_scale,
+                    rect,
+                },
+            );
+        }
     }
 
     fn update_camera(&mut self, ctx: &mut SceneContext) {
