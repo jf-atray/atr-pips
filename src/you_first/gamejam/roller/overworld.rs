@@ -12,22 +12,22 @@ use crate::input::AxisConfig;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::scope::Scope;
-use crate::tables::{CanvasId, MaterialId, PipId};
-use crate::you_first::gamejam::roller::biome::Biome;
+use crate::tables::{MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
-use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
+use crate::you_first::gamejam::roller::bundles::player_roller_bundle;
 use crate::you_first::gamejam::roller::camera::CameraDirector;
 use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::controller::PlayerLateralController;
-use crate::you_first::gamejam::roller::projection::FAR_Z;
+
 use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
 use crate::you_first::gamejam::roller::spawner::RollerSpawner;
 
 const DESIGN_W: f32 = 1280.0;
 const DESIGN_H: f32 = 720.0;
 const HORIZON_NDC_Y: f32 = 1.0 / 3.0;
-const CAMERA_BOUNDS: f32 = 8.0;
+// Visible world width for the roller; the world height is this divided by DESIGN_W/DESIGN_H.
+const CAMERA_BOUNDS: f32 = 8.0 * (DESIGN_W / DESIGN_H);
 const CAMERA_MARGIN: f32 = 3.0;
 
 const WALK_HORIZON_Y: f32 = 0.0;
@@ -92,17 +92,12 @@ impl OverworldScene {
 
         let player = ctx
             .asset_registry
-            .get("player_happy")
-            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
-        let canvas = player.canvas;
-        let player_id = self.spawn_player(ctx, canvas, player.material);
-        let cactus = ctx
-            .asset_registry
-            .get("cactus")
-            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
+            .get("player_fwd")
+            .unwrap_or(ctx.asset_registry.get("__white__").unwrap())
+            .clone();
+        let player_id = self.spawn_player(ctx, &player);
 
         self.player = Some(player_id);
-        self.spawn_objects(ctx, canvas, cactus.material);
 
         let ground_z = 0.25 + (0.5 * 0.663_968);
         let ground_sprite = ctx
@@ -111,7 +106,11 @@ impl OverworldScene {
             .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let ground = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(ground_sprite.canvas, ground_sprite.material);
-            brush.scale = Vec3::new(20.0, GROUND_STRIP_HEIGHT, 1.0);
+            brush.scale = Vec3::new(
+                20.0 / ground_sprite.natural_scale.x,
+                GROUND_STRIP_HEIGHT / ground_sprite.natural_scale.y,
+                1.0,
+            );
             brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
             scope.core.with(
                 Transform {
@@ -135,7 +134,11 @@ impl OverworldScene {
             .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let tilted = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(tilted_sprite.canvas, tilted_sprite.material);
-            brush.scale = Vec3::new(20.0, TILTED_GROUND_HEIGHT, 1.0);
+            brush.scale = Vec3::new(
+                20.0 / tilted_sprite.natural_scale.x,
+                TILTED_GROUND_HEIGHT / tilted_sprite.natural_scale.y,
+                1.0,
+            );
             brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
             scope.core.with(
                 Transform {
@@ -155,7 +158,11 @@ impl OverworldScene {
             .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let sky = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(sky_sprite.canvas, sky_sprite.material);
-            brush.scale = Vec3::new(20.0, 10.0, 1.0);
+            brush.scale = Vec3::new(
+                20.0 / sky_sprite.natural_scale.x,
+                10.0 / sky_sprite.natural_scale.y,
+                1.0,
+            );
             brush.color = Vec4::new(0.6, 0.75, 0.9, 1.0);
             scope.core.with(
                 Transform {
@@ -175,7 +182,11 @@ impl OverworldScene {
             .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let sun = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(sun_sprite.canvas, sun_sprite.material);
-            brush.scale = Vec3::new(0.25, 0.25, 1.0);
+            brush.scale = Vec3::new(
+                0.25 / sun_sprite.natural_scale.x,
+                0.25 / sun_sprite.natural_scale.y,
+                1.0,
+            );
             brush.color = Vec4::new(1.0, 1.0, 0.6, 1.0);
             scope.core.with(
                 Transform {
@@ -188,9 +199,6 @@ impl OverworldScene {
             );
         });
         self.sun = Some(sun);
-
-        let mut biome = Biome::default_desert();
-        biome.pre_seed(ctx.domain, ctx.asset_registry);
 
         ctx.input.add_axis(
             "Horizontal",
@@ -209,7 +217,7 @@ impl OverworldScene {
 
         ctx.solvers
             .register(PlayerLateralController::new(player_id));
-        ctx.solvers.register(RollerSpawner::new(player_id, biome));
+        ctx.solvers.register(RollerSpawner::new(player_id));
         ctx.solvers.register(CloudDriftSystem::new());
     }
 
@@ -246,30 +254,32 @@ impl OverworldScene {
                     white_pixel,
                 )
                 .expect("failed to add white pixel sprite");
+            let white_scale = Vec2::ONE / self.pixels_per_unit;
+
             pending.push((
                 "ground".to_string(),
                 white_material,
-                Vec2::ONE
+                white_scale
             ));
             pending.push((
                 "tilted_ground".to_string(),
                 white_material,
-                Vec2::ONE
+                white_scale
             ));
             pending.push((
                 "sky".to_string(),
                 white_material,
-                Vec2::ONE
+                white_scale
             ));
             pending.push((
                 "sun".to_string(),
                 white_material,
-                Vec2::ONE
+                white_scale
             ));
             pending.push((
                 "__white__".to_string(),
                 white_material,
-                Vec2::ONE
+                white_scale
             ));
 
             if let Ok(entries) = fs::read_dir(&self.sprites_dir) {
@@ -363,32 +373,18 @@ impl OverworldScene {
     fn spawn_player(
         &mut self,
         ctx: &mut SceneContext,
-        canvas: CanvasId,
-        material: MaterialId,
+        sprite: &SpriteEntry,
     ) -> PipId {
         ctx.domain.make(player_roller_bundle(
-            canvas,
-            material,
+            sprite.canvas,
+            sprite.material,
             0.0,
             2.0,
             [255, 255, 255, 255],
+            Vec2::splat(1.28125),
+            sprite.natural_scale,
             1.0,
         ))
     }
 
-    fn spawn_objects(&mut self, ctx: &mut SceneContext, canvas: CanvasId, material: MaterialId) {
-        for i in -2..=2 {
-            let lateral = i as f32 * 1.5;
-            ctx.domain.make(roller_sprite_bundle(
-                canvas,
-                material,
-                lateral,
-                FAR_Z,
-                [255, 255, 255, 255],
-                1.0,
-                0.0,
-                i % 2 == 0,
-            ));
-        }
-    }
 }

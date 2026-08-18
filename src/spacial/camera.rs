@@ -30,7 +30,7 @@ impl Camera {
 
         //todo, make sure im rows columning correct
         let projection = glam::camera::lh::proj::directx::orthographic(
-            -half_w, half_w, -half_h, half_h, -1.0, 1.0,
+            -half_w, half_w, -half_h, half_h, 0.0, 1.0,
         );
         let view = Mat4::from_translation(Vec3::new(-self.pos.x, -self.pos.y, 0.0))
             * Mat4::from_rotation_z(-self.rot);

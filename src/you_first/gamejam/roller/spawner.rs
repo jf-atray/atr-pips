@@ -5,14 +5,23 @@ use crate::tables::PipId;
 use crate::you_first::gamejam::roller::biome::Biome;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 
+const BIOME_SWAP_DISTANCE: f32 = 0.1;
+
 pub struct RollerSpawner {
     player: PipId,
     biome: Biome,
+    initialized: bool,
+    biome_swapped: bool,
 }
 
 impl RollerSpawner {
-    pub fn new(player: PipId, biome: Biome) -> Self {
-        Self { player, biome }
+    pub fn new(player: PipId) -> Self {
+        Self {
+            player,
+            biome: Biome::sparse_desert(),
+            initialized: false,
+            biome_swapped: false,
+        }
     }
 }
 
@@ -30,6 +39,17 @@ impl Script for RollerSpawner {
 
             player.walk_distance
         };
+
+        if !self.initialized {
+            self.biome.pre_seed(ctx.domain, ctx.asset_registry);
+            self.initialized = true;
+        }
+
+        if !self.biome_swapped && walk_distance >= BIOME_SWAP_DISTANCE {
+            self.biome = Biome::default_desert();
+            self.biome.pre_seed(ctx.domain, ctx.asset_registry);
+            self.biome_swapped = true;
+        }
 
         self.biome
             .update(ctx.domain, ctx.asset_registry, walk_distance);

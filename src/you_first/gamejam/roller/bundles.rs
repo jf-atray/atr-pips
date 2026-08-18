@@ -1,4 +1,4 @@
-use glam::{Quat, Vec3, Vec4};
+use glam::{Quat, Vec2, Vec3, Vec4};
 
 use std::collections::HashMap;
 
@@ -53,6 +53,8 @@ pub fn roller_sprite_bundle(
     lateral: f32,
     d: f32,
     color: [u8; 4],
+    size: Vec2,
+    natural_scale: Vec2,
     scalar: f32,
     lateral_speed: f32,
     is_flipped: bool,
@@ -65,6 +67,7 @@ pub fn roller_sprite_bundle(
             speed: 0.0,
             scalar,
             lateral_speed,
+            base_scale: size / natural_scale,
         };
         let brush_flip = BrushFlip { is_flipped };
         assemble_roller_sprite(scope, canvas, mat, color, roller_depth, brush_flip);
@@ -77,6 +80,7 @@ pub fn roller_sprite_bundle_from_asset(
     lateral: f32,
     d: f32,
     color: [u8; 4],
+    size: Vec2,
     scalar: f32,
     lateral_speed: f32,
     is_flipped: bool,
@@ -86,6 +90,7 @@ pub fn roller_sprite_bundle_from_asset(
         .unwrap_or_else(|| asset_registry.get("__white__").unwrap());
     let canvas = sprite.canvas;
     let mat = sprite.material;
+    let natural_scale = sprite.natural_scale;
     let color = u8_to_f32_color(color);
     move |scope: &mut Scope| {
         let roller_depth = RollerDepth {
@@ -94,6 +99,7 @@ pub fn roller_sprite_bundle_from_asset(
             speed: 0.0,
             scalar,
             lateral_speed,
+            base_scale: size / natural_scale,
         };
         let brush_flip = BrushFlip { is_flipped };
         assemble_roller_sprite(scope, canvas, mat, color, roller_depth, brush_flip);
@@ -106,12 +112,15 @@ pub fn player_roller_bundle(
     lateral: f32,
     d: f32,
     color: [u8; 4],
+    size: Vec2,
+    natural_scale: Vec2,
     scalar: f32,
 ) -> impl Maker {
     let color = u8_to_f32_color(color);
+    let base_scale = size / natural_scale;
     move |scope: &mut Scope| {
         let mut brush = Brush::new(canvas, mat);
-        brush.scale = Vec3::ONE;
+        brush.scale = Vec3::new(base_scale.x, base_scale.y, 1.0);
         brush.color = Vec4::new(color[0], color[1], color[2], color[3]);
         scope.core.with(
             Transform {
@@ -128,6 +137,7 @@ pub fn player_roller_bundle(
             speed: -WALK_SPEED,
             scalar,
             lateral_speed: 0.0,
+            base_scale,
         };
         let roller_player = RollerPlayer {
             walk_distance: 0.0,

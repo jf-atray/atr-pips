@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use glam::Vec2;
+
 use crate::assets::SpriteEntry;
 use crate::tables::domain::Domain;
 use crate::you_first::gamejam::roller::bundles::roller_sprite_bundle_from_asset;
@@ -41,6 +43,8 @@ pub struct ScatterChannel {
     material: &'static str,
     interval: f32,
     lateral_range: f32,
+    /// World-space sprite size (width, height) at full projection.
+    size: Vec2,
     color: [u8; 4],
     scalar: f32,
     placement: Placement,
@@ -107,6 +111,7 @@ impl ScatterChannel {
             lateral,
             d,
             self.color,
+            self.size,
             self.scalar,
             self.motion.lateral_speed,
             is_flipped,
@@ -125,15 +130,12 @@ impl Biome {
                 continue;
             }
 
-            let steps = ((FAR_Z - NEAR_Z) / 2.0) as usize;
-            for i in 0..steps {
-                let d = FAR_Z - (i as f32) * 2.0;
-                if d < NEAR_Z {
-                    break;
-                }
-
+            let step = channel.interval.max(0.5);
+            let mut d = FAR_Z - step;
+            while d >= NEAR_Z {
                 let (lateral, is_left) = channel.place();
                 channel.spawn(domain, asset_registry, lateral, d, is_left);
+                d -= step;
             }
         }
     }
@@ -145,8 +147,8 @@ impl Biome {
         walk_distance: f32,
     ) {
         for channel in &mut self.channels {
-            if walk_distance >= channel.next_spawn {
-                channel.next_spawn = walk_distance + channel.interval;
+            while walk_distance >= channel.next_spawn {
+                channel.next_spawn += channel.interval;
 
                 let d = channel.motion.spawn_depth;
                 let (lateral, is_left) = channel.place();
@@ -157,18 +159,77 @@ impl Biome {
 
     pub fn sparse_desert() -> Self {
         Self {
-            channels: vec![ScatterChannel {
-                material: "cactus",
-                interval: 3.0,
-                lateral_range: 3.5,
-                color: [255, 255, 255, 255],
-                scalar: 1.0,
-                placement: Placement::Alternate,
-                flip_mode: FlipMode::Random,
-                motion: ScatterMotion::default(),
-                next_spawn: 0.0,
-                left_side: true,
-            }],
+            channels: vec![
+                ScatterChannel {
+                    material: "cactus",
+                    interval: 0.2,
+                    lateral_range: 3.5,
+                    size: Vec2::new(2.0, 2.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 1.0,
+                    placement: Placement::SideRandom { min_offset: 6.0 },
+                    flip_mode: FlipMode::Random,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 2.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "cactus",
+                    interval: 1.9,
+                    lateral_range: 6.5,
+                    size: Vec2::new(2.0, 2.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 1.0,
+                    placement: Placement::Random,
+                    flip_mode: FlipMode::Random,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 2.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "grass",
+                    interval: 1.0,
+                    lateral_range: 4.0,
+                    size: Vec2::new(1.0, 1.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 0.0,
+                    placement: Placement::Random,
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 1.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "grass_tiny",
+                    interval: 0.05,
+                    lateral_range: 10.0,
+                    size: Vec2::new(0.25, 0.25),
+                    color: [255, 255, 255, 255],
+                    scalar: 0.0,
+                    placement: Placement::Random,
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 0.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "tumbleweed",
+                    interval: 3.0,
+                    lateral_range: 10.0,
+                    size: Vec2::new(1.0, 1.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 1.0,
+                    placement: Placement::Fixed(true),
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion {
+                        spawn_depth: 8.0,
+                        lateral_speed: 3.0,
+                        pre_seed: false,
+                    },
+                    next_spawn: 4.0,
+                    left_side: true,
+                },
+            ],
         }
     }
 
@@ -176,31 +237,111 @@ impl Biome {
         Self {
             channels: vec![
                 ScatterChannel {
-                    material: "cactus",
+                    material: "building_right",
                     interval: 2.0,
-                    lateral_range: 4.0,
+                    lateral_range: 7.5,
+                    size: Vec2::new(7.28125, 5.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 1.0,
+                    placement: Placement::Fixed(false),
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 5.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "building_left",
+                    interval: 2.0,
+                    lateral_range: 7.5,
+                    size: Vec2::new(7.28125, 5.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 1.0,
+                    placement: Placement::Fixed(true),
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 5.0,
+                    left_side: true,
+                },
+                ScatterChannel {
+                    material: "grass_tiny",
+                    interval: 0.5,
+                    lateral_range: 3.0,
+                    size: Vec2::new(0.25, 0.25),
+                    color: [255, 255, 255, 255],
+                    scalar: 0.0,
+                    placement: Placement::Random,
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 0.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "cactus",
+                    interval: 2.8,
+                    lateral_range: 6.5,
+                    size: Vec2::new(2.0, 2.0),
                     color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::Random,
                     motion: ScatterMotion::default(),
-                    next_spawn: 0.0,
-                    left_side: true,
+                    next_spawn: 2.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "grass",
+                    interval: 1.0,
+                    lateral_range: 4.0,
+                    size: Vec2::new(1.0, 1.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 0.0,
+                    placement: Placement::Random,
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 1.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "crate",
+                    interval: 3.3,
+                    lateral_range: 5.0,
+                    size: Vec2::new(1.0, 1.0),
+                    color: [255, 255, 255, 255],
+                    scalar: 1.0,
+                    placement: Placement::Random,
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 3.0,
+                    left_side: false,
+                },
+                ScatterChannel {
+                    material: "world_rect",
+                    interval: 0.02,
+                    lateral_range: 4.0,
+                    size: Vec2::new(0.5, 0.2),
+                    color: [90, 72, 54, 255],
+                    scalar: 0.0,
+                    placement: Placement::Random,
+                    flip_mode: FlipMode::None,
+                    motion: ScatterMotion::default(),
+                    next_spawn: 0.02,
+                    left_side: false,
                 },
                 ScatterChannel {
                     material: "tumbleweed",
-                    interval: 5.0,
-                    lateral_range: 5.0,
+                    interval: 4.7,
+                    lateral_range: 10.0,
+                    size: Vec2::new(1.0, 1.0),
                     color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Fixed(true),
-                    flip_mode: FlipMode::BySide,
+                    flip_mode: FlipMode::None,
                     motion: ScatterMotion {
-                        spawn_depth: FAR_Z,
-                        lateral_speed: 1.2,
+                        spawn_depth: 8.0,
+                        lateral_speed: 3.0,
                         pre_seed: false,
                     },
-                    next_spawn: 0.0,
+                    next_spawn: 4.0,
                     left_side: true,
                 },
             ],

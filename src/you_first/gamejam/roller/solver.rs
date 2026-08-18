@@ -6,7 +6,7 @@ use crate::scripting::script::Script;
 use crate::tables::PipId;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::{
-    DESPAWN_T, GROUND_Y, HORIZON_Y, WALK_SPEED, project, world_z,
+    DESPAWN_T, GROUND_Y, HORIZON_Y, WALK_SPEED, depth_factor, project, world_z,
 };
 
 pub struct RollerProjectionSolver;
@@ -27,7 +27,7 @@ impl Script for RollerProjectionSolver {
                     rd.d -= (WALK_SPEED + rd.speed) * ctx.dt;
                     rd.lateral += rd.lateral_speed * ctx.dt;
 
-                    if rd.d < DESPAWN_T || rd.lateral.abs() > 20.0 {
+                    if depth_factor(rd.d) > DESPAWN_T || rd.lateral.abs() > 20.0 {
                         to_despawn.push(*id);
                     }
                 }
@@ -41,7 +41,11 @@ impl Script for RollerProjectionSolver {
                 |rd, xform, brush| {
                     let (pos, s) = project(rd.lateral, rd.d, 0.0, rd.scalar, GROUND_Y, HORIZON_Y);
                     xform.xyz = pos.extend(world_z(rd.d));
-                    brush.scale = Vec3::new(s * rd.scalar, s * rd.scalar, 1.0);
+                    brush.scale = Vec3::new(
+                        rd.base_scale.x * s,
+                        rd.base_scale.y * s,
+                        1.0,
+                    );
                 }
             );
         }

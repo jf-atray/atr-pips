@@ -1,3 +1,5 @@
+use glam::Vec2;
+
 use crate::brushes::Brush;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -7,6 +9,9 @@ pub struct RollerDepth {
     pub speed: f32,
     pub scalar: f32,
     pub lateral_speed: f32,
+    /// World-space base scale before depth projection and `scalar` are applied.
+    /// Compute as `desired_world_size / sprite.natural_scale` at spawn.
+    pub base_scale: Vec2,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
