@@ -88,7 +88,7 @@ impl VirtualAxes {
             if !in_pos && !in_neg {
                 continue;
             }
-            let (count, _frame) = self.states.entry(name.clone()).or_insert((0, None));
+            let (count, _frame) = self.states.entry(name).or_insert((0, None));
             if in_pos {
                 *count += delta;
             }
@@ -107,7 +107,7 @@ impl VirtualAxes {
             if !in_pos && !in_neg {
                 continue;
             }
-            let (count, _frame) = self.states.entry(name.clone()).or_insert((0, None));
+            let (count, _frame) = self.states.entry(name).or_insert((0, None));
             if in_pos {
                 *count += delta;
             }

@@ -23,7 +23,7 @@ pub fn build_game(
     let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
 
     {
-        let name = ("green");
+        let name = "green";
         let white_pixel = texture_scope.white_pixel(device, queue);
         let material = canvas
             .add_sprite(device, queue, &mut every, texture_scope, white_pixel)
