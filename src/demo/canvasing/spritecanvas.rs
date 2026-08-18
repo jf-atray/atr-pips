@@ -192,8 +192,8 @@ impl BasicSpriteCanvas {
             primitive: PrimitiveState::default(),
             depth_stencil: depth_format.map(|f| DepthStencilState {
                 format: f,
-                depth_write_enabled: Some(false),
-                depth_compare: Some(CompareFunction::Always),
+                depth_write_enabled: Some(true),
+                depth_compare: Some(CompareFunction::LessEqual),
                 stencil: Default::default(),
                 bias: Default::default(),
             }),

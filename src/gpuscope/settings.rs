@@ -16,8 +16,8 @@ impl Default for GpuSettings {
             backends: Backends::all(),
             power_preference: PowerPreference::HighPerformance,
             present_mode: PresentMode::AutoVsync,
-            sample_count: 1,
-            depth_enabled: false,
+            sample_count: 4,
+            depth_enabled: true,
         }
     }
 }
