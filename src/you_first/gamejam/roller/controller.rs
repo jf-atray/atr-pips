@@ -42,9 +42,8 @@ impl Script for PlayerLateralController {
         let wx_cur = world_x(1.0, t_cur).max(0.01);
         let speed_scale = wx_ref / wx_cur;
 
-        player.lateral =
-            (player.lateral + lateral * LATERAL_SPEED * speed_scale * ctx.dt)
-                .clamp(PLAYER_X_MIN, PLAYER_X_MAX);
+        player.lateral = (player.lateral + lateral * LATERAL_SPEED * speed_scale * ctx.dt)
+            .clamp(PLAYER_X_MIN, PLAYER_X_MAX);
         player.walk_distance += WALK_SPEED * ctx.dt;
         depth.lateral = player.lateral;
     }

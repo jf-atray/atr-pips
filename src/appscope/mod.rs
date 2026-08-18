@@ -10,10 +10,10 @@ use winit::window::WindowAttributes;
 
 use crate::assets::AssetRegistry;
 use crate::gamescope::game::Game;
-use crate::you_first::gamejam::roller::overworld::OverworldScene;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
+use crate::you_first::gamejam::roller::overworld::OverworldScene;
 
 pub struct App {
     lib: Arc<Lib>,
@@ -222,21 +222,25 @@ impl ApplicationHandler<GpuReady> for App {
             }
             WindowEvent::Ime(ime) => {
                 if let AppState::Ready { game, .. } = &mut self.state
-                    && let winit::event::Ime::Commit(text) = ime {
-                        game.input.handle_event(crate::input::InputEvent::ImeCommit(text));
-                    }
+                    && let winit::event::Ime::Commit(text) = ime
+                {
+                    game.input
+                        .handle_event(crate::input::InputEvent::ImeCommit(text));
+                }
             }
             WindowEvent::CursorMoved { position, .. } => {
                 if let AppState::Ready { game, .. } = &mut self.state {
-                    game.input.handle_event(crate::input::InputEvent::MouseMove(glam::Vec2::new(
-                        position.x as f32,
-                        position.y as f32,
-                    )));
+                    game.input
+                        .handle_event(crate::input::InputEvent::MouseMove(glam::Vec2::new(
+                            position.x as f32,
+                            position.y as f32,
+                        )));
                 }
             }
             WindowEvent::MouseInput { button, state, .. } => {
                 if let AppState::Ready { game, .. } = &mut self.state {
-                    game.input.handle_event(crate::input::InputEvent::MouseButton { button, state });
+                    game.input
+                        .handle_event(crate::input::InputEvent::MouseButton { button, state });
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
@@ -247,7 +251,8 @@ impl ApplicationHandler<GpuReady> for App {
                             glam::Vec2::new(p.x as f32, p.y as f32) * 0.01
                         }
                     };
-                    game.input.handle_event(crate::input::InputEvent::MouseScroll(scroll));
+                    game.input
+                        .handle_event(crate::input::InputEvent::MouseScroll(scroll));
                 }
             }
             _ => {}

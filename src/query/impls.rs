@@ -29,14 +29,15 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
             if let Some(k) = duplex!(&self.k_source => { get(class_id) } -> unwrap)
-                && &t.key == self.t_key && &k.key == self.k_key {
-                    return Some((t, k));
-                }
+                && &t.key == self.t_key
+                && &k.key == self.k_key
+            {
+                return Some((t, k));
+            }
         }
         None
     }
 }
-
 
 type ClassIterMut<'a, T, K = ()> = Duplex<
     secondary::IterMut<'a, ClassId, Columnar<T, K>>,
@@ -62,10 +63,12 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
             if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap)
-                && &t.key == self.t_key && &k.key == self.k_key {
-                    let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k) };
-                    return Some((t, k));
-                }
+                && &t.key == self.t_key
+                && &k.key == self.k_key
+            {
+                let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k) };
+                return Some((t, k));
+            }
         }
         None
     }
@@ -217,13 +220,19 @@ where
     KKey: 'a + PartialEq,
     LKey: 'a + PartialEq,
 {
-    type Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>, &'a mut Columnar<L, LKey>);
+    type Item = (
+        &'a mut Columnar<T, TKey>,
+        &'a mut Columnar<K, KKey>,
+        &'a mut Columnar<L, LKey>,
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
             if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap)
                 && let Some(l) = duplex!(&mut self.l_source => { get_mut(class_id) } -> unwrap)
-                && &t.key == self.t_key && &k.key == self.k_key && &l.key == self.l_key
+                && &t.key == self.t_key
+                && &k.key == self.k_key
+                && &l.key == self.l_key
             {
                 let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k) };
                 let l = unsafe { &mut *std::ptr::from_mut::<Columnar<L, LKey>>(l) };
@@ -241,7 +250,13 @@ pub fn query_mut_mut_mut<'a, T, K, L, TKey, KKey, LKey>(
     k_key: &'a KKey,
     l: &'a mut Class<L, LKey>,
     l_key: &'a LKey,
-) -> impl Iterator<Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>, &'a mut Columnar<L, LKey>)>
+) -> impl Iterator<
+    Item = (
+        &'a mut Columnar<T, TKey>,
+        &'a mut Columnar<K, KKey>,
+        &'a mut Columnar<L, LKey>,
+    ),
+>
 where
     T: 'a,
     K: 'a,

@@ -1,7 +1,7 @@
 use crate::assets::AssetRegistry;
+use crate::tables::domain::Domain;
 use crate::you_first::gamejam::roller::bundles::roller_sprite_bundle_from_asset;
 use crate::you_first::gamejam::roller::projection::{FAR_Z, NEAR_Z};
-use crate::tables::domain::Domain;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Placement {
@@ -66,7 +66,11 @@ impl ScatterChannel {
                 (r * self.lateral_range, r < 0.0)
             }
             Placement::Fixed(is_left) => {
-                let o = if is_left { -self.lateral_range } else { self.lateral_range };
+                let o = if is_left {
+                    -self.lateral_range
+                } else {
+                    self.lateral_range
+                };
                 (o, is_left)
             }
             Placement::SideRandom { min_offset } => {
@@ -113,11 +117,7 @@ pub struct Biome {
 }
 
 impl Biome {
-    pub fn pre_seed(
-        &mut self,
-        domain: &mut Domain,
-        asset_registry: &AssetRegistry,
-    ) {
+    pub fn pre_seed(&mut self, domain: &mut Domain, asset_registry: &AssetRegistry) {
         for channel in &mut self.channels {
             if !channel.motion.pre_seed {
                 continue;
@@ -155,20 +155,18 @@ impl Biome {
 
     pub fn sparse_desert() -> Self {
         Self {
-            channels: vec![
-                ScatterChannel {
-                    material: "cactus",
-                    interval: 3.0,
-                    lateral_range: 3.5,
-                    color: [255, 255, 255, 255],
-                    scalar: 1.0,
-                    placement: Placement::Alternate,
-                    flip_mode: FlipMode::Random,
-                    motion: ScatterMotion::default(),
-                    next_spawn: 0.0,
-                    left_side: true,
-                },
-            ],
+            channels: vec![ScatterChannel {
+                material: "cactus",
+                interval: 3.0,
+                lateral_range: 3.5,
+                color: [255, 255, 255, 255],
+                scalar: 1.0,
+                placement: Placement::Alternate,
+                flip_mode: FlipMode::Random,
+                motion: ScatterMotion::default(),
+                next_spawn: 0.0,
+                left_side: true,
+            }],
         }
     }
 
@@ -207,5 +205,3 @@ impl Biome {
         }
     }
 }
-
-

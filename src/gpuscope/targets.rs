@@ -5,7 +5,6 @@ use wgpu::{
     TextureFormat, TextureUsages,
 };
 
-
 pub struct RenderTargets {
     //virus
     sample_count: u32,

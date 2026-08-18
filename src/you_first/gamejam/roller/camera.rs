@@ -13,11 +13,7 @@ impl Norm for f32 {
     }
 
     fn normalize(self) -> Self {
-        if self == 0.0 {
-            0.0
-        } else {
-            self.signum()
-        }
+        if self == 0.0 { 0.0 } else { self.signum() }
     }
 }
 
@@ -80,14 +76,12 @@ impl<T> Seek<T> {
     }
 }
 
-pub fn solve_seek_core<T>(
-    current: &mut T,
-    goal: T,
-    speed: f32,
-    deadzone: f32,
-    dt: f32,
-) where
-    T: Norm + std::ops::Sub<Output = T> + std::ops::Add<Output = T> + std::ops::Mul<f32, Output = T>,
+pub fn solve_seek_core<T>(current: &mut T, goal: T, speed: f32, deadzone: f32, dt: f32)
+where
+    T: Norm
+        + std::ops::Sub<Output = T>
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<f32, Output = T>,
 {
     let dif = goal - *current;
     let length = dif.length();
@@ -114,14 +108,22 @@ pub fn solve_seek_core<T>(
 
 pub fn solve_seek<T>(current: &mut T, seek: &Seek<T>, dt: f32)
 where
-    T: Copy + Norm + std::ops::Sub<Output = T> + std::ops::Add<Output = T> + std::ops::Mul<f32, Output = T>,
+    T: Copy
+        + Norm
+        + std::ops::Sub<Output = T>
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<f32, Output = T>,
 {
     solve_seek_core(current, seek.goal, seek.speed, seek.deadzone, dt);
 }
 
 pub fn solve_seek_option<T>(current: &mut T, seek: &Seek<Option<T>>, dt: f32)
 where
-    T: Copy + Norm + std::ops::Sub<Output = T> + std::ops::Add<Output = T> + std::ops::Mul<f32, Output = T>,
+    T: Copy
+        + Norm
+        + std::ops::Sub<Output = T>
+        + std::ops::Add<Output = T>
+        + std::ops::Mul<f32, Output = T>,
 {
     let Some(goal) = seek.goal else {
         return;

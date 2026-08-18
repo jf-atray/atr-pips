@@ -9,10 +9,7 @@ use crate::spacial::transform::Transform;
 use crate::tables::PipId;
 use crate::tables::scope::Scope;
 
-const CLOUD_SPRITES: &[(&str, f32)] = &[
-    ("cloud_1", 4.0),
-    ("cloud_2", 1.0),
-];
+const CLOUD_SPRITES: &[(&str, f32)] = &[("cloud_1", 4.0), ("cloud_2", 1.0)];
 
 const CLOUD_DRIFT_SPEED: f32 = 0.075;
 const CLOUD_WRAP_X: f32 = 6.0;
@@ -37,18 +34,16 @@ impl CloudDriftSystem {
             let x = (rand::random::<f32>() * 2.0 - 1.0) * CLOUD_WRAP_X;
             let y = 0.5 + rand::random::<f32>() * 1.0;
             let w = 1.5 + rand::random::<f32>() * 1.5;
-            let (name, aspect) = CLOUD_SPRITES[rand::random::<u32>() as usize % CLOUD_SPRITES.len()];
+            let (name, aspect) =
+                CLOUD_SPRITES[rand::random::<u32>() as usize % CLOUD_SPRITES.len()];
             let h = w / aspect;
 
             let name = name.to_string();
             let sprite = ctx.asset_registry.get(&name);
             let pip = ctx.domain.make(|scope: &mut Scope| {
                 let mut brush = Brush::from_sprite(sprite);
-                brush.scale = Vec3::new(
-                    w / sprite.natural_scale.x,
-                    h / sprite.natural_scale.y,
-                    1.0,
-                );
+                brush.scale =
+                    Vec3::new(w / sprite.natural_scale.x, h / sprite.natural_scale.y, 1.0);
                 brush.color = Vec4::ONE;
                 scope.core.with(
                     Transform {

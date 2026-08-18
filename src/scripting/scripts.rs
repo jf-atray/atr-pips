@@ -92,7 +92,14 @@ impl Scripts {
         self.set_enabled(id, false)
     }
 
-    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, solvers: &Solvers, asset_registry: &AssetRegistry, input: &Input) {
+    pub fn update_enabled(
+        &self,
+        dt: f32,
+        domain: &mut Domain,
+        solvers: &Solvers,
+        asset_registry: &AssetRegistry,
+        input: &Input,
+    ) {
         let mut ctx = DomainView::new(dt, domain, self, solvers, input, asset_registry);
         self.foreach_untyped(|_scripts, host| {
             if host.every.enabled {

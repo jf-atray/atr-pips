@@ -1,8 +1,8 @@
 use wgpu::{
     Adapter, Backend, Backends, CommandEncoderDescriptor, CompositeAlphaMode,
     CurrentSurfaceTexture, Device, DeviceDescriptor, ExperimentalFeatures, Features, Limits,
-    MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Surface, SurfaceConfiguration,
-    SurfaceColorSpace, TextureUsages, Trace,
+    MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Surface, SurfaceColorSpace,
+    SurfaceConfiguration, TextureUsages, Trace,
 };
 
 use crate::libscope::Lib;
@@ -25,7 +25,6 @@ pub use targets::RenderTargets;
 
 pub use self::canvasing::CanvasRenderer;
 pub use self::texture_cache::TextureScope;
-
 
 pub struct GpuReady(pub GpuParts);
 
@@ -146,17 +145,18 @@ impl Gpu {
     pub fn reconfigure(&mut self, width: u32, height: u32) {
         let device = &self.device.device;
         self.surface.reconfigure(device, width, height);
-        self.targets
-            .rebuild(device, &self.surface.cfg);
+        self.targets.rebuild(device, &self.surface.cfg);
     }
 
     pub fn begin_frame(&mut self) -> Option<Frame> {
         match self.surface.surface.get_current_texture() {
             CurrentSurfaceTexture::Success(st) | CurrentSurfaceTexture::Suboptimal(st) => {
-                let encoder = self
-                    .device
-                    .device
-                    .create_command_encoder(&CommandEncoderDescriptor { label: Some("frame") });
+                let encoder =
+                    self.device
+                        .device
+                        .create_command_encoder(&CommandEncoderDescriptor {
+                            label: Some("frame"),
+                        });
 
                 Some(Frame::new(st, encoder, &self.targets))
             }

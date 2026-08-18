@@ -27,7 +27,6 @@ impl Lib {
         Self { inst }
     }
 
-
     pub fn make_surface(&self, window: Arc<Window>) -> Surface<'static> {
         self.inst
             .create_surface(SurfaceTarget::from_window_without_display(window))

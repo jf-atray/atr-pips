@@ -27,11 +27,7 @@ pub fn depth_factor(d: f32) -> f32 {
 
 pub fn depth_factor_linear(d: f32) -> f32 {
     let l = (FAR_Z - d) / (FAR_Z - NEAR_Z);
-    if l < 1.0 && l > 0.0 {
-        l * l
-    } else {
-        l
-    }
+    if l < 1.0 && l > 0.0 { l * l } else { l }
 }
 
 pub fn world_x(dx: f32, t: f32) -> f32 {
@@ -42,7 +38,6 @@ pub fn world_x(dx: f32, t: f32) -> f32 {
 }
 
 pub fn world_y(t: f32, ground_y: f32, horizon_y: f32) -> f32 {
-    
     if t <= 1.0 {
         let ratio = 0.25;
         let ratio_pi = std::f32::consts::PI * ratio;
@@ -73,7 +68,10 @@ pub fn project(
 ) -> (Vec2, f32) {
     let t_linear = depth_factor_linear(d);
     let dx = lateral - player_lateral;
-    let pos = Vec2::new(world_x(dx, t_linear), world_y(t_linear, ground_y, horizon_y));
+    let pos = Vec2::new(
+        world_x(dx, t_linear),
+        world_y(t_linear, ground_y, horizon_y),
+    );
 
     if scalar < 0.5 {
         let s = projected_scale((t_linear - 0.333) * (3.0 / 2.0)).max(0.0);

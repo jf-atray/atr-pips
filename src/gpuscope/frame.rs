@@ -35,7 +35,10 @@ impl Frame {
         clear_color: Color,
         f: impl FnOnce(&mut RenderPass<'f>) -> R,
     ) -> R {
-        let surface_view = self.surface_texture.texture.create_view(&TextureViewDescriptor::default());
+        let surface_view = self
+            .surface_texture
+            .texture
+            .create_view(&TextureViewDescriptor::default());
 
         let msaa_view = self
             .msaa_color
@@ -52,14 +55,16 @@ impl Frame {
             .as_ref()
             .map(|d| d.create_view(&TextureViewDescriptor::default()));
 
-        let depth_stencil = depth_view.as_ref().map(|view| RenderPassDepthStencilAttachment {
-            view,
-            depth_ops: Some(Operations {
-                load: LoadOp::Clear(1.0),
-                store: StoreOp::Store,
-            }),
-            stencil_ops: None,
-        });
+        let depth_stencil = depth_view
+            .as_ref()
+            .map(|view| RenderPassDepthStencilAttachment {
+                view,
+                depth_ops: Some(Operations {
+                    load: LoadOp::Clear(1.0),
+                    store: StoreOp::Store,
+                }),
+                stencil_ops: None,
+            });
 
         let mut pass = self.encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("frame"),

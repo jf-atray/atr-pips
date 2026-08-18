@@ -1,6 +1,11 @@
 use slotmap::SlotMap;
 
-use crate::tables::{ClassId, ClassRowPtr, PipId, scope::{Scope, Maker}, tables::Tables, partition::Addition};
+use crate::tables::{
+    ClassId, ClassRowPtr, PipId,
+    partition::Addition,
+    scope::{Maker, Scope},
+    tables::Tables,
+};
 
 pub struct Domain {
     pub tables: Tables,
@@ -42,20 +47,22 @@ impl Domain {
         };
 
         self.destroy_ptr(&ptr);
-        let displaced = self.tables.system.pip_id
+        let displaced = self
+            .tables
+            .system
+            .pip_id
             .get_col(ptr.class_id)
             .and_then(|col| col.get(ptr.row_idx))
             .copied();
 
         if let Some(displaced) = displaced
-            && let Some(entry) = self.ids.get_mut(displaced) {
-                *entry = ClassRowPtr::new(ptr.class_id, ptr.row_idx);
-            }
+            && let Some(entry) = self.ids.get_mut(displaced)
+        {
+            *entry = ClassRowPtr::new(ptr.class_id, ptr.row_idx);
+        }
 
         self.ids.remove(pip);
     }
-
-
 
     fn commit_with<F: FnOnce(&mut Scope)>(&mut self, pip: PipId, f: F) -> ClassRowPtr {
         let mut scope = Scope::default();
@@ -71,23 +78,25 @@ impl Domain {
 
         let width = scope.width();
 
-
         let mut class_id = None;
         //todo in youfirst I actually itered the smallest commited class
         //but depending on the kind of slotmap this might actually be
         //less than useful.
         //doublecheck secondarymap because if sparce is still o(1) for a little more memory
         //and gains a fwd walk key iter... yummy
-        for id in self.heading.iter().filter(|(_,v)| **v == width ).map(|(k,_)| k){
+        for id in self
+            .heading
+            .iter()
+            .filter(|(_, v)| **v == width)
+            .map(|(k, _)| k)
+        {
             if scope.matches(id, &self.tables) {
                 class_id = Some(id);
                 break;
             }
         }
 
-        let class_id = class_id.unwrap_or_else(|| {
-            self.heading.insert(width)
-        });
+        let class_id = class_id.unwrap_or_else(|| self.heading.insert(width));
 
         let row_idx = scope.commit(class_id, &mut self.tables).unwrap();
         ClassRowPtr::new(class_id, row_idx)

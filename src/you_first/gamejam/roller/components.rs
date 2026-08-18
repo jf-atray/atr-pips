@@ -23,7 +23,6 @@ crate::partition! {
     }
 }
 
-
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct BrushFlip {
     pub is_flipped: bool,

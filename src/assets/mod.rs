@@ -18,7 +18,12 @@ pub struct SpriteRect {
 
 impl SpriteRect {
     pub fn full(w: f32, h: f32) -> Self {
-        Self { x: 0.0, y: 0.0, w, h }
+        Self {
+            x: 0.0,
+            y: 0.0,
+            w,
+            h,
+        }
     }
 
     pub fn uv_rect(&self, tex_w: f32, tex_h: f32) -> [f32; 4] {

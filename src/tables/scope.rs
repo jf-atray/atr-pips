@@ -1,6 +1,6 @@
 use std::{any::TypeId, collections::HashMap};
 
-use crate::tables::{ClassId, core::CoreView, system::SystemView, tables::Tables, partition::View};
+use crate::tables::{ClassId, core::CoreView, partition::View, system::SystemView, tables::Tables};
 
 #[derive(Default)]
 pub struct Scope {
@@ -45,20 +45,23 @@ impl Scope {
     pub(crate) fn commit(&mut self, class_id: ClassId, tables: &mut Tables) -> Option<usize> {
         let mut row = self.core.commit(class_id, &mut tables.core);
         let system_row = self.system.commit(class_id, &mut tables.system);
-        if row.is_none() { row = system_row; }
+        if row.is_none() {
+            row = system_row;
+        }
 
         //todo check the dependency inversion on this.
         for (addition_id, view) in self.additions.values_mut() {
             if let Some(addition) = tables.get_any_mut(addition_id) {
                 let view_row = view.commit(class_id, addition.as_mut());
-                if row.is_none() { row = view_row; }
+                if row.is_none() {
+                    row = view_row;
+                }
             }
         }
 
         row
     }
 }
-
 
 pub trait Maker {
     fn make_into(self, scope: &mut Scope);

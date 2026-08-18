@@ -37,10 +37,15 @@ impl<'a> DomainView<'a> {
         }
     }
 
-    pub fn split(&mut self) -> (&slotmap::SlotMap<crate::tables::PipId, crate::tables::ClassRowPtr>, &mut Tables) {
+    pub fn split(
+        &mut self,
+    ) -> (
+        &slotmap::SlotMap<crate::tables::PipId, crate::tables::ClassRowPtr>,
+        &mut Tables,
+    ) {
         (&self.domain.ids, &mut self.domain.tables)
     }
-    
+
     pub fn with_script_mut<T: Script>(
         &self,
         id: ScriptId,

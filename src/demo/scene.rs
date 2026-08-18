@@ -75,7 +75,13 @@ impl Demo {
 
             let white_pixel = texture_scope.white_pixel(&gpu_context.device, &gpu_context.queue);
             let white_material = canvas
-                .add_sprite(&gpu_context.device, &gpu_context.queue, &mut every, texture_scope, white_pixel)
+                .add_sprite(
+                    &gpu_context.device,
+                    &gpu_context.queue,
+                    &mut every,
+                    texture_scope,
+                    white_pixel,
+                )
                 .expect("failed to add white pixel sprite");
             pending.push((
                 "green".to_string(),
@@ -93,15 +99,21 @@ impl Demo {
                     let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
                         continue;
                     };
-                    let Some(img_id) =
-                        texture_scope.load_image(&gpu_context.device, &gpu_context.queue, path.to_str().unwrap_or(""))
-                    else {
+                    let Some(img_id) = texture_scope.load_image(
+                        &gpu_context.device,
+                        &gpu_context.queue,
+                        path.to_str().unwrap_or(""),
+                    ) else {
                         log::warn!("failed to load sprite {}", path.display());
                         continue;
                     };
-                    let Some(material) =
-                        canvas.add_sprite(&gpu_context.device, &gpu_context.queue, &mut every, texture_scope, img_id)
-                    else {
+                    let Some(material) = canvas.add_sprite(
+                        &gpu_context.device,
+                        &gpu_context.queue,
+                        &mut every,
+                        texture_scope,
+                        img_id,
+                    ) else {
                         continue;
                     };
                     let Some((w, h)) = texture_scope.size(img_id) else {
@@ -169,10 +181,10 @@ impl Demo {
             let brush = Brush::from_sprite(&sprite);
 
             ctx.domain.make(|scope: &mut Scope| {
-                scope.core.with(transform, brush, name, Motion::random_unit());
+                scope
+                    .core
+                    .with(transform, brush, name, Motion::random_unit());
             });
         }
     }
 }
-
-

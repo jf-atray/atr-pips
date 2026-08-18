@@ -15,7 +15,10 @@ impl Script for MotionSolver {
     fn update(&mut self, ctx: &mut DomainView) {
         let dt = ctx.dt;
         crate::query!(
-            [&mut ctx.domain.tables.core.motions, &mut ctx.domain.tables.core.xforms],
+            [
+                &mut ctx.domain.tables.core.motions,
+                &mut ctx.domain.tables.core.xforms
+            ],
             |motion, xform| {
                 xform.xyz += motion.vel * dt;
                 for axis in 0..3 {

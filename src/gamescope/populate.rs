@@ -25,8 +25,9 @@ pub fn build_game(
     {
         let name = ("green");
         let white_pixel = texture_scope.white_pixel(device, queue);
-        let material = canvas.add_sprite(device, queue, &mut every, texture_scope, white_pixel)
-        .unwrap();
+        let material = canvas
+            .add_sprite(device, queue, &mut every, texture_scope, white_pixel)
+            .unwrap();
         pending.push((
             name.to_string(),
             material,
@@ -49,7 +50,9 @@ pub fn build_game(
                 log::warn!("failed to load sprite {}", path.display());
                 continue;
             };
-            let material = canvas.add_sprite(device, queue, &mut every, texture_scope, img_id).unwrap();
+            let material = canvas
+                .add_sprite(device, queue, &mut every, texture_scope, img_id)
+                .unwrap();
             let (w, h) = texture_scope.size(img_id).unwrap();
             let natural_scale = Vec2::new(w as f32, h as f32) / pixels_per_unit;
             pending.push((

@@ -30,7 +30,8 @@ impl Solvers {
 
     pub fn register<T: Script>(&mut self, solver: T) {
         let type_id = TypeId::of::<T>();
-        assert!(!self.by_type.contains_key(&type_id), 
+        assert!(
+            !self.by_type.contains_key(&type_id),
             "duplicate solver registered: {}",
             std::any::type_name::<T>()
         );
@@ -58,7 +59,11 @@ impl Solvers {
         f: impl FnOnce(ScriptHostMut<'_, T>) -> R,
     ) -> Result<R, ScriptGetError> {
         let type_id = TypeId::of::<T>();
-        let id = self.by_type.get(&type_id).copied().ok_or(ScriptGetError::BadId)?;
+        let id = self
+            .by_type
+            .get(&type_id)
+            .copied()
+            .ok_or(ScriptGetError::BadId)?;
         let cell = &self.solvers[id];
         let mut guard = Self::try_borrow_host(cell)?;
         let host = guard.downcast_mut::<T>()?;
@@ -84,7 +89,14 @@ impl Solvers {
         self.set_enabled::<T>(false)
     }
 
-    pub fn update_enabled(&self, dt: f32, domain: &mut Domain, scripts: &Scripts, asset_registry: &AssetRegistry, input: &Input) {
+    pub fn update_enabled(
+        &self,
+        dt: f32,
+        domain: &mut Domain,
+        scripts: &Scripts,
+        asset_registry: &AssetRegistry,
+        input: &Input,
+    ) {
         let mut ctx = DomainView::new(dt, domain, scripts, self, input, asset_registry);
         for cell in self.solvers.values() {
             if let Ok(mut guard) = Self::try_borrow_host(cell) {

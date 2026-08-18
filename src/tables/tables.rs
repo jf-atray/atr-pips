@@ -1,4 +1,7 @@
-use std::{any::{Any, TypeId}, collections::HashMap};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+};
 
 use crate::tables::{core::CoreAddition, partition::Addition, system::SystemAddition};
 
@@ -80,7 +83,10 @@ impl<'a> AdditionsView<'a> {
         }
     }
 
-    pub fn disjoin<const N: usize>(&mut self, ids: [TypeId; N]) -> Option<[&mut Box<dyn Addition>; N]> {
+    pub fn disjoin<const N: usize>(
+        &mut self,
+        ids: [TypeId; N],
+    ) -> Option<[&mut Box<dyn Addition>; N]> {
         let refs: [&TypeId; N] = std::array::from_fn(|i| &ids[i]);
         let results: [Option<&mut Box<dyn Addition>>; N] = self.inner.get_disjoint_mut(refs);
         if results.iter().any(std::option::Option::is_none) {
@@ -135,7 +141,7 @@ impl Tables {
     pub fn get_any(&self, id: &TypeId) -> Option<&dyn Addition> {
         self.additions.get(id).map(std::convert::AsRef::as_ref)
     }
-    pub fn get_any_mut(&mut self, id: &TypeId) -> Option<&mut Box<dyn Addition+'static>> {
+    pub fn get_any_mut(&mut self, id: &TypeId) -> Option<&mut Box<dyn Addition + 'static>> {
         self.additions.get_mut(id)
     }
 
@@ -153,11 +159,9 @@ impl Tables {
     }
 
     pub fn remove<T: Addition + 'static>(&mut self) -> Option<T> {
-        self.additions
-            .remove(&TypeId::of::<T>())
-            .and_then(|a| {
-                let any: Box<dyn Any> = a;
-                any.downcast::<T>().ok().map(|b| *b)
-            })
+        self.additions.remove(&TypeId::of::<T>()).and_then(|a| {
+            let any: Box<dyn Any> = a;
+            any.downcast::<T>().ok().map(|b| *b)
+        })
     }
 }

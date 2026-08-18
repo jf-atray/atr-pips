@@ -70,7 +70,10 @@ pub struct VirtualAxes {
 
 impl VirtualAxes {
     pub fn value(&self, name: &str) -> f32 {
-        self.states.get(name).map(|(c, _)| c.signum() as f32).unwrap_or(0.0)
+        self.states
+            .get(name)
+            .map(|(c, _)| c.signum() as f32)
+            .unwrap_or(0.0)
     }
 
     pub fn delta(&self, name: &str) -> Option<i32> {
@@ -140,7 +143,11 @@ impl Input {
 
     pub fn handle_event(&mut self, event: InputEvent) {
         match event {
-            InputEvent::Key { code, state, repeat } => {
+            InputEvent::Key {
+                code,
+                state,
+                repeat,
+            } => {
                 if !repeat {
                     let down = state == ElementState::Pressed;
                     self.axes.update(&code, down);

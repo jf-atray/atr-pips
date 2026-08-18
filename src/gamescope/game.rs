@@ -47,10 +47,20 @@ impl Game {
         };
         self.scene.update(&mut ctx);
 
-        self.scripts
-            .update_enabled(dt, &mut self.domain, &self.solvers, &self.asset_registry, &self.input);
-        self.solvers
-            .update_enabled(dt, &mut self.domain, &self.scripts, &self.asset_registry, &self.input);
+        self.scripts.update_enabled(
+            dt,
+            &mut self.domain,
+            &self.solvers,
+            &self.asset_registry,
+            &self.input,
+        );
+        self.solvers.update_enabled(
+            dt,
+            &mut self.domain,
+            &self.scripts,
+            &self.asset_registry,
+            &self.input,
+        );
 
         self.camera.update(aspect);
         self.input.end_frame();

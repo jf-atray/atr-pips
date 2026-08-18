@@ -1,5 +1,5 @@
-use glam::prelude::Vec3;
 use glam::Vec4;
+use glam::prelude::Vec3;
 
 use crate::assets::SpriteEntry;
 use crate::tables::{CanvasId, MaterialId};

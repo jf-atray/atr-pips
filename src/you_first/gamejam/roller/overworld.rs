@@ -8,22 +8,21 @@ use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver};
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
+use crate::input::AxisConfig;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::scope::Scope;
 use crate::tables::{CanvasId, MaterialId, PipId};
-use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
-use crate::input::AxisConfig;
-use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
 use crate::you_first::gamejam::roller::biome::Biome;
+use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
+use crate::you_first::gamejam::roller::bundles::{player_roller_bundle, roller_sprite_bundle};
 use crate::you_first::gamejam::roller::camera::CameraDirector;
-use crate::you_first::gamejam::roller::controller::PlayerLateralController;
 use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
 use crate::you_first::gamejam::roller::components::RollerAddition;
+use crate::you_first::gamejam::roller::controller::PlayerLateralController;
 use crate::you_first::gamejam::roller::projection::FAR_Z;
 use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
 use crate::you_first::gamejam::roller::spawner::RollerSpawner;
-
 
 const DESIGN_W: f32 = 1280.0;
 const DESIGN_H: f32 = 720.0;
@@ -60,12 +59,7 @@ impl OverworldScene {
             sprites_dir: "assets/sprites".to_string(),
             pixels_per_unit,
             player: None,
-            camera_director: CameraDirector::new(
-                Vec2::ZERO,
-                10.0 / CAMERA_BOUNDS,
-                8.0,
-                8.0,
-            ),
+            camera_director: CameraDirector::new(Vec2::ZERO, 10.0 / CAMERA_BOUNDS, 8.0, 8.0),
             ground: None,
             tilted_ground: None,
             sky: None,
@@ -100,9 +94,7 @@ impl OverworldScene {
         let canvas = player.canvas;
         let player_id = self.spawn_player(ctx, canvas, player.material);
         let cactus = ctx.asset_registry.get("cactus");
-        
 
-        
         self.player = Some(player_id);
         self.spawn_objects(ctx, canvas, cactus.material);
 
@@ -126,7 +118,7 @@ impl OverworldScene {
 
         let tilt_rad = GROUND_TILT_DEG.to_radians();
         let half_h = TILTED_GROUND_HEIGHT * 0.5;
-        let tilted_z = ground_z - half_h * tilt_rad.sin() ;
+        let tilted_z = ground_z - half_h * tilt_rad.sin();
         let tilted_y = WALK_HORIZON_Y - half_h * tilt_rad.cos();
         let tilted_sprite = ctx.asset_registry.get("tilted_ground");
         let tilted = ctx.domain.make(|scope: &mut Scope| {
@@ -197,11 +189,10 @@ impl OverworldScene {
             ),
         );
 
-        ctx.solvers.register(PlayerLateralController::new(player_id));
         ctx.solvers
-            .register(RollerSpawner::new(player_id, biome));
+            .register(PlayerLateralController::new(player_id));
+        ctx.solvers.register(RollerSpawner::new(player_id, biome));
         ctx.solvers.register(CloudDriftSystem::new());
-
     }
 
     fn make_canvas(&mut self, ctx: &mut SceneContext) {
@@ -343,7 +334,8 @@ impl OverworldScene {
             current_x
         };
 
-        self.camera_director.set_pan_target(Vec2::new(target_x, camera_y));
+        self.camera_director
+            .set_pan_target(Vec2::new(target_x, camera_y));
         self.camera_director.set_zoom_target(zoom);
         self.camera_director.update(ctx.camera, ctx.dt);
     }

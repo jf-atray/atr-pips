@@ -4,9 +4,11 @@ use crate::assets::AssetRegistry;
 use crate::brushes::Brush;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
+use crate::tables::scope::{Maker, Scope};
 use crate::tables::{CanvasId, MaterialId};
-use crate::tables::scope::{Scope, Maker};
-use crate::you_first::gamejam::roller::components::{BrushFlip, RollerDepth, RollerPlayer, RollerView};
+use crate::you_first::gamejam::roller::components::{
+    BrushFlip, RollerDepth, RollerPlayer, RollerView,
+};
 use crate::you_first::gamejam::roller::projection::WALK_SPEED;
 
 fn u8_to_f32_color(c: [u8; 4]) -> [f32; 4] {

@@ -23,7 +23,8 @@ impl Script for RollerSpawner {
             let Some(roller) = tables.get::<RollerAddition>() else {
                 return;
             };
-            let Some(player) = gather_ref(&ctx.domain.ids, &roller.roller_players, self.player) else {
+            let Some(player) = gather_ref(&ctx.domain.ids, &roller.roller_players, self.player)
+            else {
                 return;
             };
 

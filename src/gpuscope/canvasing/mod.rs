@@ -1,11 +1,12 @@
 use slotmap::{SecondaryMap, SlotMap};
 use wgpu::{
-    BindGroupLayout, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, RenderPass, RenderPipeline,
+    BindGroupLayout, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, RenderPass,
+    RenderPipeline,
 };
 
 use crate::spacial::camera::Camera;
-use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 use crate::tables::tables::Tables;
+use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 
 pub trait CanvasSolver {
     fn solve(
@@ -19,13 +20,11 @@ pub trait CanvasSolver {
     );
 }
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct Draw {
     pub adr: u32,
     pub count: u32,
 }
-
 
 pub struct EveryCanvas {
     pub bind_group_layout: BindGroupLayout,
@@ -46,11 +45,21 @@ impl EveryCanvas {
 }
 
 pub trait CanvasTrait {
-    fn prepare(&mut self, camera: &Camera, encoder: &mut CommandEncoder, belt: &mut wgpu::util::StagingBelt);
+    fn prepare(
+        &mut self,
+        camera: &Camera,
+        encoder: &mut CommandEncoder,
+        belt: &mut wgpu::util::StagingBelt,
+    );
     fn begin_render_pass(&self, _pass: &mut RenderPass<'_>, _every: &EveryCanvas) {}
-    fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, every: &EveryCanvas);
+    fn render(
+        &self,
+        pass: &mut RenderPass<'_>,
+        material: MaterialId,
+        instances: std::ops::Range<u32>,
+        every: &EveryCanvas,
+    );
 }
-
 
 pub struct DrawWriter<'a> {
     canvases: &'a mut SlotMap<CanvasId, (EveryCanvas, Box<dyn CanvasTrait>)>,
@@ -83,7 +92,7 @@ pub struct CanvasRenderer {
 impl CanvasRenderer {
     pub fn make(device: Device) -> Self {
         const INSTANCE_BUFFER_BYTES: u32 = 1024 * 1024; //1MiB
-        const  BELT_CHUNK_FACTOR: f64 = 1.0 / 4.0; //256KiB
+        const BELT_CHUNK_FACTOR: f64 = 1.0 / 4.0; //256KiB
 
         let instance_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("canvas instances"),
@@ -93,10 +102,10 @@ impl CanvasRenderer {
         });
 
         let rough = f64::from(INSTANCE_BUFFER_BYTES) * BELT_CHUNK_FACTOR;
-        let belt = rough as u64;//explicitly saturating.
+        let belt = rough as u64; //explicitly saturating.
 
         let staging_belt = wgpu::util::StagingBelt::new(device, belt);
-        
+
         Self {
             solvers: SlotMap::with_key(),
             canvases: SlotMap::with_key(),
@@ -105,12 +114,7 @@ impl CanvasRenderer {
         }
     }
 
-    pub fn prepare(
-        &mut self,
-        tables: &Tables,
-        camera: &Camera,
-        encoder: &mut CommandEncoder,
-    ) {
+    pub fn prepare(&mut self, tables: &Tables, camera: &Camera, encoder: &mut CommandEncoder) {
         for (every, canvas) in self.canvases.values_mut() {
             every.draws.clear();
             canvas.prepare(camera, encoder, &mut self.staging_belt);
@@ -120,16 +124,14 @@ impl CanvasRenderer {
         let staging = &mut self.staging_belt;
         let canvases = &mut self.canvases;
         let solvers = &mut self.solvers;
-        let mut writer = DrawWriter { canvases, next_adr: 0 };
+        let mut writer = DrawWriter {
+            canvases,
+            next_adr: 0,
+        };
         for (id, solver) in solvers.iter_mut() {
-            solver.as_mut().solve(
-                tables,
-                encoder,
-                staging,
-                instance_buffer,
-                id,
-                &mut writer,
-            );
+            solver
+                .as_mut()
+                .solve(tables, encoder, staging, instance_buffer, id, &mut writer);
         }
         staging.finish();
     }
@@ -148,4 +150,3 @@ impl CanvasRenderer {
         self.staging_belt.recall();
     }
 }
-

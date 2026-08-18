@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use winit::window::Window;
 
-
 pub struct Windowing {
     //winit aggressively needs this in an arc
     pub window: Arc<Window>,

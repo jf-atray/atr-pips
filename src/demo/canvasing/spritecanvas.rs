@@ -1,36 +1,34 @@
-use std::mem::size_of;
 use core::range::Range;
+use std::mem::size_of;
 use std::num::NonZero;
 use zerocopy::IntoBytes as _;
 
 use glam::Vec2;
 use slotmap::SecondaryMap;
+use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType,
     BufferDescriptor, BufferSize, BufferUsages, ColorTargetState, ColorWrites, CommandEncoder,
     CompareFunction, DepthStencilState, Device, FragmentState, MultisampleState,
-    PipelineLayoutDescriptor, PrimitiveState, RenderPass, RenderPipelineDescriptor, Sampler,
-    SamplerDescriptor, ShaderModuleDescriptor, ShaderStages, Queue, TextureFormat, TextureView,
+    PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPass, RenderPipelineDescriptor, Sampler,
+    SamplerDescriptor, ShaderModuleDescriptor, ShaderStages, TextureFormat, TextureView,
     TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState,
     VertexStepMode,
 };
-use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 
 use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, DrawWriter, EveryCanvas};
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
-use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 use crate::tables::tables::Tables;
+use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 
 const MAX_MATERIALS: u64 = 32;
-
 
 //todo, it should be allowed to get a texture view from elsewhere
 pub struct SpriteMaterial {
     pub binding: BindGroup,
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, zerocopy::IntoBytes, zerocopy::Immutable)]
@@ -39,25 +37,21 @@ struct SpriteUniformDatum {
     _pad: f32,
 }
 
-
 struct CameraUniforms {
     bind: BindGroup,
     buffer: Buffer,
     slice: Range<u64>,
 }
 
-
 struct QuadGeometry {
     buffer: Buffer,
     slice: Range<u64>,
 }
 
-
 struct MaterialUniforms {
     buffer: Buffer,
     stride: u64,
 }
-
 
 pub struct BasicSpriteCanvas {
     binds_layout: BindGroupLayout,
@@ -128,7 +122,10 @@ impl BasicSpriteCanvas {
 
         let material_uniforms = make_material_uniforms(device);
 
-        let shader = include_str!( concat!(env!("CARGO_MANIFEST_DIR"),"/assets/shaders/green_rect.wgsl"));
+        let shader = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/shaders/green_rect.wgsl"
+        ));
         let instance_stride = size_of::<SpriteInstance>() as u64;
 
         let module = device.create_shader_module(ShaderModuleDescriptor {
@@ -251,12 +248,11 @@ impl BasicSpriteCanvas {
 
         let quad: [[f32; 5]; 6] = [
             [-1.0, -1.0, 0.0, 0.0, 1.0],
-            [ 1.0, -1.0, 0.0, 1.0, 1.0],
-            [ 1.0,  1.0, 0.0, 1.0, 0.0],
-
-            [-1.0,  1.0, 0.0, 0.0, 0.0],
+            [1.0, -1.0, 0.0, 1.0, 1.0],
+            [1.0, 1.0, 0.0, 1.0, 0.0],
+            [-1.0, 1.0, 0.0, 0.0, 0.0],
             [-1.0, -1.0, 0.0, 0.0, 1.0],
-            [ 1.0,  1.0, 0.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0, 1.0, 0.0],
         ];
         let quad_slice = Range::from(0..quad.as_bytes().len() as u64);
 
@@ -266,22 +262,25 @@ impl BasicSpriteCanvas {
             usage: BufferUsages::VERTEX,
         });
 
-        (every, Self {
-            binds_layout,
-            materials: SecondaryMap::new(),
-            material_uniforms,
-            sampler,
-            pixels_per_unit,
-            camera: CameraUniforms {
-                bind: camera_bind,
-                buffer: camera_buffer,
-                slice: camera_slice,
+        (
+            every,
+            Self {
+                binds_layout,
+                materials: SecondaryMap::new(),
+                material_uniforms,
+                sampler,
+                pixels_per_unit,
+                camera: CameraUniforms {
+                    bind: camera_bind,
+                    buffer: camera_buffer,
+                    slice: camera_slice,
+                },
+                quad: QuadGeometry {
+                    buffer: quad_buffer,
+                    slice: quad_slice,
+                },
             },
-            quad: QuadGeometry {
-                buffer: quad_buffer,
-                slice: quad_slice,
-            },
-        })
+        )
     }
 
     pub fn add_sprite(
@@ -296,7 +295,7 @@ impl BasicSpriteCanvas {
             return None;
         }
 
-        let texture = texture_scope.get(img_id) ?;
+        let texture = texture_scope.get(img_id)?;
         let (w, h) = (texture.width(), texture.height());
         let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
 
@@ -310,11 +309,7 @@ impl BasicSpriteCanvas {
         let material_index = self.materials.len() as u64;
         let offset = material_index * self.material_uniforms.stride;
 
-        queue.write_buffer(
-            &self.material_uniforms.buffer,
-            offset,
-            uniform.as_bytes(),
-        );
+        queue.write_buffer(&self.material_uniforms.buffer, offset, uniform.as_bytes());
 
         let binding = Self::create_material_binding(
             device,
@@ -361,7 +356,6 @@ impl BasicSpriteCanvas {
             ],
         })
     }
-
 }
 
 impl CanvasTrait for BasicSpriteCanvas {
@@ -380,10 +374,21 @@ impl CanvasTrait for BasicSpriteCanvas {
     fn begin_render_pass(&self, pass: &mut RenderPass<'_>, every: &EveryCanvas) {
         pass.set_pipeline(&every.pipeline);
         pass.set_bind_group(0, &self.camera.bind, &[]);
-        pass.set_vertex_buffer(0, self.quad.buffer.slice(self.quad.slice.start..self.quad.slice.end));
+        pass.set_vertex_buffer(
+            0,
+            self.quad
+                .buffer
+                .slice(self.quad.slice.start..self.quad.slice.end),
+        );
     }
 
-    fn render(&self, pass: &mut RenderPass<'_>, material: MaterialId, instances: std::ops::Range<u32>, _every: &EveryCanvas) {
+    fn render(
+        &self,
+        pass: &mut RenderPass<'_>,
+        material: MaterialId,
+        instances: std::ops::Range<u32>,
+        _every: &EveryCanvas,
+    ) {
         let material = self.materials.get(material).expect("missing material");
         pass.set_bind_group(1, &material.binding, &[]);
         pass.draw(0..6, instances);
@@ -411,9 +416,19 @@ impl SpriteCanvasSolver {
                 let to = |x: f32| x as f16;
                 let instance = SpriteInstance {
                     position: [xform.xyz.x, xform.xyz.y, xform.xyz.z],
-                    rotation: [to(xform.rot.x), to(xform.rot.y), to(xform.rot.z), to(xform.rot.w)],
+                    rotation: [
+                        to(xform.rot.x),
+                        to(xform.rot.y),
+                        to(xform.rot.z),
+                        to(xform.rot.w),
+                    ],
                     scale: [to(brush.scale.x), to(brush.scale.y), 0.0f16, 0.0f16],
-                    color: [to(brush.color.x), to(brush.color.y), to(brush.color.z), to(brush.color.w)],
+                    color: [
+                        to(brush.color.x),
+                        to(brush.color.y),
+                        to(brush.color.z),
+                        to(brush.color.w),
+                    ],
                 };
                 self.sort.push((instance, brush.canvas, brush.material));
             }
@@ -431,14 +446,24 @@ impl SpriteCanvasSolver {
         for (i, (inst, canvas, material)) in self.sort.iter().enumerate() {
             self.instances.push(*inst);
             if *canvas != run_canvas || *material != run_material {
-                sink.set_draw(run_canvas, run_material, adr + run_start as u32, (i - run_start) as u32);
+                sink.set_draw(
+                    run_canvas,
+                    run_material,
+                    adr + run_start as u32,
+                    (i - run_start) as u32,
+                );
                 run_start = i;
                 run_canvas = *canvas;
                 run_material = *material;
             }
         }
         let last = self.sort.len();
-        sink.set_draw(run_canvas, run_material, adr + run_start as u32, (last - run_start) as u32);
+        sink.set_draw(
+            run_canvas,
+            run_material,
+            adr + run_start as u32,
+            (last - run_start) as u32,
+        );
     }
 
     fn write(
@@ -456,7 +481,7 @@ impl SpriteCanvasSolver {
             };
             let instance_size = size_of::<SpriteInstance>() as u64;
             let byte_offset = u64::from(adr) * instance_size;
-            
+
             let mut view = belt.write_buffer(encoder, instance_buffer, byte_offset, bytes_len);
             view.copy_from_slice(bytes);
         }
@@ -502,10 +527,5 @@ fn make_material_uniforms(device: &Device) -> MaterialUniforms {
         mapped_at_creation: false,
     });
 
-    MaterialUniforms {
-        buffer,
-        stride,
-    }
+    MaterialUniforms { buffer, stride }
 }
-
-

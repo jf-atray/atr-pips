@@ -3,7 +3,10 @@ use std::ops::{Index, IndexMut};
 use atr_plex::{Duplex, duplex};
 use slotmap::{SecondaryMap, SparseSecondaryMap};
 
-use crate::tables::{ClassId, ClassRowPtr, class_strategy::{ClassRarity, GrowthStrategy}};
+use crate::tables::{
+    ClassId, ClassRowPtr,
+    class_strategy::{ClassRarity, GrowthStrategy},
+};
 
 #[derive(Debug)]
 pub struct Class<T, K = ()> {
@@ -126,11 +129,17 @@ pub struct Columnar<T, K = ()> {
 
 impl<T, K> Columnar<T, K> {
     pub fn new(key: K) -> Self {
-        Self { key, vec: Vec::new() }
+        Self {
+            key,
+            vec: Vec::new(),
+        }
     }
 
     pub fn with_capacity(key: K, capacity: usize) -> Self {
-        Self { key, vec: Vec::with_capacity(capacity) }
+        Self {
+            key,
+            vec: Vec::with_capacity(capacity),
+        }
     }
 }
 

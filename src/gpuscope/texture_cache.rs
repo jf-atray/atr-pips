@@ -4,9 +4,7 @@ use image::ImageReader;
 use slotmap::SlotMap;
 use wgpu::{
     Device, Extent3d, Queue, Texture, TextureDescriptor, TextureDimension, TextureFormat,
-    TextureUsages,
-    util::DeviceExt,
-    wgt::TextureDataOrder,
+    TextureUsages, util::DeviceExt, wgt::TextureDataOrder,
 };
 
 slotmap::new_key_type! {
@@ -62,7 +60,14 @@ impl TextureScope {
             return *id;
         }
 
-        self.upload(device, queue, "__white_pixel", &[255u8, 255, 255, 255], 1, 1)
+        self.upload(
+            device,
+            queue,
+            "__white_pixel",
+            &[255u8, 255, 255, 255],
+            1,
+            1,
+        )
     }
 
     pub fn get(&self, id: ImgId) -> Option<&Texture> {
