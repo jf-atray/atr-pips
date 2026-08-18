@@ -1,5 +1,5 @@
 use crate::assets::AssetRegistry;
-use crate::gamescope::scene::{NoopScene, Scene, SceneContext};
+use crate::gamescope::scene::{NoopScene, Scene, SceneAction, SceneContext};
 use crate::gpuscope::Gpu;
 use crate::input::Input;
 use crate::scripting::{Scripts, Solvers};
@@ -34,6 +34,7 @@ impl Game {
     }
 
     pub fn update(&mut self, dt: f32, aspect: f32, gpu: &mut Gpu) {
+        let mut game_action = SceneAction::new();
         let mut ctx = SceneContext {
             dt,
             aspect,
@@ -44,6 +45,7 @@ impl Game {
             solvers: &mut self.solvers,
             camera: &mut self.camera,
             gpu,
+            game_action: &mut game_action,
         };
         self.scene.update(&mut ctx);
 
@@ -53,6 +55,7 @@ impl Game {
             &self.solvers,
             &self.asset_registry,
             &self.input,
+            &mut game_action,
         );
         self.solvers.update_enabled(
             dt,
@@ -60,7 +63,12 @@ impl Game {
             &self.scripts,
             &self.asset_registry,
             &self.input,
+            &mut game_action,
         );
+
+        if let Some(next) = game_action.next_scene.take() {
+            self.set_scene(next);
+        }
 
         self.camera.update(aspect);
         self.input.end_frame();

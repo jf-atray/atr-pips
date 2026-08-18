@@ -1,4 +1,5 @@
 use crate::assets::AssetRegistry;
+use crate::gamescope::scene::SceneAction;
 use crate::input::Input;
 use crate::scripting::error::ScriptGetError;
 use crate::scripting::host::ScriptHostMut;
@@ -16,6 +17,7 @@ pub struct DomainView<'a> {
     pub solvers: &'a Solvers,
     pub input: &'a Input,
     pub asset_registry: &'a AssetRegistry,
+    pub game_action: &'a SceneAction,
 }
 
 impl<'a> DomainView<'a> {
@@ -26,6 +28,7 @@ impl<'a> DomainView<'a> {
         solvers: &'a Solvers,
         input: &'a Input,
         asset_registry: &'a AssetRegistry,
+        game_action: &'a SceneAction,
     ) -> Self {
         Self {
             dt,
@@ -34,6 +37,7 @@ impl<'a> DomainView<'a> {
             solvers,
             input,
             asset_registry,
+            game_action,
         }
     }
 

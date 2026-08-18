@@ -3,6 +3,7 @@ use std::cell::{RefCell, RefMut};
 use slotmap::SlotMap;
 
 use crate::assets::AssetRegistry;
+use crate::gamescope::scene::SceneAction;
 use crate::input::Input;
 use crate::scripting::context::DomainView;
 use crate::scripting::error::ScriptGetError;
@@ -99,8 +100,9 @@ impl Scripts {
         solvers: &Solvers,
         asset_registry: &AssetRegistry,
         input: &Input,
+        game_action: &SceneAction,
     ) {
-        let mut ctx = DomainView::new(dt, domain, self, solvers, input, asset_registry);
+        let mut ctx = DomainView::new(dt, domain, self, solvers, input, asset_registry, game_action);
         self.foreach_untyped(|_scripts, host| {
             if host.every.enabled {
                 host.script.update(&mut ctx);

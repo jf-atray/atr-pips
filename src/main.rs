@@ -1,6 +1,8 @@
 #![feature(inherent_associated_types)]
 #![feature(f16)]
 #![feature(trivial_bounds)]
+#![feature(const_option_ops)]
+#![feature(const_trait_impl)]
 #![allow(incomplete_features)]
 #![allow(dead_code)]
 mod anims;
