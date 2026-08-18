@@ -1,4 +1,6 @@
-use crate::assets::AssetRegistry;
+use std::collections::HashMap;
+
+use crate::assets::SpriteEntry;
 use crate::tables::domain::Domain;
 use crate::you_first::gamejam::roller::bundles::roller_sprite_bundle_from_asset;
 use crate::you_first::gamejam::roller::projection::{FAR_Z, NEAR_Z};
@@ -89,7 +91,7 @@ impl ScatterChannel {
     fn spawn(
         &self,
         domain: &mut Domain,
-        asset_registry: &AssetRegistry,
+        asset_registry: &HashMap<String, SpriteEntry>,
         lateral: f32,
         d: f32,
         is_left: bool,
@@ -117,7 +119,7 @@ pub struct Biome {
 }
 
 impl Biome {
-    pub fn pre_seed(&mut self, domain: &mut Domain, asset_registry: &AssetRegistry) {
+    pub fn pre_seed(&mut self, domain: &mut Domain, asset_registry: &HashMap<String, SpriteEntry>) {
         for channel in &mut self.channels {
             if !channel.motion.pre_seed {
                 continue;
@@ -139,7 +141,7 @@ impl Biome {
     pub fn update(
         &mut self,
         domain: &mut Domain,
-        asset_registry: &AssetRegistry,
+        asset_registry: &HashMap<String, SpriteEntry>,
         walk_distance: f32,
     ) {
         for channel in &mut self.channels {

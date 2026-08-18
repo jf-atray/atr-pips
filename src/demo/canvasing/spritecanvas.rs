@@ -23,7 +23,7 @@ use crate::spacial::camera::Camera;
 use crate::tables::tables::Tables;
 use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 
-const MAX_MATERIALS: u64 = 32;
+const MAX_MATERIALS: u64 = 128;
 
 //todo, it should be allowed to get a texture view from elsewhere
 pub struct SpriteMaterial {

@@ -3,7 +3,7 @@ use winit::keyboard::KeyCode;
 
 use std::fs;
 
-use crate::assets::{SpriteEntry, SpriteRect};
+use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver};
 use crate::gamescope::scene::{Scene, SceneContext};
@@ -90,16 +90,25 @@ impl OverworldScene {
         ctx.solvers.register(RollerProjectionSolver);
         ctx.solvers.register(BrushFlipSolver);
 
-        let player = ctx.asset_registry.get("player_happy");
+        let player = ctx
+            .asset_registry
+            .get("player_happy")
+            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let canvas = player.canvas;
         let player_id = self.spawn_player(ctx, canvas, player.material);
-        let cactus = ctx.asset_registry.get("cactus");
+        let cactus = ctx
+            .asset_registry
+            .get("cactus")
+            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
 
         self.player = Some(player_id);
         self.spawn_objects(ctx, canvas, cactus.material);
 
         let ground_z = 0.25 + (0.5 * 0.663_968);
-        let ground_sprite = ctx.asset_registry.get("ground");
+        let ground_sprite = ctx
+            .asset_registry
+            .get("ground")
+            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let ground = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(ground_sprite.canvas, ground_sprite.material);
             brush.scale = Vec3::new(20.0, GROUND_STRIP_HEIGHT, 1.0);
@@ -120,7 +129,10 @@ impl OverworldScene {
         let half_h = TILTED_GROUND_HEIGHT * 0.5;
         let tilted_z = ground_z - half_h * tilt_rad.sin();
         let tilted_y = WALK_HORIZON_Y - half_h * tilt_rad.cos();
-        let tilted_sprite = ctx.asset_registry.get("tilted_ground");
+        let tilted_sprite = ctx
+            .asset_registry
+            .get("tilted_ground")
+            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let tilted = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(tilted_sprite.canvas, tilted_sprite.material);
             brush.scale = Vec3::new(20.0, TILTED_GROUND_HEIGHT, 1.0);
@@ -137,7 +149,10 @@ impl OverworldScene {
         });
         self.tilted_ground = Some(tilted);
 
-        let sky_sprite = ctx.asset_registry.get("sky");
+        let sky_sprite = ctx
+            .asset_registry
+            .get("sky")
+            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let sky = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(sky_sprite.canvas, sky_sprite.material);
             brush.scale = Vec3::new(20.0, 10.0, 1.0);
@@ -154,7 +169,10 @@ impl OverworldScene {
         });
         self.sky = Some(sky);
 
-        let sun_sprite = ctx.asset_registry.get("sun");
+        let sun_sprite = ctx
+            .asset_registry
+            .get("sun")
+            .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
         let sun = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(sun_sprite.canvas, sun_sprite.material);
             brush.scale = Vec3::new(0.25, 0.25, 1.0);
@@ -213,7 +231,7 @@ impl OverworldScene {
             self.pixels_per_unit,
         );
 
-        let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
+        let mut pending: Vec<(String, MaterialId, Vec2)> = Vec::new();
 
         {
             let texture_scope = &mut gpu_context.texture_scope;
@@ -231,26 +249,27 @@ impl OverworldScene {
             pending.push((
                 "ground".to_string(),
                 white_material,
-                Vec2::ONE,
-                SpriteRect::full(1.0, 1.0),
+                Vec2::ONE
             ));
             pending.push((
                 "tilted_ground".to_string(),
                 white_material,
-                Vec2::ONE,
-                SpriteRect::full(1.0, 1.0),
+                Vec2::ONE
             ));
             pending.push((
                 "sky".to_string(),
                 white_material,
-                Vec2::ONE,
-                SpriteRect::full(1.0, 1.0),
+                Vec2::ONE
             ));
             pending.push((
                 "sun".to_string(),
                 white_material,
-                Vec2::ONE,
-                SpriteRect::full(1.0, 1.0),
+                Vec2::ONE
+            ));
+            pending.push((
+                "__white__".to_string(),
+                white_material,
+                Vec2::ONE
             ));
 
             if let Ok(entries) = fs::read_dir(&self.sprites_dir) {
@@ -277,6 +296,7 @@ impl OverworldScene {
                         texture_scope,
                         img_id,
                     ) else {
+                        log::warn!("failed to add sprite {} to canvas", path.display());
                         continue;
                     };
                     let Some((w, h)) = texture_scope.size(img_id) else {
@@ -286,8 +306,7 @@ impl OverworldScene {
                     pending.push((
                         name.to_string(),
                         material,
-                        natural_scale,
-                        SpriteRect::full(w as f32, h as f32),
+                        natural_scale
                     ));
                 }
             }
@@ -299,17 +318,18 @@ impl OverworldScene {
             .canvases
             .insert((every, Box::new(canvas)));
 
-        for (name, material, natural_scale, rect) in pending {
-            ctx.asset_registry.register(
+        for (name, material, natural_scale) in pending {
+            ctx.asset_registry.insert(
                 name,
                 SpriteEntry {
                     canvas: canvas_id,
                     material,
                     natural_scale,
-                    rect,
                 },
             );
         }
+
+        log::info!("registered sprites: {:?}", ctx.asset_registry.keys().collect::<Vec<_>>());
     }
 
     fn update_camera(&mut self, ctx: &mut SceneContext) {

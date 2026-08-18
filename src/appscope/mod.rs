@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -8,7 +9,6 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
-use crate::assets::AssetRegistry;
 use crate::gamescope::game::Game;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
@@ -269,7 +269,7 @@ impl ApplicationHandler<GpuReady> for App {
 
             const PIXELS_PER_UNIT: f32 = 512.0;
 
-            let mut game = Game::new(AssetRegistry::new());
+            let mut game = Game::new(HashMap::new());
             game.set_scene(Box::new(OverworldScene::new(PIXELS_PER_UNIT)));
 
             self.state = AppState::Ready {

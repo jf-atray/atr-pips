@@ -2,7 +2,9 @@ use std::cell::{RefCell, RefMut};
 
 use slotmap::SlotMap;
 
-use crate::assets::AssetRegistry;
+use std::collections::HashMap;
+
+use crate::assets::SpriteEntry;
 use crate::gamescope::scene::SceneAction;
 use crate::input::Input;
 use crate::scripting::context::DomainView;
@@ -98,7 +100,7 @@ impl Scripts {
         dt: f32,
         domain: &mut Domain,
         solvers: &Solvers,
-        asset_registry: &AssetRegistry,
+        asset_registry: &HashMap<String, SpriteEntry>,
         input: &Input,
         game_action: &SceneAction,
     ) {

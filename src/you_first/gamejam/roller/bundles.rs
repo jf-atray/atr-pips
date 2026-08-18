@@ -1,6 +1,8 @@
 use glam::{Quat, Vec3, Vec4};
 
-use crate::assets::AssetRegistry;
+use std::collections::HashMap;
+
+use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
@@ -71,7 +73,7 @@ pub fn roller_sprite_bundle(
 
 pub fn roller_sprite_bundle_from_asset(
     material: &str,
-    asset_registry: &AssetRegistry,
+    asset_registry: &HashMap<String, SpriteEntry>,
     lateral: f32,
     d: f32,
     color: [u8; 4],
@@ -79,7 +81,9 @@ pub fn roller_sprite_bundle_from_asset(
     lateral_speed: f32,
     is_flipped: bool,
 ) -> impl Maker {
-    let sprite = asset_registry.get(material);
+    let sprite = asset_registry
+        .get(material)
+        .unwrap_or_else(|| asset_registry.get("__white__").unwrap());
     let canvas = sprite.canvas;
     let mat = sprite.material;
     let color = u8_to_f32_color(color);

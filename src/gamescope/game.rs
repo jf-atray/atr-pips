@@ -1,4 +1,7 @@
-use crate::assets::AssetRegistry;
+
+use std::collections::HashMap;
+
+use crate::assets::SpriteEntry;
 use crate::gamescope::scene::{NoopScene, Scene, SceneAction, SceneContext};
 use crate::gpuscope::Gpu;
 use crate::input::Input;
@@ -9,7 +12,7 @@ use crate::tables::domain::Domain;
 pub struct Game {
     pub domain: Domain,
     pub camera: Camera,
-    pub asset_registry: AssetRegistry,
+    pub asset_registry: HashMap<String, SpriteEntry>,
     pub input: Input,
     pub scripts: Scripts,
     pub solvers: Solvers,
@@ -17,7 +20,7 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(asset_registry: AssetRegistry) -> Self {
+    pub fn new(asset_registry: HashMap<String, SpriteEntry>) -> Self {
         Self {
             domain: Domain::new(),
             camera: Camera::new(),

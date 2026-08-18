@@ -39,7 +39,10 @@ impl CloudDriftSystem {
             let h = w / aspect;
 
             let name = name.to_string();
-            let sprite = ctx.asset_registry.get(&name);
+            let sprite = ctx
+                .asset_registry
+                .get(&name)
+                .unwrap_or(ctx.asset_registry.get("__white__").unwrap());
             let pip = ctx.domain.make(|scope: &mut Scope| {
                 let mut brush = Brush::from_sprite(sprite);
                 brush.scale =

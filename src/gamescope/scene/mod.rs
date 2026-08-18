@@ -1,6 +1,7 @@
 use std::cell::OnceCell;
+use std::collections::HashMap;
 
-use crate::assets::AssetRegistry;
+use crate::assets::SpriteEntry;
 use crate::gpuscope::Gpu;
 use crate::input::Input;
 use crate::scripting::scripts::Scripts;
@@ -26,7 +27,7 @@ pub struct SceneContext<'a> {
     pub dt: f32,
     pub aspect: f32,
     pub domain: &'a mut Domain,
-    pub asset_registry: &'a mut AssetRegistry,
+    pub asset_registry: &'a mut HashMap<String, SpriteEntry>,
     pub input: &'a mut Input,
     pub scripts: &'a mut Scripts,
     pub solvers: &'a mut Solvers,

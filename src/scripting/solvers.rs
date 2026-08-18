@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use slotmap::SlotMap;
 
-use crate::assets::AssetRegistry;
+use crate::assets::SpriteEntry;
 use crate::gamescope::scene::SceneAction;
 use crate::input::Input;
 use crate::scripting::context::DomainView;
@@ -95,7 +95,7 @@ impl Solvers {
         dt: f32,
         domain: &mut Domain,
         scripts: &Scripts,
-        asset_registry: &AssetRegistry,
+        asset_registry: &HashMap<String, SpriteEntry>,
         input: &Input,
         game_action: &SceneAction,
     ) {

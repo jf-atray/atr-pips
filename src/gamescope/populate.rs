@@ -1,9 +1,10 @@
+use std::collections::HashMap;
 use std::fs;
 
 use glam::Vec2;
 use wgpu::{Device, Queue};
 
-use crate::assets::{AssetRegistry, SpriteEntry, SpriteRect};
+use crate::assets::SpriteEntry;
 use crate::demo::canvasing::spritecanvas::BasicSpriteCanvas;
 use crate::gamescope::game::Game;
 use crate::gpuscope::canvasing::{CanvasRenderer, EveryCanvas};
@@ -20,7 +21,7 @@ pub fn build_game(
     pixels_per_unit: f32,
     sprites_dir: &str,
 ) -> Game {
-    let mut pending: Vec<(String, MaterialId, Vec2, SpriteRect)> = Vec::new();
+    let mut pending: Vec<(String, MaterialId, Vec2)> = Vec::new();
 
     {
         let name = "green";
@@ -28,12 +29,7 @@ pub fn build_game(
         let material = canvas
             .add_sprite(device, queue, &mut every, texture_scope, white_pixel)
             .unwrap();
-        pending.push((
-            name.to_string(),
-            material,
-            Vec2::ONE,
-            SpriteRect::full(1.0, 1.0),
-        ));
+        pending.push((name.to_string(), material, Vec2::ONE));
     }
 
     if let Ok(entries) = fs::read_dir(sprites_dir) {
@@ -45,7 +41,10 @@ pub fn build_game(
             let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
                 continue;
             };
-            let Some(img_id) = texture_scope.load_image(device, queue, path.to_str().unwrap_or(""))
+            let Some(path_str) = path.to_str() else {
+                continue;
+            };
+            let Some(img_id) = texture_scope.load_image(device, queue, path_str)
             else {
                 log::warn!("failed to load sprite {}", path.display());
                 continue;
@@ -55,26 +54,20 @@ pub fn build_game(
                 .unwrap();
             let (w, h) = texture_scope.size(img_id).unwrap();
             let natural_scale = Vec2::new(w as f32, h as f32) / pixels_per_unit;
-            pending.push((
-                name.to_string(),
-                material,
-                natural_scale,
-                SpriteRect::full(w as f32, h as f32),
-            ));
+            pending.push((name.to_string(), material, natural_scale));
         }
     }
 
     let canvas_id: CanvasId = canvas_renderer.canvases.insert((every, Box::new(canvas)));
 
-    let mut registry = AssetRegistry::new();
-    for (name, material, natural_scale, rect) in pending {
-        registry.register(
+    let mut registry = HashMap::new();
+    for (name, material, natural_scale) in pending {
+        registry.insert(
             name,
             SpriteEntry {
                 canvas: canvas_id,
                 material,
                 natural_scale,
-                rect,
             },
         );
     }
