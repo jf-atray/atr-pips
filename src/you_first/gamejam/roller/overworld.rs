@@ -97,10 +97,12 @@ impl OverworldScene {
         ctx.solvers.register(BrushFlipSolver);
 
         let player = ctx.asset_registry.get("player_happy");
-        let cactus = ctx.asset_registry.get("cactus");
         let canvas = player.canvas;
-
         let player_id = self.spawn_player(ctx, canvas, player.material);
+        let cactus = ctx.asset_registry.get("cactus");
+        
+
+        
         self.player = Some(player_id.clone());
         self.spawn_objects(ctx, canvas, cactus.material);
 

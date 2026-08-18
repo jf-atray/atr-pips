@@ -1,4 +1,4 @@
-use crate::anim::{AnimId, AnimLibId};
+/*use crate::anim::{AnimId, AnimLibId};
 
 #[derive(Debug, Clone, Copy)]
 pub struct LivingAnimLib {
@@ -29,3 +29,4 @@ impl Default for TumbleweedAnimLib {
         }
     }
 }
+*/
