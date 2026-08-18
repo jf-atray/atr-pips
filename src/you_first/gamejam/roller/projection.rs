@@ -42,7 +42,8 @@ pub fn world_x(dx: f32, t: f32) -> f32 {
 }
 
 pub fn world_y(t: f32, ground_y: f32, horizon_y: f32) -> f32 {
-    let factor = if t <= 1.0 {
+    
+    if t <= 1.0 {
         let ratio = 0.25;
         let ratio_pi = std::f32::consts::PI * ratio;
         let a = (ratio_pi + (t * std::f32::consts::PI * (1.0 - ratio))).sin();
@@ -50,8 +51,7 @@ pub fn world_y(t: f32, ground_y: f32, horizon_y: f32) -> f32 {
     } else {
         let a = 1.0 - t * t * t * t;
         (a * (ground_y + horizon_y)) - ground_y
-    };
-    factor
+    }
 }
 
 pub fn projected_scale(t: f32) -> f32 {

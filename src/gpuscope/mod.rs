@@ -66,7 +66,7 @@ impl GpuParts {
         let (device, queue) = adapter
             .request_device(&DeviceDescriptor {
                 label: Some("gpu"),
-                required_features: required_features,
+                required_features,
                 required_limits,
                 experimental_features: ExperimentalFeatures::disabled(),
                 memory_hints: MemoryHints::Performance,

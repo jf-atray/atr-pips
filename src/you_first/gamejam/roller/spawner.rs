@@ -3,7 +3,7 @@ use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::tables::PipId;
 use crate::you_first::gamejam::roller::biome::Biome;
-use crate::you_first::gamejam::roller::components::{RollerAddition, RollerPlayer};
+use crate::you_first::gamejam::roller::components::RollerAddition;
 
 pub struct RollerSpawner {
     player: PipId,
@@ -31,6 +31,6 @@ impl Script for RollerSpawner {
         };
 
         self.biome
-            .update(&mut ctx.domain, ctx.asset_registry, walk_distance);
+            .update(ctx.domain, ctx.asset_registry, walk_distance);
     }
 }

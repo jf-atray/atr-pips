@@ -103,10 +103,10 @@ impl OverworldScene {
         
 
         
-        self.player = Some(player_id.clone());
+        self.player = Some(player_id);
         self.spawn_objects(ctx, canvas, cactus.material);
 
-        let ground_z = 0.25 + (0.5 * 0.66396803);
+        let ground_z = 0.25 + (0.5 * 0.663_968);
         let ground_sprite = ctx.asset_registry.get("ground");
         let ground = ctx.domain.make(|scope: &mut Scope| {
             let mut brush = Brush::new(ground_sprite.canvas, ground_sprite.material);
@@ -126,7 +126,7 @@ impl OverworldScene {
 
         let tilt_rad = GROUND_TILT_DEG.to_radians();
         let half_h = TILTED_GROUND_HEIGHT * 0.5;
-        let tilted_z = (ground_z - half_h * tilt_rad.sin());
+        let tilted_z = ground_z - half_h * tilt_rad.sin() ;
         let tilted_y = WALK_HORIZON_Y - half_h * tilt_rad.cos();
         let tilted_sprite = ctx.asset_registry.get("tilted_ground");
         let tilted = ctx.domain.make(|scope: &mut Scope| {
@@ -180,7 +180,7 @@ impl OverworldScene {
         self.sun = Some(sun);
 
         let mut biome = Biome::default_desert();
-        biome.pre_seed(&mut ctx.domain, ctx.asset_registry);
+        biome.pre_seed(ctx.domain, ctx.asset_registry);
 
         ctx.input.add_axis(
             "Horizontal",
@@ -345,7 +345,7 @@ impl OverworldScene {
 
         self.camera_director.set_pan_target(Vec2::new(target_x, camera_y));
         self.camera_director.set_zoom_target(zoom);
-        self.camera_director.update(&mut ctx.camera, ctx.dt);
+        self.camera_director.update(ctx.camera, ctx.dt);
     }
 
     fn spawn_player(

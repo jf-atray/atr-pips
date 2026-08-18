@@ -1,9 +1,7 @@
-use crate::brushes::Brush;
 use crate::query;
-use crate::query::impls::query_mut_mut;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
-use crate::you_first::gamejam::roller::components::{BrushFlip, RollerAddition, solve_flip};
+use crate::you_first::gamejam::roller::components::{RollerAddition, solve_flip};
 
 pub struct BrushFlipSolver;
 

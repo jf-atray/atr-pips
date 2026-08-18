@@ -1,13 +1,10 @@
-use glam::{Vec2, Vec3};
+use glam::Vec3;
 
-use crate::brushes::Brush;
 use crate::query;
-use crate::query::impls::query_mut_mut_mut;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
-use crate::spacial::transform::Transform;
 use crate::tables::PipId;
-use crate::you_first::gamejam::roller::components::{RollerAddition, RollerDepth};
+use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::{
     DESPAWN_T, GROUND_Y, HORIZON_Y, WALK_SPEED, project, world_z,
 };
@@ -30,7 +27,7 @@ impl Script for RollerProjectionSolver {
                 rd.lateral += rd.lateral_speed * ctx.dt;
 
                 if rd.d < DESPAWN_T || rd.lateral.abs() > 20.0 {
-                    to_despawn.push(id.clone());
+                    to_despawn.push(*id);
                 }
             });
             query!([&mut roller.roller_depths, &mut tables.core.xforms, &mut tables.core.brushes], |rd, xform, brush| {

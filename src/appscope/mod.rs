@@ -221,11 +221,10 @@ impl ApplicationHandler<GpuReady> for App {
                 }
             }
             WindowEvent::Ime(ime) => {
-                if let AppState::Ready { game, .. } = &mut self.state {
-                    if let winit::event::Ime::Commit(text) = ime {
+                if let AppState::Ready { game, .. } = &mut self.state
+                    && let winit::event::Ime::Commit(text) = ime {
                         game.input.handle_event(crate::input::InputEvent::ImeCommit(text));
                     }
-                }
             }
             WindowEvent::CursorMoved { position, .. } => {
                 if let AppState::Ready { game, .. } = &mut self.state {
