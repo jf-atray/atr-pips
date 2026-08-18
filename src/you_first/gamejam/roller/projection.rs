@@ -4,8 +4,8 @@ use glam::Vec2;
 
 pub const FAR_Z: f32 = 12.0;
 pub const NEAR_Z: f32 = 1.0;
-pub const GROUND_Y: f32 = 4.5;
-pub const HORIZON_Y: f32 = 1.0;
+pub const GROUND_Y: f32 = 3.5;
+pub const HORIZON_Y: f32 = 0.0;
 pub const DESPAWN_T: f32 = 4.5;
 pub const Z_WORLD_NEAR: f32 = 0.25;
 pub const Z_WORLD_FAR: f32 = 0.75;
