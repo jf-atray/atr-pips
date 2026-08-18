@@ -9,28 +9,20 @@ pub struct GrowthStrategy {
 }
 impl GrowthStrategy {
     pub const fn one_kib<T>() -> Self {
-        let sz = size_of::<T>();
-        if sz == 0 {
-            Self::new(0)
-        } else {
-            Self::new(1024 / sz)
-        }
+        let sz = Self::factor_of::<1024, T>();
+        Self::new(sz)
     }
     pub const fn half_kib<T>() -> Self {
-        let sz = size_of::<T>();
-        if sz == 0 {
-            Self::new(0)
-        } else {
-            Self::new(512 / sz)
-        }
+        let sz = Self::factor_of::<512, T>();
+        Self::new(sz)
     }
     pub const fn quart_kib<T>() -> Self {
-        let sz = size_of::<T>();
-        if sz == 0 {
-            Self::new(0)
-        } else {
-            Self::new(256 / sz)
-        }
+        let sz = Self::factor_of::<256, T>();
+        Self::new(sz)
+    }
+    pub const fn factor_of<const N: usize, T>() -> usize {
+        let typ_siz = size_of::<T>();
+        N.checked_div(typ_siz).unwrap_or(0)
     }
     pub const fn new(row_capacity: usize) -> Self {
         Self { row_capacity }
