@@ -1,4 +1,6 @@
 #![feature(inherent_associated_types)]
+#![feature(iter_macro)]
+#![feature(yield_expr)]
 #![feature(f16)]
 #![feature(trivial_bounds)]
 #![feature(const_option_ops)]
