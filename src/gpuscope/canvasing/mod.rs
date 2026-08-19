@@ -25,6 +25,7 @@ pub trait CanvasUnderstander<T> {
         id: CanvasId,
         t: &'a [(T, MaterialId, CanvasId)],
         out: WriteOnly<'a, [u8]>,
+        canvas: &'a dyn CanvasTrait,
     ) -> usize;
 }
 
@@ -52,7 +53,7 @@ impl EveryCanvas {
     }
 }
 
-pub trait CanvasTrait {
+pub trait CanvasTrait: Any {
     fn prepare(
         &mut self,
         camera: &Camera,
@@ -87,6 +88,11 @@ impl DrawWriter<'_> {
         if let Some((every, _)) = self.canvases.get_mut(canvas) {
             every.draws.insert(material, Draw { adr, count });
         }
+    }
+    pub fn get_canvas(&self, canvas: CanvasId) -> Option<&dyn CanvasTrait> {
+        self.canvases
+            .get(canvas)
+            .map(|(_, canvas)| canvas.as_ref())
     }
     pub fn bytes_used(&self) -> u64 {
         self.next_byte

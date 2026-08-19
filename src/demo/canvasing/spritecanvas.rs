@@ -32,13 +32,14 @@ const MAX_MATERIALS: u64 = 128;
 //todo, it should be allowed to get a texture view from elsewhere
 pub struct SpriteMaterial {
     pub binding: BindGroup,
+    pub billboard: bool,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, zerocopy::IntoBytes, zerocopy::Immutable)]
 struct SpriteUniformDatum {
     natural_scale: [f32; 3],
-    _pad: f32,
+    y_offset: f32,
 }
 
 struct CameraUniforms {
@@ -294,6 +295,7 @@ impl BasicSpriteCanvas {
         every: &mut EveryCanvas,
         texture_scope: &TextureScope,
         img_id: ImgId,
+        billboard: bool,
     ) -> Option<MaterialId> {
         if self.materials.len() as u64 >= MAX_MATERIALS {
             return None;
@@ -305,9 +307,10 @@ impl BasicSpriteCanvas {
 
         let view = texture.create_view(&TextureViewDescriptor::default());
 
+        let y_offset = if billboard { 0.5 } else { 0.0 };
         let uniform = SpriteUniformDatum {
             natural_scale: [natural_scale.x, natural_scale.y, 1.0],
-            _pad: 0.0,
+            y_offset,
         };
 
         let material_index = self.materials.len() as u64;
@@ -325,7 +328,7 @@ impl BasicSpriteCanvas {
         );
 
         let id = every.material_ids.insert(());
-        self.materials.insert(id, SpriteMaterial { binding });
+        self.materials.insert(id, SpriteMaterial { binding, billboard });
         Some(id)
     }
 
@@ -397,6 +400,7 @@ impl CanvasTrait for BasicSpriteCanvas {
         pass.set_bind_group(1, &material.binding, &[]);
         pass.draw(0..6, instances);
     }
+
 }
 
 pub struct SpriteCanvasSolver {
@@ -451,8 +455,10 @@ impl SpriteCanvasSolver {
                 let out = view.slice(
                     byte_base as usize + written..byte_base as usize + written + expected,
                 );
-                if let Some(understander) = understanders.get_mut(current_canvas) {
-                    understander.understand(current_canvas, slice, out);
+                if let Some(canvas) = sink.get_canvas(current_canvas) {
+                    if let Some(understander) = understanders.get_mut(current_canvas) {
+                        understander.understand(current_canvas, slice, out, canvas);
+                    }
                 }
                 Self::pack_draws(
                     sink,

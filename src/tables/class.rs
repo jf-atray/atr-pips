@@ -21,6 +21,11 @@ impl<T, K> Class<T, K> {
         let data = SecondaryMap::new();
         Self { growth, data, class: BTreeSet::new() }
     }
+    pub fn stake(&mut self, class_id: ClassId, k: K) -> &mut Self{
+        self.data.insert(class_id, Columnar::new(k));
+        let _notdupe = self.class.insert(class_id);
+        self
+    }
     pub fn with_capacity(capacity: usize, _rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
         let data = SecondaryMap::with_capacity(capacity);
         Self { growth, data, class: BTreeSet::new() }
@@ -55,7 +60,7 @@ impl<T, K: PartialEq> Class<T, K> {
                 "Columnar key mismatch for ClassId"
             );
         } else {
-            self.data.insert(id, Columnar::new(k));
+            self.stake(id, k);
         }
         self.data.get_mut(id).unwrap()
     }

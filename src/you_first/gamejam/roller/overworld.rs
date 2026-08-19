@@ -12,7 +12,7 @@ use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver, SpriteInstance};
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
-use crate::gpuscope::canvasing::CanvasUnderstander;
+use crate::gpuscope::canvasing::{CanvasTrait, CanvasUnderstander};
 use crate::input::AxisConfig;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
@@ -272,6 +272,7 @@ impl OverworldScene {
         );
 
         let mut pending: Vec<(String, MaterialId, Vec2)> = Vec::new();
+        let world_billboard_material;
 
         {
             let texture_scope = &mut gpu_context.texture_scope;
@@ -284,15 +285,17 @@ impl OverworldScene {
                     &mut every,
                     texture_scope,
                     white_pixel,
+                    false,
                 )
                 .expect("failed to add white pixel sprite");
-            let world_billboard_material = canvas
+            world_billboard_material = canvas
                 .add_sprite(
                     &gpu_context.device,
                     &gpu_context.queue,
                     &mut every,
                     texture_scope,
                     white_pixel,
+                    true,
                 )
                 .expect("failed to add world billboard sprite");
             let white_scale = Vec2::ONE / self.pixels_per_unit;
@@ -350,12 +353,14 @@ impl OverworldScene {
                         log::warn!("failed to load sprite {}", path.display());
                         continue;
                     };
+                    let (billboard, _) = sprite_material_config(name);
                     let Some(material) = canvas.add_sprite(
                         &gpu_context.device,
                         &gpu_context.queue,
                         &mut every,
                         texture_scope,
                         img_id,
+                        billboard,
                     ) else {
                         log::warn!("failed to add sprite {} to canvas", path.display());
                         continue;
@@ -388,25 +393,24 @@ impl OverworldScene {
 
         spritesolver.understanders.insert(
             canvas_id,
-            Box::new(|_id: CanvasId, slice: &[((Transform, Brush), MaterialId, CanvasId)], out: WriteOnly<[u8]>| {
-                let to = |x: f32| x as f16;
+            Box::new(|_id, slice: &[((Transform, Brush), MaterialId, CanvasId)], out: WriteOnly<[u8]>, _canvas: &dyn CanvasTrait| {
                 let mut written = 0;
                 let mut out = out;
-                for ((xform, brush), _material, _canvas) in slice {
+                for ((xform, brush), _material, _canvas_id) in slice {
                     let instance = SpriteInstance {
                         position: [xform.xyz.x, xform.xyz.y, xform.xyz.z],
                         rotation: [
-                            to(xform.rot.x),
-                            to(xform.rot.y),
-                            to(xform.rot.z),
-                            to(xform.rot.w),
+                            xform.rot.x as f16,
+                            xform.rot.y as f16,
+                            xform.rot.z as f16,
+                            xform.rot.w as f16,
                         ],
-                        scale: [to(brush.scale.x), to(brush.scale.y), 0.0f16, 0.0f16],
+                        scale: [brush.scale.x as f16, brush.scale.y as f16, 0.0f16, 0.0f16],
                         color: [
-                            to(brush.color.x),
-                            to(brush.color.y),
-                            to(brush.color.z),
-                            to(brush.color.w),
+                            brush.color.x as f16,
+                            brush.color.y as f16,
+                            brush.color.z as f16,
+                            brush.color.w as f16,
                         ],
                     };
                     let bytes = instance.as_bytes();
@@ -479,14 +483,15 @@ impl OverworldScene {
 
 impl<T: 'static, F: 'static> CanvasUnderstander<T> for F
 where
-    F: for<'a> FnMut(CanvasId, &'a [(T, MaterialId, CanvasId)], WriteOnly<'a, [u8]>) -> usize,
+    F: for<'a> FnMut(CanvasId, &'a [(T, MaterialId, CanvasId)], WriteOnly<'a, [u8]>, &'a dyn CanvasTrait) -> usize,
 {
     fn understand<'a>(
         &mut self,
         id: CanvasId,
         t: &'a [(T, MaterialId, CanvasId)],
         out: WriteOnly<'a, [u8]>,
+        canvas: &'a dyn CanvasTrait,
     ) -> usize {
-        self(id, t, out)
+        self(id, t, out, canvas)
     }
 }

@@ -27,7 +27,7 @@ pub fn build_game(
         let name = "green";
         let white_pixel = texture_scope.white_pixel(device, queue);
         let material = canvas
-            .add_sprite(device, queue, &mut every, texture_scope, white_pixel)
+            .add_sprite(device, queue, &mut every, texture_scope, white_pixel, false)
             .unwrap();
         pending.push((name.to_string(), material, Vec2::ONE));
     }
@@ -50,7 +50,7 @@ pub fn build_game(
                 continue;
             };
             let material = canvas
-                .add_sprite(device, queue, &mut every, texture_scope, img_id)
+                .add_sprite(device, queue, &mut every, texture_scope, img_id, false)
                 .unwrap();
             let (w, h) = texture_scope.size(img_id).unwrap();
             let natural_scale = Vec2::new(w as f32, h as f32) / pixels_per_unit;

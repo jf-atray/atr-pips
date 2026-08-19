@@ -11,6 +11,7 @@ var sam: sampler;
 
 struct Material {
     natural_scale: vec3<f32>,
+    y_offset: f32,
 }
 
 @group(1) @binding(2)
@@ -37,8 +38,12 @@ fn vs_main(
     
     let q = normalize(vec4<f32>(rot));
 
+    let offset_local =
+        local +
+        vec3<f32>(0.0, material.y_offset, 0.0);
+
     let scaled_local =
-        local *
+        offset_local *
         material.natural_scale *
         vec3<f32>(scale);
 
