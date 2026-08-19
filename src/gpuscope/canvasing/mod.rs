@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use slotmap::{SecondaryMap, SlotMap};
 use wgpu::{
     BindGroupLayout, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, RenderPass,
@@ -8,7 +10,7 @@ use crate::spacial::camera::Camera;
 use crate::tables::tables::Tables;
 use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 
-pub trait CanvasSolver {
+pub trait CanvasSolver: Any {
     fn solve(
         &mut self,
         tables: &Tables,
@@ -17,6 +19,14 @@ pub trait CanvasSolver {
         instance_buffer: &Buffer,
         solver_id: CanvasSolverId,
         sink: &mut DrawWriter,
+    );
+}
+pub trait CanvasUnderstander<T> {
+    fn understand<'a>(
+        &mut self,
+        id: CanvasId,
+        t: &'a [(T, MaterialId)],
+        out: &'a mut [u8],
     );
 }
 

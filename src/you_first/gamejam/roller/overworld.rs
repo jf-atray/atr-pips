@@ -1,6 +1,7 @@
 use glam::{Quat, Vec2, Vec3, Vec4};
 use winit::keyboard::KeyCode;
 
+use std::any::Any;
 use std::fs;
 
 use crate::assets::SpriteEntry;
@@ -8,11 +9,12 @@ use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver};
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
+use crate::gpuscope::canvasing::CanvasUnderstander;
 use crate::input::AxisConfig;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::tables::scope::Scope;
-use crate::tables::{MaterialId, PipId};
+use crate::tables::{CanvasId, CanvasSolverId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
 use crate::you_first::gamejam::roller::bundles::player_roller_bundle;
 use crate::you_first::gamejam::roller::camera::CameraDirector;
@@ -34,6 +36,32 @@ const WALK_HORIZON_Y: f32 = 0.0;
 const GROUND_STRIP_HEIGHT: f32 = 20.0;
 const TILTED_GROUND_HEIGHT: f32 = 1.4;
 const GROUND_TILT_DEG: f32 = 5.0;
+
+fn sprite_material_config(name: &str) -> (bool, Vec3) {
+    match name {
+        "cactus" => (true, Vec3::new(0.0, -0.07421875, 0.0)),
+        "grass" => (true, Vec3::new(0.0, -0.048828125, 0.0)),
+        "crate" => (true, Vec3::new(0.0, -0.038828125, 0.0)),
+        "building_right" | "building_left" => (true, Vec3::new(0.0, -0.49625, 0.0)),
+        "tumbleweed"
+        | "player_fwd"
+        | "player_fwd_old"
+        | "player_happy"
+        | "player_title"
+        | "cactus_hourglass"
+        | "grass_tiny"
+        | "townie_1"
+        | "townie_2"
+        | "bandit-1"
+        | "bandit-2"
+        | "hat_good"
+        | "hat_bad"
+        | "bad_aim"
+        | "bad_guys_hat_icon" => (true, Vec3::ZERO),
+        "sun" | "cloud_1" | "cloud_2" => (false, Vec3::ZERO),
+        _ => (false, Vec3::ZERO),
+    }
+}
 
 pub struct OverworldScene {
     state: State,
@@ -82,11 +110,12 @@ impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
         ctx.domain.tables.add(RollerAddition::new());
 
-        self.make_canvas(ctx);
-        ctx.gpu
+        let solver_id = ctx.gpu
             .canvas_renderer_mut()
             .solvers
             .insert(Box::new(SpriteCanvasSolver::new()));
+
+        self.make_canvas(ctx, solver_id);
         ctx.solvers.register(RollerProjectionSolver);
         ctx.solvers.register(BrushFlipSolver);
 
@@ -221,7 +250,7 @@ impl OverworldScene {
         ctx.solvers.register(CloudDriftSystem::new());
     }
 
-    fn make_canvas(&mut self, ctx: &mut SceneContext) {
+    fn make_canvas(&mut self, ctx: &mut SceneContext, solver_id: CanvasSolverId) {
         let gpu_context = &mut ctx.gpu.device;
         let format = ctx.gpu.surface.cfg.format;
         let sample_count = ctx.gpu.targets.sample_count();
@@ -254,6 +283,15 @@ impl OverworldScene {
                     white_pixel,
                 )
                 .expect("failed to add white pixel sprite");
+            let world_billboard_material = canvas
+                .add_sprite(
+                    &gpu_context.device,
+                    &gpu_context.queue,
+                    &mut every,
+                    texture_scope,
+                    white_pixel,
+                )
+                .expect("failed to add world billboard sprite");
             let white_scale = Vec2::ONE / self.pixels_per_unit;
 
             pending.push((
@@ -279,6 +317,16 @@ impl OverworldScene {
             pending.push((
                 "__white__".to_string(),
                 white_material,
+                white_scale
+            ));
+            pending.push((
+                "world_rect".to_string(),
+                world_billboard_material,
+                white_scale
+            ));
+            pending.push((
+                "world_billboard".to_string(),
+                world_billboard_material,
                 white_scale
             ));
 
@@ -328,6 +376,18 @@ impl OverworldScene {
             .canvases
             .insert((every, Box::new(canvas)));
 
+        let spritesolver_dyn = ctx.gpu.canvas_renderer_mut().solvers.get_mut(solver_id)
+        .expect("Requires supporting SpriteCanvasSolver");
+        let spritesolver_ptr = spritesolver_dyn.as_mut();
+        let spritesolver_any = spritesolver_ptr as &mut dyn Any;
+        let spritesolver = spritesolver_any.downcast_mut::<SpriteCanvasSolver>()
+        .expect("Requires supporting SpriteCanvasSolver");
+
+        spritesolver.understanders.insert(
+            canvas_id,
+            Box::new(|_id: CanvasId, _slice: &[((Transform, Brush), MaterialId)], _out: &mut [u8]| {}),
+        );
+
         for (name, material, natural_scale) in pending {
             ctx.asset_registry.insert(
                 name,
@@ -338,8 +398,6 @@ impl OverworldScene {
                 },
             );
         }
-
-        log::info!("registered sprites: {:?}", ctx.asset_registry.keys().collect::<Vec<_>>());
     }
 
     fn update_camera(&mut self, ctx: &mut SceneContext) {
@@ -387,4 +445,18 @@ impl OverworldScene {
         ))
     }
 
+}
+
+impl<T: 'static, F: 'static> CanvasUnderstander<T> for F
+where
+    F: for<'a> FnMut(CanvasId, &'a [(T, MaterialId)], &'a mut [u8]),
+{
+    fn understand<'a>(
+        &mut self,
+        id: CanvasId,
+        t: &'a [(T, MaterialId)],
+        out: &'a mut [u8],
+    ) {
+        self(id, t, out)
+    }
 }

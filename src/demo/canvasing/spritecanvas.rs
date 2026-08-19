@@ -17,9 +17,11 @@ use wgpu::{
     VertexStepMode,
 };
 
-use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, DrawWriter, EveryCanvas};
+use crate::brushes::Brush;
+use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, CanvasUnderstander, DrawWriter, EveryCanvas};
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
+use crate::spacial::transform::Transform;
 use crate::tables::tables::Tables;
 use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
 
@@ -398,6 +400,7 @@ impl CanvasTrait for BasicSpriteCanvas {
 pub struct SpriteCanvasSolver {
     sort: Vec<(SpriteInstance, CanvasId, MaterialId)>,
     instances: Vec<SpriteInstance>,
+    pub understanders: SecondaryMap<CanvasId, Box<dyn CanvasUnderstander<(Transform, Brush)>>>
 }
 
 impl SpriteCanvasSolver {
@@ -405,6 +408,7 @@ impl SpriteCanvasSolver {
         Self {
             sort: Vec::new(),
             instances: Vec::new(),
+            understanders: SecondaryMap::new(),
         }
     }
 
