@@ -1,9 +1,10 @@
 use std::any::Any;
+use std::num::NonZero;
 
 use slotmap::{SecondaryMap, SlotMap};
 use wgpu::{
-    BindGroupLayout, Buffer, BufferDescriptor, BufferUsages, CommandEncoder, Device, RenderPass,
-    RenderPipeline,
+    BindGroupLayout, Buffer, BufferDescriptor, BufferUsages, BufferViewMut, CommandEncoder, Device,
+    RenderPass, RenderPipeline, WriteOnly,
 };
 
 use crate::spacial::camera::Camera;
@@ -14,20 +15,17 @@ pub trait CanvasSolver: Any {
     fn solve(
         &mut self,
         tables: &Tables,
-        encoder: &mut CommandEncoder,
-        belt: &mut wgpu::util::StagingBelt,
-        instance_buffer: &Buffer,
-        solver_id: CanvasSolverId,
+        view: &mut BufferViewMut,
         sink: &mut DrawWriter,
-    );
+    ) -> usize;
 }
 pub trait CanvasUnderstander<T> {
     fn understand<'a>(
         &mut self,
         id: CanvasId,
-        t: &'a [(T, MaterialId)],
-        out: &'a mut [u8],
-    );
+        t: &'a [(T, MaterialId, CanvasId)],
+        out: WriteOnly<'a, [u8]>,
+    ) -> usize;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -73,19 +71,25 @@ pub trait CanvasTrait {
 
 pub struct DrawWriter<'a> {
     canvases: &'a mut SlotMap<CanvasId, (EveryCanvas, Box<dyn CanvasTrait>)>,
-    next_adr: u32,
+    next_byte: u64,
 }
 
 impl DrawWriter<'_> {
-    pub fn reserve(&mut self, count: u32) -> u32 {
-        let adr = self.next_adr;
-        self.next_adr += count;
-        adr
+    /// Reserve a byte range for `count` instances of size `instance_size`.
+    /// Returns the instance start address and the byte offset at which to write.
+    pub fn reserve(&mut self, count: u32, instance_size: u64) -> (u32, u64) {
+        let aligned = self.next_byte.next_multiple_of(instance_size);
+        let adr = aligned / instance_size;
+        self.next_byte = aligned + u64::from(count) * instance_size;
+        (adr as u32, aligned)
     }
     pub fn set_draw(&mut self, canvas: CanvasId, material: MaterialId, adr: u32, count: u32) {
         if let Some((every, _)) = self.canvases.get_mut(canvas) {
             every.draws.insert(material, Draw { adr, count });
         }
+    }
+    pub fn bytes_used(&self) -> u64 {
+        self.next_byte
     }
 }
 
@@ -102,7 +106,6 @@ pub struct CanvasRenderer {
 impl CanvasRenderer {
     pub fn make(device: Device) -> Self {
         const INSTANCE_BUFFER_BYTES: u32 = 1024 * 1024; //1MiB
-        const BELT_CHUNK_FACTOR: f64 = 1.0 / 4.0; //256KiB
 
         let instance_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("canvas instances"),
@@ -111,8 +114,9 @@ impl CanvasRenderer {
             mapped_at_creation: false,
         });
 
-        let rough = f64::from(INSTANCE_BUFFER_BYTES) * BELT_CHUNK_FACTOR;
-        let belt = rough as u64; //explicitly saturating.
+        // The staging belt chunk must be at least as large as the largest single
+        // write_buffer call. We open the full instance buffer once per frame.
+        let belt = u64::from(INSTANCE_BUFFER_BYTES);
 
         let staging_belt = wgpu::util::StagingBelt::new(device, belt);
 
@@ -131,19 +135,28 @@ impl CanvasRenderer {
         }
 
         let instance_buffer = &self.instance_buffer;
-        let staging = &mut self.staging_belt;
+        let total_bytes = NonZero::new(instance_buffer.size()).unwrap();
+        let mut view = self
+            .staging_belt
+            .write_buffer(encoder, instance_buffer, 0, total_bytes);
+
         let canvases = &mut self.canvases;
         let solvers = &mut self.solvers;
         let mut writer = DrawWriter {
             canvases,
-            next_adr: 0,
+            next_byte: 0,
         };
-        for (id, solver) in solvers.iter_mut() {
-            solver
-                .as_mut()
-                .solve(tables, encoder, staging, instance_buffer, id, &mut writer);
+        for (_id, solver) in solvers.iter_mut() {
+            solver.as_mut().solve(tables, &mut view, &mut writer);
         }
-        staging.finish();
+
+        assert!(
+            writer.bytes_used() <= instance_buffer.size(),
+            "CanvasRenderer overran the instance buffer"
+        );
+
+        drop(view);
+        self.staging_belt.finish();
     }
 
     pub fn render(&self, pass: &mut RenderPass<'_>) {

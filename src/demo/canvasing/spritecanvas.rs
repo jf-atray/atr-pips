@@ -1,16 +1,18 @@
 use core::range::Range;
 use std::mem::size_of;
-use std::num::NonZero;
+
 use zerocopy::IntoBytes as _;
 
+use bumpalo::collections::Vec as BumpVec;
+use bumpalo::Bump;
 use glam::Vec2;
 use slotmap::SecondaryMap;
 use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType,
-    BufferDescriptor, BufferSize, BufferUsages, ColorTargetState, ColorWrites, CommandEncoder,
-    CompareFunction, DepthStencilState, Device, FragmentState, MultisampleState,
+    BufferDescriptor, BufferSize, BufferUsages, BufferViewMut, ColorTargetState, ColorWrites,
+    CommandEncoder, CompareFunction, DepthStencilState, Device, FragmentState, MultisampleState,
     PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPass, RenderPipelineDescriptor, Sampler,
     SamplerDescriptor, ShaderModuleDescriptor, ShaderStages, TextureFormat, TextureView,
     TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState,
@@ -23,7 +25,7 @@ use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
 use crate::tables::tables::Tables;
-use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
+use crate::tables::{CanvasId, MaterialId};
 
 const MAX_MATERIALS: u64 = 128;
 
@@ -398,97 +400,107 @@ impl CanvasTrait for BasicSpriteCanvas {
 }
 
 pub struct SpriteCanvasSolver {
-    sort: Vec<(SpriteInstance, CanvasId, MaterialId)>,
-    instances: Vec<SpriteInstance>,
-    pub understanders: SecondaryMap<CanvasId, Box<dyn CanvasUnderstander<(Transform, Brush)>>>
+    bump: Bump,
+    pub understanders: SecondaryMap<CanvasId, Box<dyn CanvasUnderstander<(Transform, Brush)>>>,
 }
 
 impl SpriteCanvasSolver {
     pub fn new() -> Self {
         Self {
-            sort: Vec::new(),
-            instances: Vec::new(),
+            bump: Bump::with_capacity(1 << 20),
             understanders: SecondaryMap::new(),
         }
     }
 
-    fn collect_from(&mut self, tables: &Tables, _my_id: CanvasSolverId) {
-        self.sort.clear();
+    fn collect_sorted<'b>(
+        tables: &Tables,
+        bump: &'b Bump,
+    ) -> BumpVec<'b, ((Transform, Brush), MaterialId, CanvasId)> {
+        let mut sorted = BumpVec::new_in(bump);
         crate::query!(
             [&tables.core.xforms, &tables.core.brushes],
             |xform, brush| {
-                let to = |x: f32| x as f16;
-                let instance = SpriteInstance {
-                    position: [xform.xyz.x, xform.xyz.y, xform.xyz.z],
-                    rotation: [
-                        to(xform.rot.x),
-                        to(xform.rot.y),
-                        to(xform.rot.z),
-                        to(xform.rot.w),
-                    ],
-                    scale: [to(brush.scale.x), to(brush.scale.y), 0.0f16, 0.0f16],
-                    color: [
-                        to(brush.color.x),
-                        to(brush.color.y),
-                        to(brush.color.z),
-                        to(brush.color.w),
-                    ],
-                };
-                self.sort.push((instance, brush.canvas, brush.material));
+                sorted.push((
+                    (xform.clone(), brush.clone()),
+                    brush.material,
+                    brush.canvas,
+                ));
             }
         );
+        sorted
     }
 
-    fn pack(&mut self, adr: u32, sink: &mut DrawWriter) {
-        self.instances.clear();
-        if self.sort.is_empty() {
+    fn pack_sorted(
+        sorted: &[((Transform, Brush), MaterialId, CanvasId)],
+        understanders: &mut SecondaryMap<CanvasId, Box<dyn CanvasUnderstander<(Transform, Brush)>>>,
+        view: &mut BufferViewMut,
+        byte_base: u64,
+        adr: u32,
+        sink: &mut DrawWriter,
+    ) -> usize {
+        let instance_size = size_of::<SpriteInstance>() as u64;
+        let mut written: usize = 0;
+        let mut canvas_start: usize = 0;
+        let mut current_canvas: CanvasId = sorted[0].2;
+
+        for i in 1..=sorted.len() {
+            let end_of_canvas = i == sorted.len() || sorted[i].2 != current_canvas;
+            if end_of_canvas {
+                let slice = &sorted[canvas_start..i];
+                let expected = slice.len() * instance_size as usize;
+                let out = view.slice(
+                    byte_base as usize + written..byte_base as usize + written + expected,
+                );
+                if let Some(understander) = understanders.get_mut(current_canvas) {
+                    understander.understand(current_canvas, slice, out);
+                }
+                Self::pack_draws(
+                    sink,
+                    current_canvas,
+                    slice,
+                    adr + (written as u64 / instance_size) as u32,
+                );
+                written += expected;
+                if i < sorted.len() {
+                    canvas_start = i;
+                    current_canvas = sorted[i].2;
+                }
+            }
+        }
+
+        written
+    }
+
+    fn pack_draws(
+        sink: &mut DrawWriter,
+        canvas_id: CanvasId,
+        t: &[((Transform, Brush), MaterialId, CanvasId)],
+        start: u32,
+    ) {
+        if t.is_empty() {
             return;
         }
         let mut run_start = 0;
-        let mut run_canvas = self.sort[0].1;
-        let mut run_material = self.sort[0].2;
-        for (i, (inst, canvas, material)) in self.sort.iter().enumerate() {
-            self.instances.push(*inst);
-            if *canvas != run_canvas || *material != run_material {
+        let mut run_material = t[0].1;
+        for (i, (_, material, _)) in t.iter().enumerate() {
+            if *material != run_material {
                 sink.set_draw(
-                    run_canvas,
+                    canvas_id,
                     run_material,
-                    adr + run_start as u32,
+                    start + run_start as u32,
                     (i - run_start) as u32,
                 );
-                run_start = i;
-                run_canvas = *canvas;
                 run_material = *material;
+                run_start = i;
             }
         }
-        let last = self.sort.len();
+        let last = t.len();
         sink.set_draw(
-            run_canvas,
+            canvas_id,
             run_material,
-            adr + run_start as u32,
+            start + run_start as u32,
             (last - run_start) as u32,
         );
-    }
-
-    fn write(
-        &self,
-        encoder: &mut CommandEncoder,
-        belt: &mut StagingBelt,
-        instance_buffer: &Buffer,
-        adr: u32,
-    ) {
-        if !self.instances.is_empty() {
-            let bytes = self.instances.as_slice().as_bytes();
-            let Some(bytes_len) = NonZero::new(bytes.len() as u64) else {
-                //don't need to write anything if SpriteInstance is a zero-sized struct
-                return;
-            };
-            let instance_size = size_of::<SpriteInstance>() as u64;
-            let byte_offset = u64::from(adr) * instance_size;
-
-            let mut view = belt.write_buffer(encoder, instance_buffer, byte_offset, bytes_len);
-            view.copy_from_slice(bytes);
-        }
     }
 }
 
@@ -496,28 +508,41 @@ impl CanvasSolver for SpriteCanvasSolver {
     fn solve(
         &mut self,
         tables: &Tables,
-        encoder: &mut CommandEncoder,
-        belt: &mut StagingBelt,
-        instance_buffer: &Buffer,
-        solver_id: CanvasSolverId,
+        view: &mut BufferViewMut,
         sink: &mut DrawWriter,
-    ) {
-        self.collect_from(tables, solver_id);
-        self.sort.sort_by_key(|(_, c, m)| (*c, *m));
-        let total = self.sort.len() as u32;
-        let adr = sink.reserve(total);
-        self.pack(adr, sink);
-        self.write(encoder, belt, instance_buffer, adr);
+    ) -> usize {
+        self.bump.reset();
+
+        let mut sorted = Self::collect_sorted(tables, &self.bump);
+        if sorted.is_empty() {
+            return 0;
+        }
+
+        sorted
+            .as_mut_slice()
+            .sort_unstable_by_key(|(_, material, canvas)| (*canvas, *material));
+
+        let instance_size = size_of::<SpriteInstance>() as u64;
+        let (adr, byte_base) = sink.reserve(sorted.len() as u32, instance_size);
+
+        Self::pack_sorted(
+            &sorted,
+            &mut self.understanders,
+            view,
+            byte_base,
+            adr,
+            sink,
+        )
     }
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, zerocopy::IntoBytes, zerocopy::Immutable)]
-struct SpriteInstance {
-    position: [f32; 3],
-    rotation: [f16; 4],
-    scale: [f16; 4],
-    color: [f16; 4],
+pub(crate) struct SpriteInstance {
+    pub(crate) position: [f32; 3],
+    pub(crate) rotation: [f16; 4],
+    pub(crate) scale: [f16; 4],
+    pub(crate) color: [f16; 4],
 }
 
 fn make_material_uniforms(device: &Device) -> MaterialUniforms {

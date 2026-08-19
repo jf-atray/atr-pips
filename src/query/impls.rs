@@ -1,18 +1,46 @@
-use atr_plex::Duplex;
-use atr_plex::duplex;
-use slotmap::{secondary, sparse_secondary};
+use slotmap::SecondaryMap;
 
 use crate::tables::ClassId;
 use crate::tables::class::{Class, Columnar};
-use crate::tables::class_strategy::ClassRarity;
 
-type ClassIterRef<'a, T, K = ()> = Duplex<
-    secondary::Iter<'a, ClassId, Columnar<T, K>>,
-    sparse_secondary::Iter<'a, ClassId, Columnar<T, K>>,
->;
-pub struct QueryRefRefIter<'a, T: 'a, K: 'a, TKey: 'a, KKey: 'a> {
-    smallest_source: ClassIterRef<'a, T, TKey>,
-    k_source: ClassRarity<Columnar<K, KKey>>::Ref<'a>,
+pub fn call1<A, F: FnMut(A)>(mut f: F, a: A) {
+    f(a)
+}
+
+pub fn call2<A, B, F: FnMut(A, B)>(mut f: F, a: A, b: B) {
+    f(a, b)
+}
+
+pub fn call3<A, B, C, F: FnMut(A, B, C)>(mut f: F, a: A, b: B, c: C) {
+    f(a, b, c)
+}
+
+pub fn query_ref<'a, T, K>(
+    class: &'a Class<T, K>,
+    key: K,
+) -> impl Iterator<Item = &'a Columnar<T, K>>
+where
+    T: 'a,
+    K: 'a + PartialEq,
+{
+    class.data.values().filter(move |v| v.key == key)
+}
+
+pub fn query_mut<'a, T, K>(
+    class: &'a mut Class<T, K>,
+    key: K,
+) -> impl Iterator<Item = &'a mut Columnar<T, K>>
+where
+    T: 'a,
+    K: 'a + PartialEq,
+{
+    class.data.values_mut().filter(move |v| v.key == key)
+}
+
+pub struct QueryRefRefIter<'a, T, K, TKey, KKey> {
+    smallest: std::collections::btree_set::Iter<'a, ClassId>,
+    t_data: &'a SecondaryMap<ClassId, Columnar<T, TKey>>,
+    k_data: &'a SecondaryMap<ClassId, Columnar<K, KKey>>,
     t_key: &'a TKey,
     k_key: &'a KKey,
 }
@@ -27,26 +55,51 @@ where
     type Item = (&'a Columnar<T, TKey>, &'a Columnar<K, KKey>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
-            if let Some(k) = duplex!(&self.k_source => { get(class_id) } -> unwrap)
-                && &t.key == self.t_key
-                && &k.key == self.k_key
+        for class_id in &mut self.smallest {
+            if let Some(t_col) = self.t_data.get(*class_id)
+                && let Some(k_col) = self.k_data.get(*class_id)
+                && &t_col.key == self.t_key
+                && &k_col.key == self.k_key
             {
-                return Some((t, k));
+                return Some((t_col, k_col));
             }
         }
         None
     }
 }
 
-type ClassIterMut<'a, T, K = ()> = Duplex<
-    secondary::IterMut<'a, ClassId, Columnar<T, K>>,
-    sparse_secondary::IterMut<'a, ClassId, Columnar<T, K>>,
->;
+pub fn query_ref_ref<'a, T, K, TKey, KKey>(
+    t: &'a Class<T, TKey>,
+    t_key: &'a TKey,
+    k: &'a Class<K, KKey>,
+    k_key: &'a KKey,
+) -> QueryRefRefIter<'a, T, K, TKey, KKey>
+where
+    T: 'a,
+    K: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
+{
+    let (t_data, t_class) = (&t.data, &t.class);
+    let (k_data, k_class) = (&k.data, &k.class);
+    let smallest = if t_class.len() <= k_class.len() {
+        t_class.iter()
+    } else {
+        k_class.iter()
+    };
+    QueryRefRefIter {
+        smallest,
+        t_data,
+        k_data,
+        t_key,
+        k_key,
+    }
+}
 
-pub struct QueryMutMutIter<'a, T: 'a, K: 'a, TKey: 'a, KKey: 'a> {
-    smallest_source: ClassIterMut<'a, T, TKey>,
-    k_source: ClassRarity<Columnar<K, KKey>>::Mut<'a>,
+pub struct QueryMutMutIter<'a, T, K, TKey, KKey> {
+    smallest: std::collections::btree_set::Iter<'a, ClassId>,
+    t_data: &'a mut SecondaryMap<ClassId, Columnar<T, TKey>>,
+    k_data: &'a mut SecondaryMap<ClassId, Columnar<K, KKey>>,
     t_key: &'a TKey,
     k_key: &'a KKey,
 }
@@ -61,12 +114,14 @@ where
     type Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
-            if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap)
-                && &t.key == self.t_key
-                && &k.key == self.k_key
+        for class_id in &mut self.smallest {
+            if let Some(t_col) = self.t_data.get_mut(*class_id)
+                && let Some(k_col) = self.k_data.get_mut(*class_id)
+                && &t_col.key == self.t_key
+                && &k_col.key == self.k_key
             {
-                let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k) };
+                let t = unsafe { &mut *std::ptr::from_mut::<Columnar<T, TKey>>(t_col) };
+                let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k_col) };
                 return Some((t, k));
             }
         }
@@ -74,114 +129,65 @@ where
     }
 }
 
-pub fn call1<A, F: FnMut(A)>(mut f: F, a: A) {
-    f(a)
-}
-
-pub fn call2<A, B, F: FnMut(A, B)>(mut f: F, a: A, b: B) {
-    f(a, b)
-}
-
-pub fn call3<A, B, C, F: FnMut(A, B, C)>(mut f: F, a: A, b: B, c: C) {
-    f(a, b, c)
-}
-
-pub fn query_ref<'a, T, K>(class: &'a Class<T, K>) -> impl Iterator<Item = &'a Columnar<T, K>>
-where
-    T: 'a,
-    K: 'a,
-{
-    let mut columns = duplex!(&class.data => values());
-    std::iter::from_fn(move || duplex!(&mut columns => { next() } -> unwrap))
-}
-
-pub fn query_mut<'a, T, K>(
-    class: &'a mut Class<T, K>,
-) -> impl Iterator<Item = &'a mut Columnar<T, K>>
-where
-    T: 'a,
-    K: 'a,
-{
-    let mut columns = duplex!(&mut class.data => values_mut());
-    std::iter::from_fn(move || duplex!(&mut columns => { next() } -> unwrap))
-}
-
-pub fn query_ref_ref<'a, T, K, TKey, KKey>(
-    t: &'a Class<T, TKey>,
-    t_key: &'a TKey,
-    k: &'a Class<K, KKey>,
-    k_key: &'a KKey,
-) -> impl Iterator<Item = (&'a Columnar<T, TKey>, &'a Columnar<K, KKey>)>
-where
-    T: 'a,
-    K: 'a,
-    TKey: 'a + PartialEq,
-    KKey: 'a + PartialEq,
-{
-    let t_len = duplex!(&t.data => { len() } -> unwrap);
-    let k_len = duplex!(&k.data => { len() } -> unwrap);
-    let mut duplex = if t_len <= k_len {
-        let smallest_source = duplex!(&t.data => iter());
-        let k_source = k.data.as_ref();
-        Duplex::T(QueryRefRefIter {
-            smallest_source,
-            k_source,
-            t_key,
-            k_key,
-        })
-    } else {
-        let smallest_source = duplex!(&k.data => iter());
-        let k_source = t.data.as_ref();
-        Duplex::K(QueryRefRefIter {
-            smallest_source,
-            k_source,
-            t_key: k_key,
-            k_key: t_key,
-        })
-    };
-    std::iter::from_fn(move || match &mut duplex {
-        Duplex::T(t) => t.next(),
-        Duplex::K(k) => k.next().map(|(k, t)| (t, k)),
-    })
-}
-
 pub fn query_mut_mut<'a, T, K, TKey, KKey>(
     t: &'a mut Class<T, TKey>,
     t_key: &'a TKey,
     k: &'a mut Class<K, KKey>,
     k_key: &'a KKey,
-) -> impl Iterator<Item = (&'a mut Columnar<T, TKey>, &'a mut Columnar<K, KKey>)>
+) -> QueryMutMutIter<'a, T, K, TKey, KKey>
 where
     T: 'a,
     K: 'a,
     TKey: 'a + PartialEq,
     KKey: 'a + PartialEq,
 {
-    let t_len = duplex!(&t.data => { len() } -> unwrap);
-    let k_len = duplex!(&k.data => { len() } -> unwrap);
-    let mut duplex = if t_len <= k_len {
-        let smallest_source = duplex!(&mut t.data => iter_mut());
-        let k_source = k.data.as_mut();
-        Duplex::T(QueryMutMutIter {
-            smallest_source,
-            k_source,
-            t_key,
-            k_key,
-        })
+    let (t_data, t_class) = (&mut t.data, &t.class);
+    let (k_data, k_class) = (&mut k.data, &k.class);
+    let smallest = if t_class.len() <= k_class.len() {
+        t_class.iter()
     } else {
-        let smallest_source = duplex!(&mut k.data => iter_mut());
-        let k_source = t.data.as_mut();
-        Duplex::K(QueryMutMutIter {
-            smallest_source,
-            k_source,
-            t_key: k_key,
-            k_key: t_key,
-        })
+        k_class.iter()
     };
-    std::iter::from_fn(move || match &mut duplex {
-        Duplex::T(t) => t.next(),
-        Duplex::K(k) => k.next().map(|(k, t)| (t, k)),
-    })
+    QueryMutMutIter {
+        smallest,
+        t_data,
+        k_data,
+        t_key,
+        k_key,
+    }
+}
+
+pub struct QueryMutRefIter<'a, T, K, TKey, KKey> {
+    smallest: std::collections::btree_set::Iter<'a, ClassId>,
+    t_data: &'a mut SecondaryMap<ClassId, Columnar<T, TKey>>,
+    k_data: &'a SecondaryMap<ClassId, Columnar<K, KKey>>,
+    t_key: &'a TKey,
+    k_key: &'a KKey,
+}
+
+impl<'a, T, K, TKey, KKey> Iterator for QueryMutRefIter<'a, T, K, TKey, KKey>
+where
+    T: 'a,
+    K: 'a,
+    TKey: 'a + PartialEq,
+    KKey: 'a + PartialEq,
+{
+    type Item = (&'a mut Columnar<T, TKey>, &'a Columnar<K, KKey>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for class_id in &mut self.smallest {
+            if let Some(t_col) = self.t_data.get_mut(*class_id)
+                && let Some(k_col) = self.k_data.get(*class_id)
+                && &t_col.key == self.t_key
+                && &k_col.key == self.k_key
+            {
+                // SAFETY: `smallest` yields unique `class_id`s, so each `t_col` is disjoint.
+                let t = unsafe { &mut *std::ptr::from_mut::<Columnar<T, TKey>>(t_col) };
+                return Some((t, k_col));
+            }
+        }
+        None
+    }
 }
 
 pub fn query_mut_ref<'a, T, K, TKey, KKey>(
@@ -189,23 +195,34 @@ pub fn query_mut_ref<'a, T, K, TKey, KKey>(
     t_key: &'a TKey,
     k: &'a Class<K, KKey>,
     k_key: &'a KKey,
-) -> impl Iterator<Item = (&'a mut Columnar<T, TKey>, &'a Columnar<K, KKey>)>
+) -> QueryMutRefIter<'a, T, K, TKey, KKey>
 where
     T: 'a,
     K: 'a,
     TKey: 'a + PartialEq,
     KKey: 'a + PartialEq,
 {
-    t.columns_mut().filter_map(move |(class_id, t_col)| {
-        let k_col = k.get_col(class_id)?;
-        (&t_col.key == t_key && &k_col.key == k_key).then_some((t_col, k_col))
-    })
+    let (t_data, t_class) = (&mut t.data, &t.class);
+    let (k_data, k_class) = (&k.data, &k.class);
+    let smallest = if t_class.len() <= k_class.len() {
+        t_class.iter()
+    } else {
+        k_class.iter()
+    };
+    QueryMutRefIter {
+        smallest,
+        t_data,
+        k_data,
+        t_key,
+        k_key,
+    }
 }
 
-pub struct QueryMutMutMutIter<'a, T: 'a, K: 'a, L: 'a, TKey: 'a, KKey: 'a, LKey: 'a> {
-    smallest_source: ClassIterMut<'a, T, TKey>,
-    k_source: ClassRarity<Columnar<K, KKey>>::Mut<'a>,
-    l_source: ClassRarity<Columnar<L, LKey>>::Mut<'a>,
+pub struct QueryMutMutMutIter<'a, T, K, L, TKey, KKey, LKey> {
+    smallest: std::collections::btree_set::Iter<'a, ClassId>,
+    t_data: &'a mut SecondaryMap<ClassId, Columnar<T, TKey>>,
+    k_data: &'a mut SecondaryMap<ClassId, Columnar<K, KKey>>,
+    l_data: &'a mut SecondaryMap<ClassId, Columnar<L, LKey>>,
     t_key: &'a TKey,
     k_key: &'a KKey,
     l_key: &'a LKey,
@@ -227,15 +244,18 @@ where
     );
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((class_id, t)) = duplex!(&mut self.smallest_source => { next() } -> unwrap) {
-            if let Some(k) = duplex!(&mut self.k_source => { get_mut(class_id) } -> unwrap)
-                && let Some(l) = duplex!(&mut self.l_source => { get_mut(class_id) } -> unwrap)
-                && &t.key == self.t_key
-                && &k.key == self.k_key
-                && &l.key == self.l_key
+        for class_id in &mut self.smallest {
+            if let Some(t_col) = self.t_data.get_mut(*class_id)
+                && let Some(k_col) = self.k_data.get_mut(*class_id)
+                && let Some(l_col) = self.l_data.get_mut(*class_id)
+                && &t_col.key == self.t_key
+                && &k_col.key == self.k_key
+                && &l_col.key == self.l_key
             {
-                let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k) };
-                let l = unsafe { &mut *std::ptr::from_mut::<Columnar<L, LKey>>(l) };
+                // SAFETY: unique `class_id`s from a BTreeSet; three disjoint maps.
+                let t = unsafe { &mut *std::ptr::from_mut::<Columnar<T, TKey>>(t_col) };
+                let k = unsafe { &mut *std::ptr::from_mut::<Columnar<K, KKey>>(k_col) };
+                let l = unsafe { &mut *std::ptr::from_mut::<Columnar<L, LKey>>(l_col) };
                 return Some((t, k, l));
             }
         }
@@ -250,13 +270,7 @@ pub fn query_mut_mut_mut<'a, T, K, L, TKey, KKey, LKey>(
     k_key: &'a KKey,
     l: &'a mut Class<L, LKey>,
     l_key: &'a LKey,
-) -> impl Iterator<
-    Item = (
-        &'a mut Columnar<T, TKey>,
-        &'a mut Columnar<K, KKey>,
-        &'a mut Columnar<L, LKey>,
-    ),
->
+) -> QueryMutMutMutIter<'a, T, K, L, TKey, KKey, LKey>
 where
     T: 'a,
     K: 'a,
@@ -265,13 +279,23 @@ where
     KKey: 'a + PartialEq,
     LKey: 'a + PartialEq,
 {
-    let mut iter = QueryMutMutMutIter {
-        smallest_source: duplex!(&mut t.data => iter_mut()),
-        k_source: k.data.as_mut(),
-        l_source: l.data.as_mut(),
+    let (t_data, t_class) = (&mut t.data, &t.class);
+    let (k_data, k_class) = (&mut k.data, &k.class);
+    let (l_data, l_class) = (&mut l.data, &l.class);
+    let smallest = if t_class.len() <= k_class.len() && t_class.len() <= l_class.len() {
+        t_class.iter()
+    } else if k_class.len() <= t_class.len() && k_class.len() <= l_class.len() {
+        k_class.iter()
+    } else {
+        l_class.iter()
+    };
+    QueryMutMutMutIter {
+        smallest,
+        t_data,
+        k_data,
+        l_data,
         t_key,
         k_key,
         l_key,
-    };
-    std::iter::from_fn(move || iter.next())
+    }
 }

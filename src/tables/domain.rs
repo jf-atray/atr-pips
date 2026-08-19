@@ -51,7 +51,8 @@ impl Domain {
             .tables
             .system
             .pip_id
-            .get_col(ptr.class_id)
+            .data
+            .get(ptr.class_id)
             .and_then(|col| col.get(ptr.row_idx))
             .copied();
 

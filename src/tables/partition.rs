@@ -37,7 +37,6 @@ macro_rules! partition {
             pub fn new() -> Self {
                 Self {
                     $($fname: $crate::tables::class::Class::new(
-                        $crate::tables::class_strategy::rarity::common(()),
                         $crate::tables::class_strategy::GrowthStrategy::quart_kib::<$ftype>(),
                     ),)+
                 }
@@ -69,7 +68,7 @@ macro_rules! partition {
             fn matches(&self, class_id: $crate::tables::ClassId, into: &dyn $crate::tables::partition::Addition) -> bool {
                 let into: &dyn ::std::any::Any = into;
                 let into = into.downcast_ref::<$addition>().unwrap();
-                true $(&& self.$fname.is_some() == into.$fname.get_col(class_id).is_some())+
+                true $(&& self.$fname.is_some() == into.$fname.data.get(class_id).is_some())+
             }
 
             fn commit(&mut self, class_id: $crate::tables::ClassId, into: &mut dyn $crate::tables::partition::Addition) -> Option<usize> {
@@ -108,14 +107,14 @@ macro_rules! partition {
 
             fn destroy(&mut self, class_id: $crate::tables::ClassId, row_idx: usize) {
                 $(
-                    if let Some(col) = self.$fname.get_col_mut(class_id) {
+                    if let Some(col) = self.$fname.data.get_mut(class_id) {
                         col.swap_remove(row_idx);
                     }
                 )+
             }
 
             fn clear(&mut self) {
-                $( self.$fname.clear(); )+
+                $( self.$fname.data.clear(); )+
             }
         }
     };

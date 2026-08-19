@@ -1,82 +1,47 @@
-use std::ops::{Index, IndexMut};
+use std::{collections::BTreeSet, ops::{Index, IndexMut}};
 
-use atr_plex::{Duplex, duplex};
-use slotmap::{SecondaryMap, SparseSecondaryMap};
+use atr_plex::duplex;
+use slotmap::SecondaryMap;
 
 use crate::tables::{
     ClassId, ClassRowPtr,
-    class_strategy::{ClassRarity, GrowthStrategy},
+    class_strategy::GrowthStrategy,
 };
 
 #[derive(Debug)]
 pub struct Class<T, K = ()> {
     pub growth: GrowthStrategy,
-    pub data: ClassRarity<Columnar<T, K>>,
+    //todo, worry about excessive vec ptr memory bloat later
+    pub data: SecondaryMap<ClassId, Columnar<T, K>>,
+    pub class: BTreeSet<ClassId>,
+
 }
 impl<T, K> Class<T, K> {
-    pub fn new(rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
-        let data = match rarity {
-            Duplex::T(_t) => Duplex::T(SecondaryMap::new()),
-            Duplex::K(_k) => Duplex::K(SparseSecondaryMap::new()),
-        };
-        Self { growth, data }
+    pub fn new(growth: GrowthStrategy) -> Self {
+        let data = SecondaryMap::new();
+        Self { growth, data, class: BTreeSet::new() }
     }
-    pub fn with_capacity(capacity: usize, rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
-        let data = match rarity {
-            Duplex::T(_t) => Duplex::T(SecondaryMap::with_capacity(capacity)),
-            Duplex::K(_k) => Duplex::K(SparseSecondaryMap::with_capacity(capacity)),
-        };
-        Self { growth, data }
-    }
-
-    pub fn clear(&mut self) {
-        duplex!(&mut self.data => { clear() } -> unwrap);
-    }
-
-    pub fn columns(&self) -> impl Iterator<Item = (ClassId, &Columnar<T, K>)> {
-        let mut it = duplex!(&self.data => iter());
-        std::iter::from_fn(move || duplex!(&mut it => { next() } -> unwrap))
-    }
-
-    pub fn columns_mut(&mut self) -> impl Iterator<Item = (ClassId, &mut Columnar<T, K>)> {
-        let mut it = duplex!(&mut self.data => iter_mut());
-        std::iter::from_fn(move || duplex!(&mut it => { next() } -> unwrap))
-    }
-
-    pub fn get_col(&self, id: ClassId) -> Option<&Columnar<T, K>> {
-        duplex!(&self.data => { get(id) } -> unwrap)
-    }
-    pub fn get_col_mut(&mut self, id: ClassId) -> Option<&mut Columnar<T, K>> {
-        duplex!(&mut self.data => { get_mut(id) } -> unwrap)
-    }
-
-    pub unsafe fn get_col_unchecked_mut(&mut self, id: ClassId) -> &mut Columnar<T, K> {
-        duplex!(&mut self.data => |x| { unsafe{ x.get_unchecked_mut(id) } } -> unwrap)
-    }
-    pub unsafe fn get_col_unchecked(&self, id: ClassId) -> &Columnar<T, K> {
-        duplex!(&self.data => |x| { unsafe{ x.get_unchecked(id) } } -> unwrap)
-    }
-
-    pub fn len(&self) -> usize {
-        duplex!(&self.data => { len() } -> unwrap)
+    pub fn with_capacity(capacity: usize, _rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
+        let data = SecondaryMap::with_capacity(capacity);
+        Self { growth, data, class: BTreeSet::new() }
     }
 
     pub fn get_row(&self, id: &ClassRowPtr) -> Option<&T> {
-        let col = self.get_col(id.class_id)?;
+        let col = self.data.get(id.class_id)?;
         Some(&col.vec[id.row_idx])
     }
     pub fn get_row_mut(&mut self, id: &ClassRowPtr) -> Option<&mut T> {
-        let col = self.get_col_mut(id.class_id)?;
+        let col = self.data.get_mut(id.class_id)?;
         Some(&mut col.vec[id.row_idx])
     }
 
     pub unsafe fn get_row_unchecked(&self, id: &ClassRowPtr) -> Option<&T> {
-        let col = self.get_col(id.class_id)?;
+        let col = self.data.get(id.class_id)?;
         let row = unsafe { col.get_unchecked(id.row_idx) };
         Some(row)
     }
     pub unsafe fn get_row_unchecked_mut(&mut self, id: &ClassRowPtr) -> Option<&mut T> {
-        let col = self.get_col_mut(id.class_id)?;
+        let col = self.data.get_mut(id.class_id)?;
         let row = unsafe { col.get_unchecked_mut(id.row_idx) };
         Some(row)
     }
@@ -84,30 +49,15 @@ impl<T, K> Class<T, K> {
 
 impl<T, K: PartialEq> Class<T, K> {
     pub fn get_col_or_insert_with_key(&mut self, id: ClassId, k: K) -> &mut Columnar<T, K> {
-        match &mut self.data {
-            Duplex::T(m) => {
-                if m.contains_key(id) {
-                    debug_assert!(
-                        m.get(id).unwrap().key == k,
-                        "Columnar key mismatch for ClassId"
-                    );
-                } else {
-                    m.insert(id, Columnar::new(k));
-                }
-                m.get_mut(id).unwrap()
-            }
-            Duplex::K(m) => {
-                if m.contains_key(id) {
-                    debug_assert!(
-                        m.get(id).unwrap().key == k,
-                        "Columnar key mismatch for ClassId"
-                    );
-                } else {
-                    m.insert(id, Columnar::new(k));
-                }
-                m.get_mut(id).unwrap()
-            }
+        if self.data.contains_key(id) {
+            debug_assert!(
+                self.data.get(id).unwrap().key == k,
+                "Columnar key mismatch for ClassId"
+            );
+        } else {
+            self.data.insert(id, Columnar::new(k));
         }
+        self.data.get_mut(id).unwrap()
     }
 }
 
@@ -206,12 +156,12 @@ impl<T, K> Index<ClassId> for Class<T, K> {
     type Output = Columnar<T, K>;
 
     fn index(&self, index: ClassId) -> &Self::Output {
-        duplex!(&self.data => { index(index) } -> unwrap )
+        &self.data.index(index)
     }
 }
 impl<T, K> IndexMut<ClassId> for Class<T, K> {
     fn index_mut(&mut self, index: ClassId) -> &mut Self::Output {
-        duplex!(&mut self.data => { index_mut(index) } -> unwrap )
+        self.data.index_mut(index)
     }
 }
 impl<T, K> Index<&ClassRowPtr> for Class<T, K> {

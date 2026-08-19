@@ -4,9 +4,12 @@ use winit::keyboard::KeyCode;
 use std::any::Any;
 use std::fs;
 
+use wgpu::WriteOnly;
+use zerocopy::IntoBytes as _;
+
 use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
-use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver};
+use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver, SpriteInstance};
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
 use crate::gpuscope::canvasing::CanvasUnderstander;
@@ -385,7 +388,34 @@ impl OverworldScene {
 
         spritesolver.understanders.insert(
             canvas_id,
-            Box::new(|_id: CanvasId, _slice: &[((Transform, Brush), MaterialId)], _out: &mut [u8]| {}),
+            Box::new(|_id: CanvasId, slice: &[((Transform, Brush), MaterialId, CanvasId)], out: WriteOnly<[u8]>| {
+                let to = |x: f32| x as f16;
+                let mut written = 0;
+                let mut out = out;
+                for ((xform, brush), _material, _canvas) in slice {
+                    let instance = SpriteInstance {
+                        position: [xform.xyz.x, xform.xyz.y, xform.xyz.z],
+                        rotation: [
+                            to(xform.rot.x),
+                            to(xform.rot.y),
+                            to(xform.rot.z),
+                            to(xform.rot.w),
+                        ],
+                        scale: [to(brush.scale.x), to(brush.scale.y), 0.0f16, 0.0f16],
+                        color: [
+                            to(brush.color.x),
+                            to(brush.color.y),
+                            to(brush.color.z),
+                            to(brush.color.w),
+                        ],
+                    };
+                    let bytes = instance.as_bytes();
+                    let mut chunk = out.slice(written..written + bytes.len());
+                    chunk.copy_from_slice(bytes);
+                    written += bytes.len();
+                }
+                written
+            }),
         );
 
         for (name, material, natural_scale) in pending {
@@ -449,14 +479,14 @@ impl OverworldScene {
 
 impl<T: 'static, F: 'static> CanvasUnderstander<T> for F
 where
-    F: for<'a> FnMut(CanvasId, &'a [(T, MaterialId)], &'a mut [u8]),
+    F: for<'a> FnMut(CanvasId, &'a [(T, MaterialId, CanvasId)], WriteOnly<'a, [u8]>) -> usize,
 {
     fn understand<'a>(
         &mut self,
         id: CanvasId,
-        t: &'a [(T, MaterialId)],
-        out: &'a mut [u8],
-    ) {
+        t: &'a [(T, MaterialId, CanvasId)],
+        out: WriteOnly<'a, [u8]>,
+    ) -> usize {
         self(id, t, out)
     }
 }
