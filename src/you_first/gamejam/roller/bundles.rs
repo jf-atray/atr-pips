@@ -31,7 +31,7 @@ fn assemble_roller_sprite(
     brush_flip: BrushFlip,
 ) {
     let mut brush = Brush::new(canvas, mat);
-    brush.scale = Vec3::ONE;
+    brush.scale = Vec3::new(0.0, 0.0, 1.0);
     brush.color = Vec4::new(color[0], color[1], color[2], color[3]);
     scope.core.with(
         Transform {
