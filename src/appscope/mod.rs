@@ -143,7 +143,10 @@ impl App {
         });
         self.target_fps = self
             .target_dt
-            .map(|dt| dt.round().clamp(30.0, 240.0) as u32)
+            .map(|dt| {
+                #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, reason="Clamping and Rounding a float to an integer.")]
+                dt.round().clamp(30.0, 240.0) as u32
+            })
             .or(Some(60));
     }
 
@@ -340,7 +343,8 @@ impl ApplicationHandler<GpuReady> for App {
                     let scroll = match delta {
                         winit::event::MouseScrollDelta::LineDelta(x, y) => glam::Vec2::new(x, y),
                         winit::event::MouseScrollDelta::PixelDelta(p) => {
-                            glam::Vec2::new(p.x as f32, p.y as f32) * 0.01
+                            let p = p.cast::<f32>();
+                            glam::Vec2::new(p.x, p.y) * 0.01
                         }
                     };
                     game.input

@@ -5,6 +5,8 @@
 #![feature(trivial_bounds)]
 #![feature(const_option_ops)]
 #![feature(const_trait_impl)]
+#![feature(stmt_expr_attributes)]
+
 
 #![allow(incomplete_features)]
 #![allow(dead_code)]

@@ -84,7 +84,10 @@ impl DrawWriter<'_> {
         let aligned = self.next_byte.next_multiple_of(instance_size);
         let adr = aligned / instance_size;
         self.next_byte = aligned + u64::from(count) * instance_size;
-        (adr as u32, aligned)
+        (
+            u32::try_from(adr).expect("No support for sci-fi hardware"),
+            aligned,
+        )
     }
     pub fn set_draw(&mut self, canvas: CanvasId, material: MaterialId, adr: u32, count: u32) {
         if let Some((every, _)) = self.canvases.get_mut(canvas) {

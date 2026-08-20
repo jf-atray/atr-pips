@@ -455,7 +455,9 @@ impl SpriteCanvasSolver {
         adr: u32,
         sink: &mut DrawWriter,
     ) -> usize {
-        let instance_size = size_of::<SpriteInstance>() as u64;
+        let instance_size = size_of::<SpriteInstance>();
+        let byte_base = usize::try_from(byte_base)
+            .expect("No support for sci-fi hardware");
         let mut written: usize = 0;
         let mut canvas_start: usize = 0;
         let mut current_canvas: CanvasId = sorted[0].2;
@@ -464,9 +466,9 @@ impl SpriteCanvasSolver {
             let end_of_canvas = i == sorted.len() || sorted[i].2 != current_canvas;
             if end_of_canvas {
                 let slice = &sorted[canvas_start..i];
-                let expected = slice.len() * instance_size as usize;
+                let expected = slice.len() * instance_size;
                 let out = view.slice(
-                    byte_base as usize + written..byte_base as usize + written + expected,
+                    byte_base + written..byte_base + written + expected,
                 );
                 if let Some(canvas) = sink.get_canvas(current_canvas)
                     && let Some(understander) = understanders.get_mut(current_canvas)
@@ -477,7 +479,8 @@ impl SpriteCanvasSolver {
                     sink,
                     current_canvas,
                     slice,
-                    adr + (written as u64 / instance_size) as u32,
+                    adr + u32::try_from(written / instance_size)
+                        .expect("No support for sci-fi hardware"),
                 );
                 written += expected;
                 if i < sorted.len() {
@@ -499,26 +502,27 @@ impl SpriteCanvasSolver {
         if t.is_empty() {
             return;
         }
-        let mut run_start = 0;
+        let mut run_start = 0u32;
         let mut run_material = t[0].1;
         for (i, (_, material, _)) in t.iter().enumerate() {
+            let i = u32::try_from(i).expect("No support for sci-fi hardware");
             if *material != run_material {
                 sink.set_draw(
                     canvas_id,
                     run_material,
-                    start + run_start as u32,
-                    (i - run_start) as u32,
+                    start + run_start,
+                    i - run_start,
                 );
                 run_material = *material;
                 run_start = i;
             }
         }
-        let last = t.len();
+        let last = u32::try_from(t.len()).expect("No support for sci-fi hardware");
         sink.set_draw(
             canvas_id,
             run_material,
-            start + run_start as u32,
-            (last - run_start) as u32,
+            start + run_start,
+            last - run_start,
         );
     }
 }
@@ -541,8 +545,12 @@ impl CanvasSolver for SpriteCanvasSolver {
             .as_mut_slice()
             .sort_unstable_by_key(|(_, material, canvas)| (*canvas, *material));
 
-        let instance_size = size_of::<SpriteInstance>() as u64;
-        let (adr, byte_base) = sink.reserve(sorted.len() as u32, instance_size);
+            
+        let instance_size = u64::try_from(size_of::<SpriteInstance>())
+            .expect("Instance must fit into RAM somewhere");
+        let idx = u32::try_from(sorted.len())
+            .expect("Instance must fit into RAM somewhere");
+        let (adr, byte_base) = sink.reserve(idx, instance_size);
 
         Self::pack_sorted(
             &sorted,
