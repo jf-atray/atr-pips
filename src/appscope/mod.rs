@@ -163,6 +163,8 @@ impl App {
             .map_or(0.0, |prev| (now - prev).as_secs_f32().min(0.25));
         self.prev_tick = Some(now);
 
+
+        #[allow(clippy::cast_precision_loss)]
         let aspect = windowing.width as f32 / windowing.height as f32;
         game.update(elapsed, aspect, gpu);
 

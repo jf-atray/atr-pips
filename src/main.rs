@@ -5,8 +5,10 @@
 #![feature(trivial_bounds)]
 #![feature(const_option_ops)]
 #![feature(const_trait_impl)]
+
 #![allow(incomplete_features)]
 #![allow(dead_code)]
+#![allow(clippy::cast_precision_loss, reason="Should levy f64 more.")]
 mod anims;
 mod appscope;
 mod assets;

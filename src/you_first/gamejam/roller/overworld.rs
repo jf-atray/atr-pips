@@ -42,9 +42,9 @@ const GROUND_TILT_DEG: f32 = 5.0;
 
 fn sprite_material_config(name: &str) -> (bool, Vec3) {
     match name {
-        "cactus" => (true, Vec3::new(0.0, -0.07421875, 0.0)),
-        "grass" => (true, Vec3::new(0.0, -0.048828125, 0.0)),
-        "crate" => (true, Vec3::new(0.0, -0.038828125, 0.0)),
+        "cactus" => (true, Vec3::new(0.0, -0.074_218_75, 0.0)),
+        "grass" => (true, Vec3::new(0.0, -0.048_828_125, 0.0)),
+        "crate" => (true, Vec3::new(0.0, -0.038_828_125, 0.0)),
         "building_right" | "building_left" => (true, Vec3::new(0.0, -0.49625, 0.0)),
         "tumbleweed"
         | "player_fwd"
