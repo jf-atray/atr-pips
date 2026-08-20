@@ -63,7 +63,7 @@ macro_rules! partition {
         impl $crate::ecs::partition::View for $view {
 
             fn width(&self) -> usize {
-                0usize $(+ self.$fname.is_some() as usize)+
+                0usize $(+ usize::from(self.$fname.is_some()))+
             }
 
             fn matches(&self, class_id: $crate::ecs::ClassId, into: &dyn $crate::ecs::partition::Addition) -> bool {

@@ -566,7 +566,7 @@ pub(crate) struct SpriteInstance {
 
 fn make_material_uniforms(device: &Device) -> MaterialUniforms {
     let stride = (size_of::<SpriteUniformDatum>() as u64)
-        .next_multiple_of(device.limits().min_uniform_buffer_offset_alignment as u64);
+        .next_multiple_of(u64::from(device.limits().min_uniform_buffer_offset_alignment));
 
     let buffer = device.create_buffer(&BufferDescriptor {
         label: Some("sprite materials"),
