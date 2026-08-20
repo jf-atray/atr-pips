@@ -78,7 +78,7 @@ impl Frame {
                 },
             })],
             depth_stencil_attachment: depth_stencil,
-            ..Default::default()
+            ..RenderPassDescriptor::default()
         });
 
         f(&mut pass)

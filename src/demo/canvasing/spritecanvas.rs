@@ -145,7 +145,7 @@ impl BasicSpriteCanvas {
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("sprite"),
             bind_group_layouts: &[Some(&bind_group_layout), Some(&binds_layout)],
-            ..Default::default()
+            ..PipelineLayoutDescriptor::default()
         });
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("sprite"),
@@ -197,15 +197,15 @@ impl BasicSpriteCanvas {
                         ],
                     }),
                 ],
-                compilation_options: Default::default(),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             primitive: PrimitiveState::default(),
             depth_stencil: depth_format.map(|f| DepthStencilState {
                 format: f,
                 depth_write_enabled: Some(true),
                 depth_compare: Some(CompareFunction::LessEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
             }),
             multisample: MultisampleState {
                 count: sample_count,
@@ -220,7 +220,7 @@ impl BasicSpriteCanvas {
                     blend: None,
                     write_mask: ColorWrites::ALL,
                 })],
-                compilation_options: Default::default(),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             multiview_mask: None,
             cache: None,
@@ -253,7 +253,7 @@ impl BasicSpriteCanvas {
             label: Some("sprite sampler"),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
+            ..SamplerDescriptor::default()
         });
 
         let quad: [[f32; 5]; 6] = [
