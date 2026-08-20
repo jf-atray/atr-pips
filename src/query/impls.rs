@@ -54,7 +54,7 @@ where
         k_class
     };
 
-    std::iter::iter!(move || {
+    let coroutine = std::iter::iter!(move || {
         for class_id in smallest {
             if let Some(t_col) = t_data.get(*class_id)
                 && let Some(k_col) = k_data.get(*class_id)
@@ -64,7 +64,8 @@ where
                 yield (t_col, k_col);
             }
         }
-    })()
+    });
+    coroutine()
 }
 
 pub fn query_mut_mut<'a, T, K, TKey, KKey>(
@@ -87,7 +88,7 @@ where
         k_class
     };
 
-    std::iter::iter!(move || {
+    let coroutine = std::iter::iter!(move || {
         for class_id in smallest {
             if let Some(t_col) = t_data.get_mut(*class_id)
                 && let Some(k_col) = k_data.get_mut(*class_id)
@@ -99,7 +100,8 @@ where
                 yield (t_col, k_col);
             }
         }
-    })()
+    });
+    coroutine()
 }
 
 pub fn query_mut_ref<'a, T, K, TKey, KKey>(
@@ -122,7 +124,7 @@ where
         k_class
     };
 
-    std::iter::iter!(move || {
+    let coroutine = std::iter::iter!(move || {
         for class_id in smallest {
             if let Some(t_col) = t_data.get_mut(*class_id)
                 && let Some(k_col) = k_data.get(*class_id)
@@ -133,7 +135,8 @@ where
                 yield (t_col, k_col);
             }
         }
-    })()
+    });
+    coroutine()
 }
 
 pub fn query_mut_mut_mut<'a, T, K, L, TKey, KKey, LKey>(
@@ -169,7 +172,7 @@ where
         l_class
     };
 
-    std::iter::iter!(move || {
+    let coroutine = std::iter::iter!(move || {
         for class_id in smallest {
             if let Some(t_col) = t_data.get_mut(*class_id)
                 && let Some(k_col) = k_data.get_mut(*class_id)
@@ -184,5 +187,6 @@ where
                 yield (t_col, k_col, l_col);
             }
         }
-    })()
+    });
+    coroutine()
 }

@@ -40,13 +40,13 @@ pub enum AppState {
     },
     Ready {
         windowing: Windowing,
-        gpu: Gpu,
+        gpu: Box<Gpu>,
         game: Box<Game>,
     },
 }
 
 impl AppState {
-    fn into_suspend(self) -> Result<(Self, Gpu), Self> {
+    fn into_suspend(self) -> Result<(Self, Box<Gpu>), Self> {
         match self {
             AppState::Ready { windowing, game, gpu } => {
                 Ok((AppState::Lost { windowing, game }, gpu))
@@ -62,10 +62,18 @@ impl AppState {
     ) -> Result<Self, (Self, Option<Box<Game>>)> {
         match (self, game) {
             (AppState::AwaitingGpu { windowing }, Some(game)) => {
-                Ok(AppState::Ready { windowing, gpu, game })
+                Ok(AppState::Ready {
+                    windowing,
+                    gpu: Box::new(gpu),
+                    game,
+                })
             }
             (AppState::Lost { windowing, game }, None) => {
-                Ok(AppState::Ready { windowing, gpu, game })
+                Ok(AppState::Ready {
+                    windowing,
+                    gpu: Box::new(gpu),
+                    game,
+                })
             }
             (other, game) => Err((other, game)),
         }
