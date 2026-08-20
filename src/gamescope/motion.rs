@@ -3,6 +3,7 @@ use crate::scripting::script::Script;
 
 const BOUNDS: f32 = 5.0;
 
+#[derive(Debug)]
 pub struct MotionSolver;
 
 impl MotionSolver {

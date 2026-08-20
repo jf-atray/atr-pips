@@ -36,10 +36,11 @@ pub struct SceneContext<'a> {
     pub game_action: &'a SceneAction,
 }
 
-pub trait Scene {
+pub trait Scene: std::fmt::Debug {
     fn update(&mut self, ctx: &mut SceneContext);
 }
 
+#[derive(Debug)]
 pub struct NoopScene;
 
 impl Scene for NoopScene {

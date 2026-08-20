@@ -39,6 +39,7 @@ impl Default for ScatterMotion {
     }
 }
 
+#[derive(Debug)]
 pub struct ScatterChannel {
     material: &'static str,
     interval: f32,
@@ -119,6 +120,7 @@ impl ScatterChannel {
     }
 }
 
+#[derive(Debug)]
 pub struct Biome {
     channels: Vec<ScatterChannel>,
 }

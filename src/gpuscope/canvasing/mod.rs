@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::fmt::Debug;
 use std::num::NonZero;
 
 use slotmap::{SecondaryMap, SlotMap};
@@ -11,7 +12,7 @@ use crate::spacial::camera::Camera;
 use crate::ecs::tables::Tables;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId};
 
-pub trait CanvasSolver: Any {
+pub trait CanvasSolver: Any + std::fmt::Debug {
     fn solve(
         &mut self,
         tables: &Tables,
@@ -35,6 +36,7 @@ pub struct Draw {
     pub count: u32,
 }
 
+#[derive(Debug)]
 pub struct EveryCanvas {
     pub bind_group_layout: BindGroupLayout,
     pub pipeline: RenderPipeline,
@@ -53,7 +55,7 @@ impl EveryCanvas {
     }
 }
 
-pub trait CanvasTrait: Any {
+pub trait CanvasTrait: Any + std::fmt::Debug {
     fn prepare(
         &mut self,
         camera: &Camera,
@@ -99,6 +101,7 @@ impl DrawWriter<'_> {
     }
 }
 
+#[derive(Debug)]
 pub struct CanvasRenderer {
     pub solvers: SlotMap<CanvasSolverId, Box<dyn CanvasSolver>>,
     pub canvases: SlotMap<CanvasId, (EveryCanvas, Box<dyn CanvasTrait>)>,

@@ -97,6 +97,7 @@ impl GpuParts {
     }
 }
 
+#[derive(Debug)]
 pub struct Gpu {
     pub(crate) surface: SurfaceScope,
     pub(crate) device: DeviceContext,

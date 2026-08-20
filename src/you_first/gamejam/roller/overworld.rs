@@ -66,6 +66,7 @@ fn sprite_material_config(name: &str) -> (bool, Vec3) {
     }
 }
 
+#[derive(Debug)]
 pub struct OverworldScene {
     state: State,
     sprites_dir: String,
@@ -78,6 +79,7 @@ pub struct OverworldScene {
     sun: Option<PipId>,
 }
 
+#[derive(Debug)]
 enum State {
     Setup,
     Running,

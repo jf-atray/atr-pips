@@ -3,6 +3,7 @@ use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::you_first::gamejam::roller::components::{RollerAddition, solve_flip};
 
+#[derive(Debug)]
 pub struct BrushFlipSolver;
 
 impl Script for BrushFlipSolver {

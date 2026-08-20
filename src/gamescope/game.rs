@@ -9,6 +9,7 @@ use crate::scripting::{Scripts, Solvers};
 use crate::spacial::camera::Camera;
 use crate::ecs::domain::Domain;
 
+#[derive(Debug)]
 pub struct Game {
     pub domain: Domain,
     pub camera: Camera,

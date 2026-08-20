@@ -2,6 +2,7 @@ use wgpu::{Device, Surface, SurfaceConfiguration};
 
 //try to publicly lock the w/h to a surface configure call
 //mby move to a dirty enum so it happens only once a frame
+#[derive(Debug)]
 pub struct SurfaceScope {
     pub(crate) surface: Surface<'static>,
     pub(crate) cfg: SurfaceConfiguration,

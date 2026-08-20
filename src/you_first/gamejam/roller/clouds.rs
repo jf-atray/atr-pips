@@ -16,6 +16,7 @@ const CLOUD_WRAP_X: f32 = 6.0;
 const CLOUD_COUNT: usize = 4;
 const CLOUD_Z: f32 = 0.9;
 
+#[derive(Debug)]
 pub struct CloudDriftSystem {
     clouds: Vec<PipId>,
     initialized: bool,

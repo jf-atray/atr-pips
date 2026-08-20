@@ -11,7 +11,7 @@ pub trait View: Any {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub trait Addition: Any {
+pub trait Addition: Any + std::fmt::Debug {
     fn view_default(&self) -> Box<dyn View>;
     fn destroy(&mut self, class_id: ClassId, row_idx: usize);
     fn clear(&mut self);
@@ -24,6 +24,7 @@ macro_rules! partition {
             $($fvis:vis $fname:ident : Class<$ftype:ty $(, $ktype:ty)?>,)+
         }
     ) => {
+        #[derive(Debug)]
         $vis struct $addition {
             $($fvis $fname: $crate::ecs::class::Class<$ftype $(, $ktype)?>, )+
         }

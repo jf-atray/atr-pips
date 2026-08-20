@@ -16,6 +16,7 @@ use crate::scripting::script::Script;
 use crate::scripting::scripts::Scripts;
 use crate::ecs::domain::Domain;
 
+#[derive(Debug)]
 pub struct Solvers {
     solvers: SlotMap<SolverId, RefCell<ScriptHost>>,
     by_type: HashMap<TypeId, SolverId>,

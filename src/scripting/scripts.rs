@@ -17,6 +17,7 @@ use crate::ecs::domain::Domain;
 
 // making a disjoint thin view to do a dynamic check is just the same as
 // doing that check here anyway using std features
+#[derive(Debug)]
 pub struct Scripts {
     scripts: SlotMap<ScriptId, RefCell<ScriptHost>>,
 }

@@ -4,6 +4,7 @@ use super::canvasing::CanvasRenderer;
 use super::texture_cache::TextureScope;
 
 //if we lose the gpu device, these are the things tha have to be rebuilt
+#[derive(Debug)]
 pub struct DeviceContext {
     pub(crate) adapter: Adapter,
     pub(crate) device: Device,

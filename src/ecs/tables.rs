@@ -5,6 +5,7 @@ use std::{
 
 use crate::ecs::{core::CoreAddition, partition::Addition, system::SystemAddition};
 
+#[derive(Debug)]
 pub struct Tables {
     pub core: CoreAddition,
     pub system: SystemAddition,

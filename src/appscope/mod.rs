@@ -27,6 +27,7 @@ pub struct App {
     fps_timer: f32,
 }
 
+#[derive(Debug)]
 pub enum AppState {
     Boot,
     Windowed(Windowing),
@@ -42,6 +43,67 @@ pub enum AppState {
         gpu: Gpu,
         game: Box<Game>,
     },
+}
+
+impl AppState {
+    fn into_suspend(self) -> Result<(Self, Gpu), Self> {
+        match self {
+            AppState::Ready { windowing, game, gpu } => {
+                Ok((AppState::Lost { windowing, game }, gpu))
+            }
+            other => Err(other),
+        }
+    }
+
+    fn into_ready(
+        self,
+        gpu: Gpu,
+        game: Option<Box<Game>>,
+    ) -> Result<Self, (Self, Option<Box<Game>>)> {
+        match (self, game) {
+            (AppState::AwaitingGpu { windowing }, Some(game)) => {
+                Ok(AppState::Ready { windowing, gpu, game })
+            }
+            (AppState::Lost { windowing, game }, None) => {
+                Ok(AppState::Ready { windowing, gpu, game })
+            }
+            (other, game) => Err((other, game)),
+        }
+    }
+
+    fn windowing(&self) -> Option<&Windowing> {
+        match self {
+            AppState::Boot => None,
+            AppState::Windowed(w)
+            | AppState::AwaitingGpu { windowing: w }
+            | AppState::Lost { windowing: w, .. }
+            | AppState::Ready { windowing: w, .. } => Some(w),
+        }
+    }
+
+    fn windowing_mut(&mut self) -> Option<&mut Windowing> {
+        match self {
+            AppState::Boot => None,
+            AppState::Windowed(w)
+            | AppState::AwaitingGpu { windowing: w }
+            | AppState::Lost { windowing: w, .. }
+            | AppState::Ready { windowing: w, .. } => Some(w),
+        }
+    }
+
+    fn game(&self) -> Option<&Game> {
+        match self {
+            AppState::Lost { game, .. } | AppState::Ready { game, .. } => Some(game),
+            _ => None,
+        }
+    }
+
+    fn game_mut(&mut self) -> Option<&mut Game> {
+        match self {
+            AppState::Lost { game, .. } | AppState::Ready { game, .. } => Some(game),
+            _ => None,
+        }
+    }
 }
 
 impl App {
@@ -284,31 +346,31 @@ impl ApplicationHandler<GpuReady> for App {
     //submission of window resources
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: GpuReady) {
         let state = std::mem::replace(&mut self.state, AppState::Boot);
-        let (windowing, game) = match state {
-            AppState::AwaitingGpu { windowing } => {
-                const PIXELS_PER_UNIT: f32 = 512.0;
 
-                let mut game = Game::new(HashMap::new());
-                game.set_scene(Box::new(OverworldScene::new(PIXELS_PER_UNIT)));
+        let game = if let AppState::AwaitingGpu { .. } = &state {
+            const PIXELS_PER_UNIT: f32 = 512.0;
 
-                (windowing, Box::new(game))
-            }
-            AppState::Lost { windowing, game } => (windowing, game),
-            other => {
-                log::warn!("received GpuReady in unexpected state");
-                self.state = other;
-                return;
-            }
+            let mut game = Game::new(HashMap::new());
+            game.set_scene(Box::new(OverworldScene::new(PIXELS_PER_UNIT)));
+
+            Some(Box::new(game))
+        } else if let AppState::Lost { .. } = &state {
+            None
+        } else {
+            log::warn!("received GpuReady in unexpected state");
+            self.state = state;
+            return;
         };
+
+        let windowing = state.windowing().unwrap();
 
         let mut gpu = Gpu::make(event.0, &GpuSettings::default());
         gpu.reconfigure(windowing.width, windowing.height);
 
-        self.state = AppState::Ready {
-            windowing,
-            gpu,
-            game,
-        };
+        self.state = state
+            .into_ready(gpu, game)
+            .expect("AppState must be ready to begin");
+            //.unwrap_or_else(|(other, _)| other);
         self.prev_tick = Some(Instant::now());
         self.last_render = Some(Instant::now());
     }
@@ -342,11 +404,10 @@ impl ApplicationHandler<GpuReady> for App {
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        let old = std::mem::replace(&mut self.state, AppState::Boot);
-        if let AppState::Ready { windowing, game, .. } = old {
-            self.state = AppState::Lost { windowing, game };
-        } else {
-            self.state = old;
-        }
+        let state = std::mem::replace(&mut self.state, AppState::Boot);
+        self.state = state
+            .into_suspend()
+            .map(|(state, _gpu)| state)
+            .unwrap_or_else(|other| other);
     }
 }

@@ -30,6 +30,7 @@ use crate::ecs::{CanvasId, MaterialId};
 const MAX_MATERIALS: u64 = 128;
 
 //todo, it should be allowed to get a texture view from elsewhere
+#[derive(Debug)]
 pub struct SpriteMaterial {
     pub binding: BindGroup,
     pub billboard: bool,
@@ -42,22 +43,26 @@ struct SpriteUniformDatum {
     y_offset: f32,
 }
 
+#[derive(Debug)]
 struct CameraUniforms {
     bind: BindGroup,
     buffer: Buffer,
     slice: Range<u64>,
 }
 
+#[derive(Debug)]
 struct QuadGeometry {
     buffer: Buffer,
     slice: Range<u64>,
 }
 
+#[derive(Debug)]
 struct MaterialUniforms {
     buffer: Buffer,
     stride: u64,
 }
 
+#[derive(Debug)]
 pub struct BasicSpriteCanvas {
     binds_layout: BindGroupLayout,
 
@@ -406,6 +411,14 @@ impl CanvasTrait for BasicSpriteCanvas {
 pub struct SpriteCanvasSolver {
     bump: Bump,
     pub understanders: SecondaryMap<CanvasId, Box<dyn CanvasUnderstander<(Transform, Brush)>>>,
+}
+
+impl std::fmt::Debug for SpriteCanvasSolver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SpriteCanvasSolver")
+            .field("understanders", &self.understanders.len())
+            .finish_non_exhaustive()
+    }
 }
 
 impl SpriteCanvasSolver {

@@ -9,6 +9,7 @@ pub struct ScriptHostMut<'a, T> {
     pub script: &'a mut T,
 }
 
+#[derive(Debug)]
 pub struct ScriptHost {
     pub(crate) every: EveryScript,
     pub(crate) script: Box<dyn Script>,

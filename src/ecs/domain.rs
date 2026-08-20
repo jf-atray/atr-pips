@@ -7,6 +7,7 @@ use crate::ecs::{
     tables::Tables,
 };
 
+#[derive(Debug)]
 pub struct Domain {
     pub tables: Tables,
     pub heading: SlotMap<ClassId, usize>,

@@ -7,6 +7,7 @@ use crate::you_first::gamejam::roller::components::RollerAddition;
 
 const BIOME_SWAP_DISTANCE: f32 = 0.1;
 
+#[derive(Debug)]
 pub struct RollerSpawner {
     player: PipId,
     biome: Biome,

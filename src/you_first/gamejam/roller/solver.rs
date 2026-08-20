@@ -9,6 +9,7 @@ use crate::you_first::gamejam::roller::projection::{
     DESPAWN_T, GROUND_Y, HORIZON_Y, WALK_SPEED, depth_factor, project, world_z,
 };
 
+#[derive(Debug)]
 pub struct RollerProjectionSolver;
 
 impl Script for RollerProjectionSolver {

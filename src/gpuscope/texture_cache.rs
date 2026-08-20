@@ -11,6 +11,7 @@ slotmap::new_key_type! {
     pub struct ImgId;
 }
 
+#[derive(Debug)]
 pub struct TextureScope {
     names: HashMap<String, ImgId>,
     textures: SlotMap<ImgId, Texture>,

@@ -10,6 +10,7 @@ const LATERAL_SPEED: f32 = 2.1;
 const PLAYER_X_MIN: f32 = -5.0;
 const PLAYER_X_MAX: f32 = 5.0;
 
+#[derive(Debug)]
 pub struct PlayerLateralController {
     player: PipId,
 }
