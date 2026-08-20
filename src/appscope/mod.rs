@@ -20,11 +20,11 @@ pub struct App {
     proxy: EventLoopProxy<GpuReady>,
     state: AppState,
     target_fps: Option<u32>,
-    target_dt: Option<f32>,
+    target_dt: Option<f64>,
     last_render: Option<Instant>,
     prev_tick: Option<Instant>,
     fps_frame_count: u32,
-    fps_timer: f32,
+    fps_timer: f64,
 }
 
 #[derive(Debug)]
@@ -139,7 +139,7 @@ impl App {
         self.target_dt = windowing.window.current_monitor().and_then(|monitor| {
             monitor
                 .refresh_rate_millihertz()
-                .map(|hz| hz as f32 / 1000.0)
+                .map(|hz| hz as f64 / 1000.0)
         });
         self.target_fps = self
             .target_dt
@@ -180,9 +180,9 @@ impl App {
         }
 
         self.fps_frame_count += 1;
-        self.fps_timer += elapsed;
+        self.fps_timer += f64::from(elapsed);
         if self.fps_timer >= 10.0 {
-            let fps = self.fps_frame_count as f32 / self.fps_timer;
+            let fps = f64::from(self.fps_frame_count) / self.fps_timer;
             log::info!("update rate: {fps:.2} Hz");
             self.fps_frame_count = 0;
             self.fps_timer = 0.0;
