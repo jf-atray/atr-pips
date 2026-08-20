@@ -48,9 +48,11 @@ pub enum AppState {
 impl AppState {
     fn into_suspend(self) -> Result<(Self, Box<Gpu>), Self> {
         match self {
-            AppState::Ready { windowing, game, gpu } => {
-                Ok((AppState::Lost { windowing, game }, gpu))
-            }
+            AppState::Ready {
+                windowing,
+                game,
+                gpu,
+            } => Ok((AppState::Lost { windowing, game }, gpu)),
             other => Err(other),
         }
     }
@@ -61,20 +63,16 @@ impl AppState {
         game: Option<Box<Game>>,
     ) -> Result<Self, (Self, Option<Box<Game>>)> {
         match (self, game) {
-            (AppState::AwaitingGpu { windowing }, Some(game)) => {
-                Ok(AppState::Ready {
-                    windowing,
-                    gpu: Box::new(gpu),
-                    game,
-                })
-            }
-            (AppState::Lost { windowing, game }, None) => {
-                Ok(AppState::Ready {
-                    windowing,
-                    gpu: Box::new(gpu),
-                    game,
-                })
-            }
+            (AppState::AwaitingGpu { windowing }, Some(game)) => Ok(AppState::Ready {
+                windowing,
+                gpu: Box::new(gpu),
+                game,
+            }),
+            (AppState::Lost { windowing, game }, None) => Ok(AppState::Ready {
+                windowing,
+                gpu: Box::new(gpu),
+                game,
+            }),
             (other, game) => Err((other, game)),
         }
     }
@@ -322,10 +320,10 @@ impl ApplicationHandler<GpuReady> for App {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 if let AppState::Ready { game, .. } = &mut self.state {
+                    let position = position.cast::<f32>();
                     game.input
                         .handle_event(crate::input::InputEvent::MouseMove(glam::Vec2::new(
-                            position.x as f32,
-                            position.y as f32,
+                            position.x, position.y,
                         )));
                 }
             }
@@ -378,7 +376,7 @@ impl ApplicationHandler<GpuReady> for App {
         self.state = state
             .into_ready(gpu, game)
             .expect("AppState must be ready to begin");
-            //.unwrap_or_else(|(other, _)| other);
+        //.unwrap_or_else(|(other, _)| other);
         self.prev_tick = Some(Instant::now());
         self.last_render = Some(Instant::now());
     }
