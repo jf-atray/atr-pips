@@ -161,7 +161,7 @@ impl<T, K> Index<ClassId> for Class<T, K> {
     type Output = Columnar<T, K>;
 
     fn index(&self, index: ClassId) -> &Self::Output {
-        &self.data.index(index)
+        self.data.index(index)
     }
 }
 impl<T, K> IndexMut<ClassId> for Class<T, K> {

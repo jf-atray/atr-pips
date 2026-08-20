@@ -58,7 +58,7 @@ impl Game {
             &self.solvers,
             &self.asset_registry,
             &self.input,
-            &mut game_action,
+            &game_action,
         );
         self.solvers.update_enabled(
             dt,
@@ -66,7 +66,7 @@ impl Game {
             &self.scripts,
             &self.asset_registry,
             &self.input,
-            &mut game_action,
+            &game_action,
         );
 
         if let Some(next) = game_action.next_scene.take() {

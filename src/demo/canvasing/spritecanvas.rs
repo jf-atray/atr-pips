@@ -455,10 +455,10 @@ impl SpriteCanvasSolver {
                 let out = view.slice(
                     byte_base as usize + written..byte_base as usize + written + expected,
                 );
-                if let Some(canvas) = sink.get_canvas(current_canvas) {
-                    if let Some(understander) = understanders.get_mut(current_canvas) {
-                        understander.understand(current_canvas, slice, out, canvas);
-                    }
+                if let Some(canvas) = sink.get_canvas(current_canvas)
+                    && let Some(understander) = understanders.get_mut(current_canvas)
+                {
+                    understander.understand(current_canvas, slice, out, canvas);
                 }
                 Self::pack_draws(
                     sink,
