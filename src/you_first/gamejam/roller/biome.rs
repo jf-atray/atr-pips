@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use glam::Vec2;
+use glam::{Vec2, Vec3};
 
 use crate::assets::SpriteEntry;
 use crate::ecs::domain::Domain;
-use crate::you_first::gamejam::roller::bundles::roller_sprite_bundle_from_asset;
+use crate::ecs::scope::Maker;
+use crate::you_first::gamejam::roller::bundles::roller_body;
+use crate::you_first::gamejam::roller::components::{BrushFlip, RollerDepth};
 use crate::you_first::gamejam::roller::projection::{FAR_Z, NEAR_Z};
 
 #[derive(Debug, Clone, Copy)]
@@ -46,7 +48,6 @@ pub struct ScatterChannel {
     lateral_range: f32,
     /// World-space sprite size (width, height) at full projection.
     size: Vec2,
-    color: [u8; 4],
     scalar: f32,
     placement: Placement,
     flip_mode: FlipMode,
@@ -93,30 +94,41 @@ impl ScatterChannel {
         (offset, is_left)
     }
 
-    fn spawn(
+    fn to_maker(
         &self,
-        domain: &mut Domain,
         asset_registry: &HashMap<String, SpriteEntry>,
         lateral: f32,
         d: f32,
         is_left: bool,
-    ) {
+    ) -> impl Maker {
         let is_flipped = match self.flip_mode {
             FlipMode::None => false,
             FlipMode::BySide => is_left,
             FlipMode::Random => rand::random::<bool>(),
         };
-        domain.make(roller_sprite_bundle_from_asset(
-            self.material,
-            asset_registry,
-            lateral,
+        let sprite = asset_registry
+            .get(self.material)
+            .unwrap_or_else(|| asset_registry.get("__white__").unwrap());
+        let canvas = sprite.canvas;
+        let mat = sprite.material;
+        let base_scale = self.size / sprite.natural_scale;
+        let roller_depth = RollerDepth {
             d,
-            self.color,
-            self.size,
-            self.scalar,
-            self.motion.lateral_speed,
-            is_flipped,
-        ));
+            lateral,
+            speed: 0.0,
+            scalar: self.scalar,
+            lateral_speed: self.motion.lateral_speed,
+            base_scale,
+        };
+        let brush_flip = BrushFlip { is_flipped };
+        roller_body(
+            canvas,
+            mat,
+            Vec3::new(0.0, 0.0, 1.0),
+            String::new(),
+            roller_depth,
+            brush_flip,
+        )
     }
 }
 
@@ -136,7 +148,7 @@ impl Biome {
             let mut d = FAR_Z - step;
             while d >= NEAR_Z {
                 let (lateral, is_left) = channel.place();
-                channel.spawn(domain, asset_registry, lateral, d, is_left);
+                domain.make(channel.to_maker(asset_registry, lateral, d, is_left));
                 d -= step;
             }
         }
@@ -154,7 +166,7 @@ impl Biome {
 
                 let d = channel.motion.spawn_depth;
                 let (lateral, is_left) = channel.place();
-                channel.spawn(domain, asset_registry, lateral, d, is_left);
+                domain.make(channel.to_maker(asset_registry, lateral, d, is_left));
             }
         }
     }
@@ -167,7 +179,6 @@ impl Biome {
                     interval: 0.2,
                     lateral_range: 3.5,
                     size: Vec2::new(2.0, 2.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::SideRandom { min_offset: 6.0 },
                     flip_mode: FlipMode::Random,
@@ -180,7 +191,6 @@ impl Biome {
                     interval: 1.9,
                     lateral_range: 6.5,
                     size: Vec2::new(2.0, 2.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::Random,
@@ -193,7 +203,6 @@ impl Biome {
                     interval: 1.0,
                     lateral_range: 4.0,
                     size: Vec2::new(1.0, 1.0),
-                    color: [255, 255, 255, 255],
                     scalar: 0.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::None,
@@ -206,7 +215,6 @@ impl Biome {
                     interval: 0.05,
                     lateral_range: 10.0,
                     size: Vec2::new(0.25, 0.25),
-                    color: [255, 255, 255, 255],
                     scalar: 0.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::None,
@@ -219,7 +227,6 @@ impl Biome {
                     interval: 3.0,
                     lateral_range: 10.0,
                     size: Vec2::new(1.0, 1.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Fixed(true),
                     flip_mode: FlipMode::None,
@@ -243,7 +250,6 @@ impl Biome {
                     interval: 2.0,
                     lateral_range: 7.5,
                     size: Vec2::new(7.28125, 5.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Fixed(false),
                     flip_mode: FlipMode::None,
@@ -256,7 +262,6 @@ impl Biome {
                     interval: 2.0,
                     lateral_range: 7.5,
                     size: Vec2::new(7.28125, 5.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Fixed(true),
                     flip_mode: FlipMode::None,
@@ -269,7 +274,6 @@ impl Biome {
                     interval: 0.5,
                     lateral_range: 3.0,
                     size: Vec2::new(0.25, 0.25),
-                    color: [255, 255, 255, 255],
                     scalar: 0.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::None,
@@ -282,7 +286,6 @@ impl Biome {
                     interval: 2.8,
                     lateral_range: 6.5,
                     size: Vec2::new(2.0, 2.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::Random,
@@ -295,7 +298,6 @@ impl Biome {
                     interval: 1.0,
                     lateral_range: 4.0,
                     size: Vec2::new(1.0, 1.0),
-                    color: [255, 255, 255, 255],
                     scalar: 0.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::None,
@@ -308,7 +310,6 @@ impl Biome {
                     interval: 3.3,
                     lateral_range: 5.0,
                     size: Vec2::new(1.0, 1.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::None,
@@ -321,7 +322,6 @@ impl Biome {
                     interval: 0.02,
                     lateral_range: 4.0,
                     size: Vec2::new(0.5, 0.2),
-                    color: [90, 72, 54, 255],
                     scalar: 0.0,
                     placement: Placement::Random,
                     flip_mode: FlipMode::None,
@@ -334,7 +334,6 @@ impl Biome {
                     interval: 4.7,
                     lateral_range: 10.0,
                     size: Vec2::new(1.0, 1.0),
-                    color: [255, 255, 255, 255],
                     scalar: 1.0,
                     placement: Placement::Fixed(true),
                     flip_mode: FlipMode::None,

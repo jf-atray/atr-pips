@@ -474,7 +474,6 @@ impl OverworldScene {
             sprite.material,
             0.0,
             2.0,
-            [255, 255, 255, 255],
             Vec2::splat(1.28125),
             sprite.natural_scale,
             1.0,
