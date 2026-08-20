@@ -1,15 +1,15 @@
 use crate::ecs::class::{Class, Columnar};
 
 pub fn call1<A, F: FnMut(A)>(mut f: F, a: A) {
-    f(a)
+    f(a);
 }
 
 pub fn call2<A, B, F: FnMut(A, B)>(mut f: F, a: A, b: B) {
-    f(a, b)
+    f(a, b);
 }
 
 pub fn call3<A, B, C, F: FnMut(A, B, C)>(mut f: F, a: A, b: B, c: C) {
-    f(a, b, c)
+    f(a, b, c);
 }
 
 pub fn query_ref<'a, T, K>(
