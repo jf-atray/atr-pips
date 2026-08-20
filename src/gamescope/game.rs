@@ -7,7 +7,7 @@ use crate::gpuscope::Gpu;
 use crate::input::Input;
 use crate::scripting::{Scripts, Solvers};
 use crate::spacial::camera::Camera;
-use crate::tables::domain::Domain;
+use crate::ecs::domain::Domain;
 
 pub struct Game {
     pub domain: Domain,

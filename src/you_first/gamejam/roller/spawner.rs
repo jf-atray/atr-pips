@@ -1,7 +1,7 @@
 use crate::gather::impls::gather_ref;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
-use crate::tables::PipId;
+use crate::ecs::PipId;
 use crate::you_first::gamejam::roller::biome::Biome;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 

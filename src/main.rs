@@ -24,7 +24,7 @@ mod query;
 mod scripting;
 mod seek;
 mod spacial;
-mod tables;
+mod ecs;
 mod windowing;
 mod you_first;
 

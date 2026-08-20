@@ -14,7 +14,7 @@ use crate::scripting::host::{ScriptHost, ScriptHostMut};
 use crate::scripting::id::SolverId;
 use crate::scripting::script::Script;
 use crate::scripting::scripts::Scripts;
-use crate::tables::domain::Domain;
+use crate::ecs::domain::Domain;
 
 pub struct Solvers {
     solvers: SlotMap<SolverId, RefCell<ScriptHost>>,
@@ -52,7 +52,7 @@ impl Solvers {
     fn try_borrow_host(
         cell: &RefCell<ScriptHost>,
     ) -> Result<RefMut<'_, ScriptHost>, ScriptGetError> {
-        cell.try_borrow_mut().map_err(|_| ScriptGetError::BadAlias)
+        cell.try_borrow_mut().map_err(|_| ScriptGetError::Alias)
     }
 
     fn with_host<T: Script, R>(
@@ -64,7 +64,7 @@ impl Solvers {
             .by_type
             .get(&type_id)
             .copied()
-            .ok_or(ScriptGetError::BadId)?;
+            .ok_or(ScriptGetError::Id)?;
         let cell = &self.solvers[id];
         let mut guard = Self::try_borrow_host(cell)?;
         let host = guard.downcast_mut::<T>()?;

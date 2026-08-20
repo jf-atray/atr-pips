@@ -1,4 +1,4 @@
-use crate::tables::PipId;
+use crate::ecs::PipId;
 
 crate::partition! {
     pub struct SystemAddition as SystemView {

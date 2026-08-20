@@ -6,8 +6,8 @@ use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
-use crate::tables::PipId;
-use crate::tables::scope::Scope;
+use crate::ecs::PipId;
+use crate::ecs::scope::Scope;
 
 const CLOUD_SPRITES: &[(&str, f32)] = &[("cloud_1", 4.0), ("cloud_2", 1.0)];
 

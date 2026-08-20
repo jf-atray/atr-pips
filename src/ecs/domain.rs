@@ -1,6 +1,6 @@
 use slotmap::SlotMap;
 
-use crate::tables::{
+use crate::ecs::{
     ClassId, ClassRowPtr, PipId,
     partition::Addition,
     scope::{Maker, Scope},

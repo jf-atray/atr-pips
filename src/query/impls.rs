@@ -1,4 +1,4 @@
-use crate::tables::class::{Class, Columnar};
+use crate::ecs::class::{Class, Columnar};
 
 pub fn call1<A, F: FnMut(A)>(mut f: F, a: A) {
     f(a)

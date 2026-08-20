@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use glam::Vec2;
 
 use crate::assets::SpriteEntry;
-use crate::tables::domain::Domain;
+use crate::ecs::domain::Domain;
 use crate::you_first::gamejam::roller::bundles::roller_sprite_bundle_from_asset;
 use crate::you_first::gamejam::roller::projection::{FAR_Z, NEAR_Z};
 

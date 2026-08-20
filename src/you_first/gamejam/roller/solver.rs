@@ -3,7 +3,7 @@ use glam::Vec3;
 use crate::query;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
-use crate::tables::PipId;
+use crate::ecs::PipId;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::{
     DESPAWN_T, GROUND_Y, HORIZON_Y, WALK_SPEED, depth_factor, project, world_z,

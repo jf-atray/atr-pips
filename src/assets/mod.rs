@@ -1,6 +1,6 @@
 use glam::Vec2;
 
-use crate::tables::{CanvasId, MaterialId};
+use crate::ecs::{CanvasId, MaterialId};
 
 #[derive(Clone, Debug)]
 pub struct SpriteEntry {

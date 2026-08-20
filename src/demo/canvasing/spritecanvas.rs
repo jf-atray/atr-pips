@@ -24,8 +24,8 @@ use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, CanvasUnderstander, 
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
-use crate::tables::tables::Tables;
-use crate::tables::{CanvasId, MaterialId};
+use crate::ecs::tables::Tables;
+use crate::ecs::{CanvasId, MaterialId};
 
 const MAX_MATERIALS: u64 = 128;
 

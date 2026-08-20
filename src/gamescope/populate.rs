@@ -9,7 +9,7 @@ use crate::demo::canvasing::spritecanvas::BasicSpriteCanvas;
 use crate::gamescope::game::Game;
 use crate::gpuscope::canvasing::{CanvasRenderer, EveryCanvas};
 use crate::gpuscope::texture_cache::TextureScope;
-use crate::tables::{CanvasId, MaterialId};
+use crate::ecs::{CanvasId, MaterialId};
 
 pub fn build_game(
     device: &Device,

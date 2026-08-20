@@ -1,7 +1,7 @@
 use atr_plex::Duplex;
 use slotmap::{SecondaryMap, SparseSecondaryMap};
 
-use crate::tables::ClassId;
+use crate::ecs::ClassId;
 
 #[derive(Debug)]
 pub struct GrowthStrategy {

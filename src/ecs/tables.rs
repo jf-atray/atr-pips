@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
 };
 
-use crate::tables::{core::CoreAddition, partition::Addition, system::SystemAddition};
+use crate::ecs::{core::CoreAddition, partition::Addition, system::SystemAddition};
 
 pub struct Tables {
     pub core: CoreAddition,

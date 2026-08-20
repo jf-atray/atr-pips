@@ -6,8 +6,8 @@ use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
-use crate::tables::scope::{Maker, Scope};
-use crate::tables::{CanvasId, MaterialId};
+use crate::ecs::scope::{Maker, Scope};
+use crate::ecs::{CanvasId, MaterialId};
 use crate::you_first::gamejam::roller::components::{
     BrushFlip, RollerDepth, RollerPlayer, RollerView,
 };

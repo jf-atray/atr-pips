@@ -13,7 +13,7 @@ use crate::scripting::host::{ScriptHost, ScriptHostMut};
 use crate::scripting::id::ScriptId;
 use crate::scripting::script::Script;
 use crate::scripting::solvers::Solvers;
-use crate::tables::domain::Domain;
+use crate::ecs::domain::Domain;
 
 // making a disjoint thin view to do a dynamic check is just the same as
 // doing that check here anyway using std features
@@ -35,7 +35,7 @@ impl Scripts {
     fn try_borrow_host(
         cell: &RefCell<ScriptHost>,
     ) -> Result<RefMut<'_, ScriptHost>, ScriptGetError> {
-        cell.try_borrow_mut().map_err(|_| ScriptGetError::BadAlias)
+        cell.try_borrow_mut().map_err(|_| ScriptGetError::Alias)
     }
 
     fn with_host<T: Script, R>(
@@ -43,7 +43,7 @@ impl Scripts {
         id: ScriptId,
         f: impl FnOnce(ScriptHostMut<'_, T>) -> R,
     ) -> Result<R, ScriptGetError> {
-        let cell = self.scripts.get(id).ok_or(ScriptGetError::BadId)?;
+        let cell = self.scripts.get(id).ok_or(ScriptGetError::Id)?;
         let mut guard = Self::try_borrow_host(cell)?;
         let host = guard.downcast_mut::<T>()?;
         Ok(f(host))
@@ -71,7 +71,7 @@ impl Scripts {
         f: impl FnOnce(ScriptHostMut<'_, T>),
     ) -> Result<(), ScriptGetError> {
         let Some(f_id) = id else {
-            return Err(ScriptGetError::BadId);
+            return Err(ScriptGetError::Id);
         };
         let result = self.with_mut::<T>(*f_id, f);
         if result.is_err() {
@@ -81,7 +81,7 @@ impl Scripts {
     }
 
     pub fn set_enabled(&self, id: ScriptId, enabled: bool) -> Result<(), ScriptGetError> {
-        let cell = self.scripts.get(id).ok_or(ScriptGetError::BadId)?;
+        let cell = self.scripts.get(id).ok_or(ScriptGetError::Id)?;
         let mut guard = Self::try_borrow_host(cell)?;
         guard.every.enabled = enabled;
         Ok(())

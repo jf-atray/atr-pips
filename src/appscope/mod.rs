@@ -33,10 +33,14 @@ pub enum AppState {
     AwaitingGpu {
         windowing: Windowing,
     },
+    Lost {
+        windowing: Windowing,
+        game: Box<Game>,
+    },
     Ready {
         windowing: Windowing,
         gpu: Gpu,
-        game: Game,
+        game: Box<Game>,
     },
 }
 
@@ -59,6 +63,7 @@ impl App {
         let windowing = match &self.state {
             AppState::Windowed(w)
             | AppState::AwaitingGpu { windowing: w }
+            | AppState::Lost { windowing: w, .. }
             | AppState::Ready { windowing: w, .. } => w,
             AppState::Boot => return,
         };
@@ -145,6 +150,9 @@ impl App {
             AppState::AwaitingGpu { windowing } => {
                 windowing.set_size(width, height);
             }
+            AppState::Lost { windowing, .. } => {
+                windowing.set_size(width, height);
+            }
             AppState::Ready { windowing, gpu, .. } => {
                 windowing.set_size(width, height);
                 gpu.reconfigure(width, height);
@@ -170,24 +178,38 @@ impl App {
 
 impl ApplicationHandler<GpuReady> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let attributes = WindowAttributes::default()
-            .with_title("atr-pips")
-            .with_inner_size(LogicalSize::new(1280.0, 720.0));
+        let state = std::mem::replace(&mut self.state, AppState::Boot);
+        match state {
+            AppState::Lost { windowing, game } => {
+                let surface = self.lib.make_surface(windowing.window.clone());
+                self.spawn_gpu_init(&windowing, surface);
+                self.state = AppState::Lost { windowing, game };
+            }
+            AppState::Boot => {
+                let attributes = WindowAttributes::default()
+                    .with_title("atr-pips")
+                    .with_inner_size(LogicalSize::new(1280.0, 720.0));
 
-        let window = event_loop
-            .create_window(attributes)
-            .expect("failed to create window");
+                let window = event_loop
+                    .create_window(attributes)
+                    .expect("failed to create window");
 
-        let inner = window.inner_size();
-        let windowing = Windowing::new(window, inner.width, inner.height);
+                let inner = window.inner_size();
+                let windowing = Windowing::new(window, inner.width, inner.height);
 
-        if windowing.is_zero() {
-            log::info!("window is 0x0; waiting for resize before GPU init");
-            self.state = AppState::Windowed(windowing);
-        } else {
-            let surface = self.lib.make_surface(windowing.window.clone());
-            self.spawn_gpu_init(&windowing, surface);
-            self.state = AppState::AwaitingGpu { windowing };
+                if windowing.is_zero() {
+                    log::info!("window is 0x0; waiting for resize before GPU init");
+                    self.state = AppState::Windowed(windowing);
+                } else {
+                    let surface = self.lib.make_surface(windowing.window.clone());
+                    self.spawn_gpu_init(&windowing, surface);
+                    self.state = AppState::AwaitingGpu { windowing };
+                }
+            }
+            other => {
+                log::warn!("resumed in unexpected state");
+                self.state = other;
+            }
         }
 
         self.refresh_target_fps();
@@ -261,27 +283,34 @@ impl ApplicationHandler<GpuReady> for App {
 
     //submission of window resources
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: GpuReady) {
-        if let AppState::AwaitingGpu { windowing } =
-            std::mem::replace(&mut self.state, AppState::Boot)
-        {
-            let mut gpu = Gpu::make(event.0, &GpuSettings::default());
-            gpu.reconfigure(windowing.width, windowing.height);
+        let state = std::mem::replace(&mut self.state, AppState::Boot);
+        let (windowing, game) = match state {
+            AppState::AwaitingGpu { windowing } => {
+                const PIXELS_PER_UNIT: f32 = 512.0;
 
-            const PIXELS_PER_UNIT: f32 = 512.0;
+                let mut game = Game::new(HashMap::new());
+                game.set_scene(Box::new(OverworldScene::new(PIXELS_PER_UNIT)));
 
-            let mut game = Game::new(HashMap::new());
-            game.set_scene(Box::new(OverworldScene::new(PIXELS_PER_UNIT)));
+                (windowing, Box::new(game))
+            }
+            AppState::Lost { windowing, game } => (windowing, game),
+            other => {
+                log::warn!("received GpuReady in unexpected state");
+                self.state = other;
+                return;
+            }
+        };
 
-            self.state = AppState::Ready {
-                windowing,
-                gpu,
-                game,
-            };
-            self.prev_tick = Some(Instant::now());
-            self.last_render = Some(Instant::now());
-        } else {
-            log::warn!("received GpuReady in unexpected state");
-        }
+        let mut gpu = Gpu::make(event.0, &GpuSettings::default());
+        gpu.reconfigure(windowing.width, windowing.height);
+
+        self.state = AppState::Ready {
+            windowing,
+            gpu,
+            game,
+        };
+        self.prev_tick = Some(Instant::now());
+        self.last_render = Some(Instant::now());
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
@@ -312,5 +341,12 @@ impl ApplicationHandler<GpuReady> for App {
         windowing.window.request_redraw();
     }
 
-    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {}
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        let old = std::mem::replace(&mut self.state, AppState::Boot);
+        if let AppState::Ready { windowing, game, .. } = old {
+            self.state = AppState::Lost { windowing, game };
+        } else {
+            self.state = old;
+        }
+    }
 }

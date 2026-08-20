@@ -1,6 +1,6 @@
 use std::any::{Any, TypeId};
 
-use crate::tables::ClassId;
+use crate::ecs::ClassId;
 
 pub trait View: Any {
     fn width(&self) -> usize;
@@ -25,7 +25,7 @@ macro_rules! partition {
         }
     ) => {
         $vis struct $addition {
-            $($fvis $fname: $crate::tables::class::Class<$ftype $(, $ktype)?>, )+
+            $($fvis $fname: $crate::ecs::class::Class<$ftype $(, $ktype)?>, )+
         }
 
         #[derive(Default)]
@@ -36,8 +36,8 @@ macro_rules! partition {
         impl $addition {
             pub fn new() -> Self {
                 Self {
-                    $($fname: $crate::tables::class::Class::new(
-                        $crate::tables::class_strategy::GrowthStrategy::quart_kib::<$ftype>(),
+                    $($fname: $crate::ecs::class::Class::new(
+                        $crate::ecs::class_strategy::GrowthStrategy::quart_kib::<$ftype>(),
                     ),)+
                 }
             }
@@ -59,19 +59,19 @@ macro_rules! partition {
             }
         }
 
-        impl $crate::tables::partition::View for $view {
+        impl $crate::ecs::partition::View for $view {
 
             fn width(&self) -> usize {
                 0usize $(+ self.$fname.is_some() as usize)+
             }
 
-            fn matches(&self, class_id: $crate::tables::ClassId, into: &dyn $crate::tables::partition::Addition) -> bool {
+            fn matches(&self, class_id: $crate::ecs::ClassId, into: &dyn $crate::ecs::partition::Addition) -> bool {
                 let into: &dyn ::std::any::Any = into;
                 let into = into.downcast_ref::<$addition>().unwrap();
                 true $(&& self.$fname.is_some() == into.$fname.data.get(class_id).is_some())+
             }
 
-            fn commit(&mut self, class_id: $crate::tables::ClassId, into: &mut dyn $crate::tables::partition::Addition) -> Option<usize> {
+            fn commit(&mut self, class_id: $crate::ecs::ClassId, into: &mut dyn $crate::ecs::partition::Addition) -> Option<usize> {
                 let into: &mut dyn ::std::any::Any = into;
                 let into = into.downcast_mut::<$addition>().unwrap();
                 let mut row = None;
@@ -100,12 +100,12 @@ macro_rules! partition {
             }
         }
 
-        impl $crate::tables::partition::Addition for $addition {
-            fn view_default(&self) -> Box<dyn $crate::tables::partition::View> {
+        impl $crate::ecs::partition::Addition for $addition {
+            fn view_default(&self) -> Box<dyn $crate::ecs::partition::View> {
                 Box::new($view::default())
             }
 
-            fn destroy(&mut self, class_id: $crate::tables::ClassId, row_idx: usize) {
+            fn destroy(&mut self, class_id: $crate::ecs::ClassId, row_idx: usize) {
                 $(
                     if let Some(col) = self.$fname.data.get_mut(class_id) {
                         col.swap_remove(row_idx);

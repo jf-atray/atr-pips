@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, ops::{Index, IndexMut}};
 use atr_plex::duplex;
 use slotmap::SecondaryMap;
 
-use crate::tables::{
+use crate::ecs::{
     ClassId, ClassRowPtr,
     class_strategy::GrowthStrategy,
 };

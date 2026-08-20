@@ -1,6 +1,6 @@
 use slotmap::SlotMap;
 
-use crate::tables::{ClassRowPtr, PipId, class::Class};
+use crate::ecs::{ClassRowPtr, PipId, class::Class};
 
 pub fn gather_ref<'a, T, K>(
     ids: &SlotMap<PipId, ClassRowPtr>,

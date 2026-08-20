@@ -9,8 +9,8 @@ use crate::scripting::id::ScriptId;
 use crate::scripting::script::Script;
 use crate::scripting::scripts::Scripts;
 use crate::scripting::solvers::Solvers;
-use crate::tables::domain::Domain;
-use crate::tables::tables::Tables;
+use crate::ecs::domain::Domain;
+use crate::ecs::tables::Tables;
 
 pub struct DomainView<'a> {
     pub dt: f32,
@@ -46,7 +46,7 @@ impl<'a> DomainView<'a> {
     pub fn split(
         &mut self,
     ) -> (
-        &slotmap::SlotMap<crate::tables::PipId, crate::tables::ClassRowPtr>,
+        &slotmap::SlotMap<crate::ecs::PipId, crate::ecs::ClassRowPtr>,
         &mut Tables,
     ) {
         (&self.domain.ids, &mut self.domain.tables)

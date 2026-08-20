@@ -1,6 +1,6 @@
 use std::{any::TypeId, collections::HashMap};
 
-use crate::tables::{ClassId, core::CoreView, partition::View, system::SystemView, tables::Tables};
+use crate::ecs::{ClassId, core::CoreView, partition::View, system::SystemView, tables::Tables};
 
 #[derive(Default)]
 pub struct Scope {

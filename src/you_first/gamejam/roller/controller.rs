@@ -1,7 +1,7 @@
 use crate::gather::impls::gather_pair_mut;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
-use crate::tables::PipId;
+use crate::ecs::PipId;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 use crate::you_first::gamejam::roller::projection::{WALK_SPEED, depth_factor_linear, world_x};
 

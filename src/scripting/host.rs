@@ -32,7 +32,7 @@ impl ScriptHost {
                 script: script_as_cast,
             })
         } else {
-            Err(ScriptGetError::BadCast)
+            Err(ScriptGetError::Cast)
         }
     }
 }

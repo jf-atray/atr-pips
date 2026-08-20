@@ -8,8 +8,8 @@ use wgpu::{
 };
 
 use crate::spacial::camera::Camera;
-use crate::tables::tables::Tables;
-use crate::tables::{CanvasId, CanvasSolverId, MaterialId};
+use crate::ecs::tables::Tables;
+use crate::ecs::{CanvasId, CanvasSolverId, MaterialId};
 
 pub trait CanvasSolver: Any {
     fn solve(
