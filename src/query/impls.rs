@@ -139,6 +139,12 @@ where
     coroutine()
 }
 
+pub type QueryMutMutMut<'a, T, K, L, TKey, KKey, LKey> = (
+    &'a mut Columnar<T, TKey>,
+    &'a mut Columnar<K, KKey>,
+    &'a mut Columnar<L, LKey>,
+);
+
 pub fn query_mut_mut_mut<'a, T, K, L, TKey, KKey, LKey>(
     t: &'a mut Class<T, TKey>,
     t_key: &'a TKey,
@@ -146,13 +152,7 @@ pub fn query_mut_mut_mut<'a, T, K, L, TKey, KKey, LKey>(
     k_key: &'a KKey,
     l: &'a mut Class<L, LKey>,
     l_key: &'a LKey,
-) -> impl Iterator<
-    Item = (
-        &'a mut Columnar<T, TKey>,
-        &'a mut Columnar<K, KKey>,
-        &'a mut Columnar<L, LKey>,
-    ),
->
+) -> impl Iterator<Item = QueryMutMutMut<'a, T, K, L, TKey, KKey, LKey>>
 where
     T: 'a,
     K: 'a,
