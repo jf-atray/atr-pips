@@ -1,8 +1,6 @@
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 
-const BOUNDS: f32 = 5.0;
-
 #[derive(Debug)]
 pub struct MotionSolver;
 
@@ -22,15 +20,6 @@ impl Script for MotionSolver {
             ],
             |motion, xform| {
                 xform.xyz += motion.vel * dt;
-                for axis in 0..3 {
-                    if xform.xyz[axis] > BOUNDS {
-                        xform.xyz[axis] = BOUNDS;
-                        motion.vel[axis] = -motion.vel[axis];
-                    } else if xform.xyz[axis] < -BOUNDS {
-                        xform.xyz[axis] = -BOUNDS;
-                        motion.vel[axis] = -motion.vel[axis];
-                    }
-                }
             }
         );
     }

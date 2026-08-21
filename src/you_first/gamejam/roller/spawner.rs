@@ -8,51 +8,64 @@ use crate::you_first::gamejam::roller::components::RollerAddition;
 const BIOME_SWAP_DISTANCE: f32 = 0.1;
 
 #[derive(Debug)]
+enum Lifecycle {
+    Pending,
+    Sparse(Biome),
+    Default(Biome),
+}
+
+impl Lifecycle {
+    const fn biome_mut(&mut self) -> Option<&mut Biome> {
+        match self {
+            Self::Pending => None,
+            Self::Sparse(biome) | Self::Default(biome) => Some(biome),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct RollerSpawner {
     player: PipId,
-    biome: Biome,
-    initialized: bool,
-    biome_swapped: bool,
+    biome: Lifecycle,
 }
 
 impl RollerSpawner {
-    pub fn new(player: PipId) -> Self {
+    pub const fn new(player: PipId) -> Self {
         Self {
             player,
-            biome: Biome::sparse_desert(),
-            initialized: false,
-            biome_swapped: false,
+            biome: Lifecycle::Pending,
         }
+    }
+
+    fn player_walk_distance(&self, ctx: &mut DomainView) -> Option<f32> {
+        let roller = ctx.domain.tables.get::<RollerAddition>()?;
+        let player = gather_ref(&ctx.domain.ids, &roller.roller_players, self.player)?;
+        Some(player.walk_distance)
     }
 }
 
 impl Script for RollerSpawner {
     fn update(&mut self, ctx: &mut DomainView) {
-        let walk_distance = {
-            let tables = &ctx.domain.tables;
-            let Some(roller) = tables.get::<RollerAddition>() else {
-                return;
-            };
-            let Some(player) = gather_ref(&ctx.domain.ids, &roller.roller_players, self.player)
-            else {
-                return;
-            };
-
-            player.walk_distance
+        let Some(walk_distance) = self.player_walk_distance(ctx) else {
+            return;
         };
 
-        if !self.initialized {
-            self.biome.pre_seed(ctx.domain, ctx.asset_registry);
-            self.initialized = true;
+        match &mut self.biome {
+            Lifecycle::Pending => {
+                let mut biome = Biome::sparse_desert();
+                biome.pre_seed(ctx.domain, ctx.asset_registry);
+                self.biome = Lifecycle::Sparse(biome);
+            }
+            Lifecycle::Sparse(biome) if walk_distance >= BIOME_SWAP_DISTANCE => {
+                let mut next = Biome::default_desert();
+                next.pre_seed(ctx.domain, ctx.asset_registry);
+                self.biome = Lifecycle::Default(next);
+            },
+            _ => {}
         }
 
-        if !self.biome_swapped && walk_distance >= BIOME_SWAP_DISTANCE {
-            self.biome = Biome::default_desert();
-            self.biome.pre_seed(ctx.domain, ctx.asset_registry);
-            self.biome_swapped = true;
+        if let Some(biome) = self.biome.biome_mut() {
+            biome.update(ctx.domain, ctx.asset_registry, walk_distance);
         }
-
-        self.biome
-            .update(ctx.domain, ctx.asset_registry, walk_distance);
     }
 }

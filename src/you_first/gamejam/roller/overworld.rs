@@ -10,6 +10,7 @@ use zerocopy::IntoBytes as _;
 use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver, SpriteInstance};
+use crate::gamescope::motion::MotionSolver;
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
 use crate::gpuscope::canvasing::{CanvasTrait, CanvasUnderstander};
@@ -123,6 +124,7 @@ impl OverworldScene {
         self.make_canvas(ctx, solver_id);
         ctx.solvers.register(RollerProjectionSolver);
         ctx.solvers.register(BrushFlipSolver);
+        ctx.solvers.register(MotionSolver);
 
         let player = ctx
             .asset_registry

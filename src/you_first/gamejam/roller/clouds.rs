@@ -12,25 +12,22 @@ use crate::ecs::scope::Scope;
 const CLOUD_SPRITES: &[(&str, f32)] = &[("cloud_1", 4.0), ("cloud_2", 1.0)];
 
 const CLOUD_DRIFT_SPEED: f32 = 0.075;
-const CLOUD_WRAP_X: f32 = 6.0;
+const CLOUD_WRAP_X: f32 = 12.0;
 const CLOUD_COUNT: usize = 4;
 const CLOUD_Z: f32 = 0.9;
 
 #[derive(Debug)]
 pub struct CloudDriftSystem {
     clouds: Vec<PipId>,
-    initialized: bool,
 }
 
 impl CloudDriftSystem {
     pub fn new() -> Self {
-        Self {
-            clouds: Vec::new(),
-            initialized: false,
-        }
+        Self { clouds: Vec::new() }
     }
 
     fn spawn_clouds(&mut self, ctx: &mut DomainView) {
+        self.clouds.reserve(CLOUD_COUNT);
         for _ in 0..CLOUD_COUNT {
             let x = (rand::random::<f32>() * 2.0 - 1.0) * CLOUD_WRAP_X;
             let y = 0.5 + rand::random::<f32>() * 1.0;
@@ -56,7 +53,9 @@ impl CloudDriftSystem {
                     },
                     brush,
                     name,
-                    Motion::default(),
+                    Motion {
+                        vel: Vec3::new(CLOUD_DRIFT_SPEED, 0.0, 0.0),
+                    },
                 );
             });
             self.clouds.push(pip);
@@ -66,19 +65,16 @@ impl CloudDriftSystem {
 
 impl Script for CloudDriftSystem {
     fn update(&mut self, ctx: &mut DomainView) {
-        if !self.initialized {
+        if self.clouds.is_empty() {
             self.spawn_clouds(ctx);
-            self.initialized = true;
         }
 
         for &pip in &self.clouds {
             if let Some(xform) =
                 gather_mut(&ctx.domain.ids, &mut ctx.domain.tables.core.xforms, pip)
+                && xform.xyz.x > CLOUD_WRAP_X
             {
-                xform.xyz.x += CLOUD_DRIFT_SPEED * ctx.dt;
-                if xform.xyz.x > CLOUD_WRAP_X {
-                    xform.xyz.x = -CLOUD_WRAP_X;
-                }
+                xform.xyz.x = -CLOUD_WRAP_X;
             }
         }
     }
