@@ -4,12 +4,19 @@ use std::{
 
 struct ExampleDomain {
     concept: HashSet<TypeId>,
-    pub tables: HashMap<TypeId, Box<dyn Tables+'static>>,
-    pub solvers: HashMap<TypeId, Box<dyn Solvers+'static>>,
-    pub scripts: HashMap<TypeId, Box<dyn Scripts+'static>>,
-    pub signals: HashMap<TypeId, Box<dyn Signals+'static>>,
+    pub tables: HashMap<TypeId, Box<dyn Tables>>,
+    pub solvers: HashMap<TypeId, Box<dyn Solvers>>,
+    pub scripts: HashMap<TypeId, Box<dyn Scripts>>,
+    pub signals: HashMap<TypeId, Box<dyn Signals>>,
 }
 impl ExampleDomain {
+    pub fn get_tables<T: Addition+'static>(&mut self) -> Option<&mut T::Tables> {
+        let id = TypeId::of::<T>();
+        let tables = self.tables.get_mut(&id) ?;
+        let tables = tables.as_mut();
+        let tables_any = tables as &mut dyn Any;
+        tables_any.downcast_mut::<T::Tables>()
+    }
     pub fn get<T: Addition+'static>(&mut self) -> Option<AsViewMut<'_, T>> {
         let id = TypeId::of::<T>();
         let tables = self.tables.get_mut(&id) ?;
@@ -129,12 +136,14 @@ trait Addition {
 mod test {
     use std::assert_matches;
 
-    use crate::addition::*;
+    use crate::{addition::*, ecs::{class::Class, class_strategy::GrowthStrategy}};
 
     #[derive(Debug)]
     struct CowboyWorld {}
     #[derive(Debug)]
-    struct CowboyTables {}
+    struct CowboyTables {
+        hats: Class<u32, ()>,
+    }
     impl Tables for CowboyTables {}
     #[derive(Debug)]
     struct CowboySolver {}
@@ -151,7 +160,9 @@ mod test {
         type Signals = ();
 
         fn make_tables() -> Self::Tables {
-            CowboyTables {}
+            CowboyTables {
+                hats: Class::new(GrowthStrategy::quart_kib::<u32>())
+            }
         }
 
         fn make_solvers() -> Self::Solvers {
@@ -179,5 +190,9 @@ mod test {
         let rslt = domain.add::<CowboyWorld>();
         println!("{rslt:#?}");
         assert_matches!(rslt, Ok(_));
+
+        let cowboy_tables = domain.get_tables::<CowboyWorld>()
+            .expect("Expect cowboyworld to exist by now.");
+        cowboy_tables.hats.stake(class_id, k)
     }
 }
