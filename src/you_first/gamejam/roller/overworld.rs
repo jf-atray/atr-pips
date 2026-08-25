@@ -297,6 +297,7 @@ impl OverworldScene {
             let texture_scope = &mut gpu_context.texture_scope;
 
             let white_pixel = texture_scope.white_pixel(&gpu_context.device, &gpu_context.queue);
+            let white_scale = Vec2::ONE / self.pixels_per_unit;
             let white_material = canvas
                 .add_sprite(
                     &gpu_context.device,
@@ -305,6 +306,7 @@ impl OverworldScene {
                     texture_scope,
                     white_pixel,
                     false,
+                    0.0,
                 )
                 .expect("failed to add white pixel sprite");
             world_billboard_material = canvas
@@ -315,9 +317,9 @@ impl OverworldScene {
                     texture_scope,
                     white_pixel,
                     true,
+                    0.5 * white_scale.y,
                 )
                 .expect("failed to add world billboard sprite");
-            let white_scale = Vec2::ONE / self.pixels_per_unit;
 
             pending.push((
                 "ground".to_string(),
@@ -372,7 +374,12 @@ impl OverworldScene {
                         log::warn!("failed to load sprite {}", path.display());
                         continue;
                     };
-                    let (billboard, _) = sprite_material_config(name);
+                    let Some((w, h)) = texture_scope.size(img_id) else {
+                        continue;
+                    };
+                    let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
+                    let (billboard, pivot) = sprite_material_config(name);
+                    let y_offset = if billboard { 0.5 * natural_scale.y } else { 0.0 } + pivot.y;
                     let Some(material) = canvas.add_sprite(
                         &gpu_context.device,
                         &gpu_context.queue,
@@ -380,14 +387,11 @@ impl OverworldScene {
                         texture_scope,
                         img_id,
                         billboard,
+                        y_offset,
                     ) else {
                         log::warn!("failed to add sprite {} to canvas", path.display());
                         continue;
                     };
-                    let Some((w, h)) = texture_scope.size(img_id) else {
-                        continue;
-                    };
-                    let natural_scale = Vec2::new(w as f32, h as f32) / self.pixels_per_unit;
                     pending.push((
                         name.to_string(),
                         material,

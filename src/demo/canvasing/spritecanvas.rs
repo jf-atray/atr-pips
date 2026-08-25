@@ -301,6 +301,7 @@ impl BasicSpriteCanvas {
         texture_scope: &TextureScope,
         img_id: ImgId,
         billboard: bool,
+        y_offset: f32,
     ) -> Option<MaterialId> {
         if self.materials.len() as u64 >= MAX_MATERIALS {
             return None;
@@ -312,7 +313,6 @@ impl BasicSpriteCanvas {
 
         let view = texture.create_view(&TextureViewDescriptor::default());
 
-        let y_offset = if billboard { 0.5 } else { 0.0 };
         let uniform = SpriteUniformDatum {
             natural_scale: [natural_scale.x, natural_scale.y, 1.0],
             y_offset,

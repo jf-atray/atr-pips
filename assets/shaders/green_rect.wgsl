@@ -45,10 +45,10 @@ fn vs_main(
 ) -> VertexOut {
     let matrix = unpack_affine(m0, m1, m2);
 
-    let offset_local = local + vec3<f32>(0.0, material.y_offset, 0.0);
-    let scaled_local = offset_local * material.natural_scale;
+    let scaled_local = local * material.natural_scale;
+    let offset_local = scaled_local + vec3<f32>(0.0, material.y_offset, 0.0);
 
-    let world = (matrix * vec4<f32>(scaled_local, 1.0)).xyz;
+    let world = (matrix * vec4<f32>(offset_local, 1.0)).xyz;
 
     var out: VertexOut;
     out.clip_position = view_proj * vec4<f32>(world, 1.0);
