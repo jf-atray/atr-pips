@@ -1,4 +1,6 @@
 #![feature(inherent_associated_types)]
+#![feature(associated_type_defaults)]
+#![feature(try_as_dyn)]
 #![feature(iter_macro)]
 #![feature(yield_expr)]
 #![feature(f16)]
@@ -11,6 +13,7 @@
 #![allow(incomplete_features)]
 #![allow(dead_code)]
 #![allow(clippy::cast_precision_loss, reason="Should levy f64 more.")]
+mod addition;
 mod anims;
 mod appscope;
 mod assets;
