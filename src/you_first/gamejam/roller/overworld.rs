@@ -10,6 +10,7 @@ use zerocopy::IntoBytes as _;
 use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver, SpriteInstance};
+use crate::anims::{AnimAddition, AnimSolver};
 use crate::gamescope::motion::MotionSolver;
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
@@ -20,6 +21,9 @@ use crate::spacial::transform::Transform;
 use crate::ecs::scope::Scope;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
+use crate::you_first::gamejam::duel::bundle::build_living_anim_library;
+use crate::you_first::gamejam::duel::dm::DungeonMaster;
+use crate::you_first::gamejam::duel::state::LivingAnimLib;
 use crate::you_first::gamejam::roller::bundles::player_roller_bundle;
 use crate::you_first::gamejam::roller::camera::CameraDirector;
 use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
@@ -47,7 +51,6 @@ fn sprite_material_config(name: &str) -> (bool, Vec3) {
         "grass" => (true, Vec3::new(0.0, -0.048_828_125, 0.0)),
         "crate" => (true, Vec3::new(0.0, -0.038_828_125, 0.0)),
         "building_right" | "building_left" => (true, Vec3::new(0.0, -0.49625, 0.0)),
-        "tumbleweed"
         | "player_fwd"
         | "player_fwd_old"
         | "player_happy"
@@ -115,6 +118,7 @@ impl Scene for OverworldScene {
 impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
         ctx.domain.tables.add(RollerAddition::new());
+        ctx.domain.tables.add(AnimAddition::new());
 
         let solver_id = ctx.gpu
             .canvas_renderer_mut()
@@ -125,13 +129,21 @@ impl OverworldScene {
         ctx.solvers.register(RollerProjectionSolver);
         ctx.solvers.register(BrushFlipSolver);
         ctx.solvers.register(MotionSolver);
+        ctx.solvers.register(AnimSolver);
+
+        let (living_lib, living_root) = build_living_anim_library();
+        let living_lib_id = ctx.domain.anim_libs.insert(living_lib);
+        let living_anim = LivingAnimLib {
+            lib: living_lib_id,
+            root_anim: living_root,
+        };
 
         let player = ctx
             .asset_registry
             .get("player_fwd")
             .unwrap_or(ctx.asset_registry.get("__white__").unwrap())
             .clone();
-        let player_id = self.spawn_player(ctx, &player);
+        let player_id = self.spawn_player(ctx, &player, &living_anim);
 
         self.player = Some(player_id);
 
@@ -255,6 +267,9 @@ impl OverworldScene {
             .register(PlayerLateralController::new(player_id));
         ctx.solvers.register(RollerSpawner::new(player_id));
         ctx.solvers.register(CloudDriftSystem::new());
+
+        ctx.solvers
+            .register(DungeonMaster::new(player_id, living_anim.clone(), None));
     }
 
     fn make_canvas(&mut self, ctx: &mut SceneContext, solver_id: CanvasSolverId) {
@@ -401,22 +416,7 @@ impl OverworldScene {
                 let mut written = 0;
                 let mut out = out;
                 for ((xform, brush), _material, _canvas_id) in slice {
-                    let instance = SpriteInstance {
-                        position: [xform.xyz.x, xform.xyz.y, xform.xyz.z],
-                        rotation: [
-                            xform.rot.x as f16,
-                            xform.rot.y as f16,
-                            xform.rot.z as f16,
-                            xform.rot.w as f16,
-                        ],
-                        scale: [brush.scale.x as f16, brush.scale.y as f16, 0.0f16, 0.0f16],
-                        color: [
-                            brush.color.x as f16,
-                            brush.color.y as f16,
-                            brush.color.z as f16,
-                            brush.color.w as f16,
-                        ],
-                    };
+                    let instance = SpriteInstance::new(xform, brush);
                     let bytes = instance.as_bytes();
                     let mut chunk = out.slice(written..written + bytes.len());
                     chunk.copy_from_slice(bytes);
@@ -470,6 +470,7 @@ impl OverworldScene {
         &mut self,
         ctx: &mut SceneContext,
         sprite: &SpriteEntry,
+        living_anim: &LivingAnimLib,
     ) -> PipId {
         ctx.domain.make(player_roller_bundle(
             sprite.canvas,
@@ -479,6 +480,7 @@ impl OverworldScene {
             Vec2::splat(1.28125),
             sprite.natural_scale,
             1.0,
+            living_anim,
         ))
     }
 

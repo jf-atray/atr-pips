@@ -54,6 +54,7 @@ macro_rules! partition {
         }
 
         impl $view {
+            #[allow(clippy::too_many_arguments)]
             pub fn with(&mut self, $($fname:$ftype, )+) -> &mut Self {
                 $(self.$fname = Some($fname); )+
                 self

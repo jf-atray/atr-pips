@@ -11,6 +11,9 @@ pub const Z_WORLD_NEAR: f32 = 0.25;
 pub const Z_WORLD_FAR: f32 = 0.75;
 pub const WALK_SPEED: f32 = 0.66;
 
+pub const DUEL_TRIGGER_DISTANCE: f32 = 1.8;
+pub const DUEL_SPAWN_DISTANCE: f32 = 7.75;
+
 const BEHIND_D: f32 = -10.0;
 
 pub fn depth_factor(d: f32) -> f32 {

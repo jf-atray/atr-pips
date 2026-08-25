@@ -1,7 +1,10 @@
+use crate::anims::AnimRules;
 use crate::gather::impls::gather_ref;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::ecs::PipId;
+use crate::you_first::gamejam::duel::bundle::build_tumbleweed_anim_library;
+use crate::you_first::gamejam::duel::state::TumbleweedAnimLib;
 use crate::you_first::gamejam::roller::biome::Biome;
 use crate::you_first::gamejam::roller::components::RollerAddition;
 
@@ -27,6 +30,7 @@ impl Lifecycle {
 pub struct RollerSpawner {
     player: PipId,
     biome: Lifecycle,
+    tumbleweed: Option<(TumbleweedAnimLib, AnimRules)>,
 }
 
 impl RollerSpawner {
@@ -34,6 +38,7 @@ impl RollerSpawner {
         Self {
             player,
             biome: Lifecycle::Pending,
+            tumbleweed: None,
         }
     }
 
@@ -50,14 +55,31 @@ impl Script for RollerSpawner {
             return;
         };
 
+        if self.tumbleweed.is_none() {
+            let (lib, root) = build_tumbleweed_anim_library();
+            let lib_id = ctx.domain.anim_libs.insert(lib);
+            let rules = ctx
+                .domain
+                .anim_libs
+                .get(lib_id)
+                .unwrap()
+                .get(root)
+                .unwrap()
+                .rules
+                .clone();
+            self.tumbleweed = Some((TumbleweedAnimLib { lib: lib_id, root_anim: root }, rules));
+        }
+
+        let tumbleweed = self.tumbleweed.clone();
+
         match &mut self.biome {
             Lifecycle::Pending => {
-                let mut biome = Biome::sparse_desert();
+                let mut biome = Biome::sparse_desert(tumbleweed);
                 biome.pre_seed(ctx.domain, ctx.asset_registry);
                 self.biome = Lifecycle::Sparse(biome);
             }
             Lifecycle::Sparse(biome) if walk_distance >= BIOME_SWAP_DISTANCE => {
-                let mut next = Biome::default_desert();
+                let mut next = Biome::default_desert(tumbleweed);
                 next.pre_seed(ctx.domain, ctx.asset_registry);
                 self.biome = Lifecycle::Default(next);
             },

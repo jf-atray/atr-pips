@@ -1,5 +1,6 @@
 use slotmap::SlotMap;
 
+use crate::anims::{AnimLibId, AnimationLibrary};
 use crate::ecs::{
     ClassId, ClassRowPtr, PipId,
     partition::Addition,
@@ -10,6 +11,7 @@ use crate::ecs::{
 #[derive(Debug)]
 pub struct Domain {
     pub tables: Tables,
+    pub anim_libs: SlotMap<AnimLibId, AnimationLibrary>,
     pub heading: SlotMap<ClassId, usize>,
     pub ids: SlotMap<PipId, ClassRowPtr>,
 }
@@ -22,6 +24,7 @@ impl Domain {
     pub fn with_tables(tables: Tables) -> Self {
         Self {
             tables,
+            anim_libs: SlotMap::with_key(),
             heading: SlotMap::with_key(),
             ids: SlotMap::with_key(),
         }
@@ -31,6 +34,7 @@ impl Domain {
         self.ids.clear();
         self.heading.clear();
         self.tables.clear();
+        self.anim_libs.clear();
     }
 
     pub fn make<M: Maker>(&mut self, maker: M) -> PipId {

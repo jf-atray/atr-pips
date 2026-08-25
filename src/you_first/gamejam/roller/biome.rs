@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use glam::{Vec2, Vec3};
 
+use crate::anims::{AnimKeyframe, AnimRules, AnimSpin, AnimTime, AnimView, AnimXyz};
 use crate::assets::SpriteEntry;
 use crate::ecs::domain::Domain;
 use crate::ecs::scope::Maker;
+use crate::you_first::gamejam::duel::state::TumbleweedAnimLib;
 use crate::you_first::gamejam::roller::bundles::roller_body;
 use crate::you_first::gamejam::roller::components::{BrushFlip, RollerDepth};
 use crate::you_first::gamejam::roller::projection::{FAR_Z, NEAR_Z};
@@ -46,7 +48,6 @@ pub struct ScatterChannel {
     material: &'static str,
     interval: f32,
     lateral_range: f32,
-    /// World-space sprite size (width, height) at full projection.
     size: Vec2,
     scalar: f32,
     placement: Placement,
@@ -100,6 +101,7 @@ impl ScatterChannel {
         lateral: f32,
         d: f32,
         is_left: bool,
+        tumbleweed: Option<(TumbleweedAnimLib, AnimRules)>,
     ) -> impl Maker {
         let is_flipped = match self.flip_mode {
             FlipMode::None => false,
@@ -121,24 +123,43 @@ impl ScatterChannel {
             base_scale,
         };
         let brush_flip = BrushFlip { is_flipped };
-        roller_body(
+        let body = roller_body(
             canvas,
             mat,
             Vec3::new(0.0, 0.0, 1.0),
             String::new(),
             roller_depth,
             brush_flip,
-        )
+        );
+        let is_tumbleweed = self.material == "tumbleweed";
+        move |scope: &mut crate::ecs::scope::Scope| {
+            body.make_into(scope);
+            if is_tumbleweed && let Some((lib, rules)) = &tumbleweed {
+                let av = scope.view::<AnimView>().unwrap();
+                av.anim_times = Some(AnimTime(0.0));
+                av.anim_keyframes = Some(AnimKeyframe {
+                    id: lib.root_anim,
+                    lib: lib.lib,
+                });
+                av.anim_spins = Some(AnimSpin {
+                    func: rules.spin.clone(),
+                    rot_base: 0.0,
+                });
+                av.anim_xyzs = Some(AnimXyz(rules.xyz.clone()));
+            }
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct Biome {
     channels: Vec<ScatterChannel>,
+    tumbleweed: Option<(TumbleweedAnimLib, AnimRules)>,
 }
 
 impl Biome {
     pub fn pre_seed(&mut self, domain: &mut Domain, asset_registry: &HashMap<String, SpriteEntry>) {
+        let tumbleweed = self.tumbleweed.clone();
         for channel in &mut self.channels {
             if !channel.motion.pre_seed {
                 continue;
@@ -148,7 +169,7 @@ impl Biome {
             let mut d = FAR_Z - step;
             while d >= NEAR_Z {
                 let (lateral, is_left) = channel.place();
-                domain.make(channel.to_maker(asset_registry, lateral, d, is_left));
+                domain.make(channel.to_maker(asset_registry, lateral, d, is_left, tumbleweed.clone()));
                 d -= step;
             }
         }
@@ -160,18 +181,19 @@ impl Biome {
         asset_registry: &HashMap<String, SpriteEntry>,
         walk_distance: f32,
     ) {
+        let tumbleweed = self.tumbleweed.clone();
         for channel in &mut self.channels {
             while walk_distance >= channel.next_spawn {
                 channel.next_spawn += channel.interval;
 
                 let d = channel.motion.spawn_depth;
                 let (lateral, is_left) = channel.place();
-                domain.make(channel.to_maker(asset_registry, lateral, d, is_left));
+                domain.make(channel.to_maker(asset_registry, lateral, d, is_left, tumbleweed.clone()));
             }
         }
     }
 
-    pub fn sparse_desert() -> Self {
+    pub fn sparse_desert(tumbleweed: Option<(TumbleweedAnimLib, AnimRules)>) -> Self {
         Self {
             channels: vec![
                 ScatterChannel {
@@ -239,10 +261,11 @@ impl Biome {
                     left_side: true,
                 },
             ],
+            tumbleweed,
         }
     }
 
-    pub fn default_desert() -> Self {
+    pub fn default_desert(tumbleweed: Option<(TumbleweedAnimLib, AnimRules)>) -> Self {
         Self {
             channels: vec![
                 ScatterChannel {
@@ -346,6 +369,7 @@ impl Biome {
                     left_side: true,
                 },
             ],
+            tumbleweed,
         }
     }
 }

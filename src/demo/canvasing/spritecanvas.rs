@@ -5,7 +5,7 @@ use zerocopy::IntoBytes as _;
 
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
-use glam::Vec2;
+use glam::{Vec2, Vec3};
 use slotmap::SecondaryMap;
 use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 use wgpu::{
@@ -175,23 +175,23 @@ impl BasicSpriteCanvas {
                         step_mode: VertexStepMode::Instance,
                         attributes: &[
                             VertexAttribute {
-                                format: VertexFormat::Float32x3,
+                                format: VertexFormat::Float16x4,
                                 offset: 0,
                                 shader_location: 2,
                             },
                             VertexAttribute {
                                 format: VertexFormat::Float16x4,
-                                offset: 12,
+                                offset: 8,
                                 shader_location: 3,
                             },
                             VertexAttribute {
                                 format: VertexFormat::Float16x4,
-                                offset: 20,
+                                offset: 16,
                                 shader_location: 4,
                             },
                             VertexAttribute {
                                 format: VertexFormat::Float16x4,
-                                offset: 28,
+                                offset: 24,
                                 shader_location: 5,
                             },
                         ],
@@ -566,10 +566,41 @@ impl CanvasSolver for SpriteCanvasSolver {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, zerocopy::IntoBytes, zerocopy::Immutable)]
 pub(crate) struct SpriteInstance {
-    pub(crate) position: [f32; 3],
-    pub(crate) rotation: [f16; 4],
-    pub(crate) scale: [f16; 4],
+    /// Packed `mat4x3<f16>` (3 rows, 4 columns) affine transform.
+    /// Stored as 12 contiguous `f16`s split across three `Float16x4` attributes.
+    pub(crate) m: [[f16; 4]; 3],
     pub(crate) color: [f16; 4],
+}
+
+impl SpriteInstance {
+    pub(crate) fn new(xform: &Transform, brush: &Brush) -> Self {
+        let s = brush.scale;
+        let sh = brush.sheer;
+        let q = xform.rot;
+
+        let hsc0 = Vec3::new(s.x, s.x * sh.y, 0.0);
+        let hsc1 = Vec3::new(s.y * sh.x, s.y, 0.0);
+        let hsc2 = Vec3::new(0.0, 0.0, s.z);
+
+        let c0 = q.mul_vec3(hsc0);
+        let c1 = q.mul_vec3(hsc1);
+        let c2 = q.mul_vec3(hsc2);
+        let c3 = xform.xyz + brush.offset;
+
+        Self {
+            m: [
+                [c0.x as f16, c0.y as f16, c0.z as f16, c1.x as f16],
+                [c1.y as f16, c1.z as f16, c2.x as f16, c2.y as f16],
+                [c2.z as f16, c3.x as f16, c3.y as f16, c3.z as f16],
+            ],
+            color: [
+                brush.color.x as f16,
+                brush.color.y as f16,
+                brush.color.z as f16,
+                brush.color.w as f16,
+            ],
+        }
+    }
 }
 
 fn make_material_uniforms(device: &Device) -> MaterialUniforms {
