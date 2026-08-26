@@ -1,6 +1,4 @@
 #![feature(inherent_associated_types)]
-#![feature(associated_type_defaults)]
-#![feature(try_as_dyn)]
 #![feature(iter_macro)]
 #![feature(yield_expr)]
 #![feature(f16)]

@@ -1,0 +1,33 @@
+use std::{any::TypeId, collections::HashMap, fmt::Debug};
+
+use downcast_rs::Downcast;
+
+pub(super) struct TypedMap<T: ?Sized>(HashMap<TypeId, Box<T>>);
+
+impl<T: ?Sized> TypedMap<T> {
+    pub fn insert<K: 'static>(&mut self, value: Box<T>) {
+        let id = TypeId::of::<K>();
+        self.0.insert(id, value);
+    }
+}
+
+impl<T: ?Sized + Downcast> TypedMap<T> {
+    pub fn get_mut<K: 'static, U: 'static>(&mut self) -> Option<&mut U> {
+        let id = TypeId::of::<K>();
+        let value = self.0.get_mut(&id)?;
+        let inner = value.as_mut();
+        inner.as_any_mut().downcast_mut::<U>()
+    }
+}
+
+impl<T: ?Sized> Default for TypedMap<T> {
+    fn default() -> Self {
+        Self(HashMap::default())
+    }
+}
+
+impl<T: ?Sized> Debug for TypedMap<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TypedMap").finish()
+    }
+}
