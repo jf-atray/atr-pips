@@ -1,6 +1,6 @@
 use super::traits::{Tables, Solvers, Scripts, Signals};
 
-pub(super) trait Addition {
+pub trait Addition {
     type Tables: Tables;
     type Solvers: Solvers;
     type Scripts: Scripts;

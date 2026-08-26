@@ -5,46 +5,62 @@ use crate::{
     ecs::{class::Class, class_strategy::GrowthStrategy},
 };
 
-#[derive(Debug)]
-struct CowboyWorld {}
-#[derive(Debug)]
-struct CowboyTables {
-    hats: Class<u32, ()>,
+#[derive(Debug, Default)]
+struct HatSolver {
+    drawn: u32,
 }
-impl Tables for CowboyTables {}
-#[derive(Debug)]
-struct CowboySolver {}
-impl Solver for CowboySolver {}
-impl Scripts for () {}
-impl Signals for () {}
-impl Addition for CowboyWorld {
-    type Tables = CowboyTables;
-    type Solvers = CowboySolver;
-    type Scripts = ();
-    type Signals = ();
 
-    fn make_tables() -> Self::Tables {
-        CowboyTables {
+impl HatSolver {
+    fn update(
+        &mut self,
+        tables: &mut TypedMap<dyn Tables>,
+        _scripts: &mut TypedMap<dyn Scripts>,
+        _signals: &mut TypedMap<dyn Signals>,
+    ) {
+        self.drawn += 1;
+        let _ = tables.get_mut::<CowboyWorld, CowboyTables>();
+    }
+}
+
+#[derive(Debug, Default)]
+struct BootSolver {
+    worn: u32,
+}
+
+impl BootSolver {
+    fn update(
+        &mut self,
+        tables: &mut TypedMap<dyn Tables>,
+        _scripts: &mut TypedMap<dyn Scripts>,
+        _signals: &mut TypedMap<dyn Signals>,
+    ) {
+        self.worn += 1;
+        let _ = tables.get_mut::<CowboyWorld, CowboyTables>();
+    }
+}
+
+addition! {
+    #[derive(Debug)]
+    CowboyWorld {
+        tables: CowboyTables {
+            hats: Class<u32, ()>,
+        } = CowboyTables {
             hats: Class::new(GrowthStrategy::quart_kib::<u32>()),
-        }
-    }
-
-    fn make_solvers() -> Self::Solvers {
-        CowboySolver {}
-    }
-
-    fn make_scripts() -> Self::Scripts {
-        ()
-    }
-
-    fn make_signals() -> Self::Signals {
-        ()
+        },
+        solvers: CowboySolvers {
+            hats: HatSolver,
+            boots: BootSolver,
+        } = CowboySolvers {
+            hats: HatSolver::default(),
+            boots: BootSolver::default(),
+        },
+        scripts: CowboyScripts {} = CowboyScripts {},
+        signals: CowboySignals {} = CowboySignals {},
     }
 }
 #[test]
 pub fn creation() {
     let mut domain = ExampleDomain::default();
-
     let rslt = domain.add::<CowboyWorld>();
     println!("{rslt:#?}");
     assert_matches!(rslt, Ok(_));

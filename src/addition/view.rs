@@ -2,7 +2,7 @@ use super::addition::Addition;
 use super::traits::{Tables, Solvers, Scripts, Signals};
 
 #[derive(Debug)]
-pub(super) struct ViewMut<'domain, T, K, M, N>
+pub struct ViewMut<'domain, T, K, M, N>
 where
     T: Tables,
     K: Solvers,
@@ -37,7 +37,7 @@ where
     }
 }
 
-pub(super) type AsViewMut<'a, A> = ViewMut<
+pub type AsViewMut<'a, A> = ViewMut<
     'a,
     <A as Addition>::Tables,
     <A as Addition>::Solvers,

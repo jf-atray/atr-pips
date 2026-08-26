@@ -4,7 +4,7 @@ use super::typed_map::TypedMap;
 use super::view::AsViewMut;
 
 #[derive(Default, Debug)]
-pub(super) struct ExampleDomain {
+pub struct ExampleDomain {
     pub tables: TypedMap<dyn Tables>,
     pub solvers: TypedMap<dyn Solvers>,
     pub scripts: TypedMap<dyn Scripts>,
@@ -29,5 +29,11 @@ impl ExampleDomain {
         self.signals.insert::<T>(Box::new(T::make_signals()));
 
         self.get::<T>().ok_or(())
+    }
+
+    pub fn update_solvers(&mut self) {
+        for solver in self.solvers.iter_mut() {
+            solver.update(&mut self.tables, &mut self.scripts, &mut self.signals);
+        }
     }
 }

@@ -2,7 +2,7 @@ use std::{any::TypeId, collections::HashMap, fmt::Debug};
 
 use downcast_rs::Downcast;
 
-pub(super) struct TypedMap<T: ?Sized>(HashMap<TypeId, Box<T>>);
+pub struct TypedMap<T: ?Sized>(HashMap<TypeId, Box<T>>);
 
 impl<T: ?Sized> TypedMap<T> {
     pub fn insert<K: 'static>(&mut self, value: Box<T>) {
@@ -18,7 +18,12 @@ impl<T: ?Sized + Downcast> TypedMap<T> {
         let inner = value.as_mut();
         inner.as_any_mut().downcast_mut::<U>()
     }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.0.values_mut().map(|b| b.as_mut())
+    }
 }
+
 
 impl<T: ?Sized> Default for TypedMap<T> {
     fn default() -> Self {

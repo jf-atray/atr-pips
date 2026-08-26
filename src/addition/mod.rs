@@ -1,14 +1,19 @@
+#[macro_use]
+mod macros;
+
 mod addition;
 mod domain;
 mod traits;
 mod typed_map;
 mod view;
 
-pub(super) use addition::Addition;
-pub(super) use domain::ExampleDomain;
-pub(super) use traits::{Signals, Solver, Solvers, Tables, Scripts};
-pub(super) use typed_map::TypedMap;
-pub(super) use view::{AsViewMut, ViewMut};
+#[allow(unused_imports)]
+pub use {
+    addition::Addition,
+    domain::ExampleDomain,
+    traits::{Signals, Solver, Solvers, Tables, Scripts},
+    typed_map::TypedMap,
+};
 
 #[cfg(test)]
 mod test;

@@ -1,12 +1,21 @@
 use downcast_rs::{Downcast, impl_downcast};
 
-pub(super) trait Tables: Downcast {}
-pub(super) trait Solvers: Downcast {}
-pub(super) trait Solver: Downcast {}
-impl<T: Solver> Solvers for T {}
+use super::typed_map::TypedMap;
 
-pub(super) trait Scripts: Downcast {}
-pub(super) trait Signals: Downcast {}
+pub trait Tables: Downcast {}
+pub trait Solver: Downcast {}
+
+pub trait Solvers: Downcast {
+    fn update(
+        &mut self,
+        tables: &mut TypedMap<dyn Tables>,
+        scripts: &mut TypedMap<dyn Scripts>,
+        signals: &mut TypedMap<dyn Signals>,
+    );
+}
+
+pub trait Scripts: Downcast {}
+pub trait Signals: Downcast {}
 
 impl_downcast!(Tables);
 impl_downcast!(Solvers);
