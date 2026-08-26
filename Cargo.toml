@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 atr-plex = { version = "0.2.0", features = ["inherent_associated_types"] }
 bumpalo = { version = "3.20.3", features = ["collections"] }
+downcast-rs = "2.0.2"
 glam = { version = "0.33.3", features = ["zerocopy"] }
 image = { version = "0.25.0", default-features = false, features = ["png"] }
 log = "0.4.33"
