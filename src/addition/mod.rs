@@ -1,21 +1,39 @@
 use std::{
-    any::{Any, TypeId, try_as_dyn_mut}, collections::{HashMap, HashSet},
+    any::{Any, TypeId, try_as_dyn_mut}, collections::{HashMap, HashSet}, fmt::Debug,
 };
 
+#[derive(Default, Debug)]
 struct ExampleDomain {
-    concept: HashSet<TypeId>,
-    pub tables: HashMap<TypeId, Box<dyn Tables>>,
-    pub solvers: HashMap<TypeId, Box<dyn Solvers>>,
-    pub scripts: HashMap<TypeId, Box<dyn Scripts>>,
-    pub signals: HashMap<TypeId, Box<dyn Signals>>,
+    pub tables: TypedMap<dyn Tables>,
+    pub solvers: TypedMap<dyn Solvers>,
+    pub scripts: TypedMap<dyn Scripts>,
+    pub signals: TypedMap<dyn Signals>,
+}
+
+
+struct TypedMap<T: ?Sized>(HashMap<TypeId, Box<T>>);
+impl<T: Any> TypedMap<T> {
+    pub fn get<K: 'static, U: 'static>(&mut self) -> Option<&mut U> {
+        let id = TypeId::of::<K>();
+        let tables = self.0.get_mut(&id) ?;
+        let tables = tables.as_mut();
+        let tables_any = tables as &mut dyn Any;
+        tables_any.downcast_mut::<U>()
+    }
+}
+impl<T: ?Sized> Default for TypedMap<T> {
+    fn default() -> Self {
+        Self(HashMap::default())
+    }
+}
+impl<T: ?Sized> Debug for TypedMap<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TypedMap").finish()//not very descriptive
+    }
 }
 impl ExampleDomain {
     pub fn get_tables<T: Addition+'static>(&mut self) -> Option<&mut T::Tables> {
-        let id = TypeId::of::<T>();
-        let tables = self.tables.get_mut(&id) ?;
-        let tables = tables.as_mut();
-        let tables_any = tables as &mut dyn Any;
-        tables_any.downcast_mut::<T::Tables>()
+        self.tables.
     }
     pub fn get<T: Addition+'static>(&mut self) -> Option<AsViewMut<'_, T>> {
         let id = TypeId::of::<T>();
@@ -180,7 +198,6 @@ mod test {
     #[test]
     pub fn creation() {
         let mut domain = ExampleDomain {
-            concept: HashSet::new(),
             tables: HashMap::new(),
             solvers: HashMap::new(),
             scripts: HashMap::new(),
@@ -193,6 +210,5 @@ mod test {
 
         let cowboy_tables = domain.get_tables::<CowboyWorld>()
             .expect("Expect cowboyworld to exist by now.");
-        cowboy_tables.hats.stake(class_id, k)
     }
 }
