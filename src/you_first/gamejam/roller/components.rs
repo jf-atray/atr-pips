@@ -32,7 +32,7 @@ addition! {
             brush_flips: Class<BrushFlip> = Class::new(GrowthStrategy::quart_kib::<BrushFlip>()),
         },
         solvers: {
-            //todo, missing its solvers here...
+            brush_flip: super::brush_flip::BrushFlipSolver = super::brush_flip::BrushFlipSolver,
         },
         scripts: {},
         signals: {},

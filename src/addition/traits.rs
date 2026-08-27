@@ -1,7 +1,7 @@
 use downcast_rs::{Downcast, impl_downcast};
 
 use crate::ecs::partition::Partition;
-use super::typed_map::TypedMap;
+use super::domain::{TablesMap, SolversMap, ScriptsMap, SignalsMap};
 
 pub trait Tables: Downcast + Partition {}
 pub trait Solver: Downcast {}
@@ -10,9 +10,9 @@ pub trait Solvers: Downcast {
     fn update(
         &mut self,
         dt: f32,
-        tables: &mut TypedMap<dyn Tables>,
-        scripts: &mut TypedMap<dyn Scripts>,
-        signals: &mut TypedMap<dyn Signals>,
+        tables: &mut TablesMap,
+        scripts: &mut ScriptsMap,
+        signals: &mut SignalsMap,
     );
 }
 

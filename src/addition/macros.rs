@@ -37,9 +37,9 @@ macro_rules! addition {
                 fn update(
                     &mut self,
                     dt: f32,
-                    tables: &mut $crate::addition::TypedMap<dyn $crate::addition::Tables>,
-                    scripts: &mut $crate::addition::TypedMap<dyn $crate::addition::Scripts>,
-                    signals: &mut $crate::addition::TypedMap<dyn $crate::addition::Signals>,
+                    tables: &mut $crate::addition::TablesMap,
+                    scripts: &mut $crate::addition::ScriptsMap,
+                    signals: &mut $crate::addition::SignalsMap,
                 ) {
                     $(self.$sfield.update(dt, tables, scripts, signals);)*
                 }

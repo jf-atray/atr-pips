@@ -10,7 +10,13 @@ mod view;
 #[allow(unused_imports)]
 pub use {
     addition::Addition,
-    domain::ExampleDomain,
+    domain::{
+        ExampleDomain,
+        TablesMap,
+        SolversMap,
+        ScriptsMap,
+        SignalsMap,
+    },
     traits::{Signals, Solver, Solvers, Tables, Scripts},
     typed_map::TypedMap,
 };
