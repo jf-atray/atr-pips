@@ -389,8 +389,8 @@ impl DungeonMaster {
             ));
             if matches!(spec.kind, BadGuyKind::Offscreen { .. }) {
                 //todo this is supposed to be gather
-                if let Some(ptr) = ctx.domain.ids.get(pip)
-                && let Some(brush) = ctx.domain.tables.core.brushes.get_row(ptr)
+                if let Some(ptr) = ctx.domain.pips.ids.get(pip)
+                && let Some(brush) = ctx.domain.pips.tables.core.brushes.get_row_mut(ptr)
                 {
                     brush.color.w = 0.0;
                 }
@@ -425,8 +425,8 @@ impl DungeonMaster {
             ));
             if matches!(spec.kind, TownspersonKind::Offscreen { .. }) {
                 //gather...
-                if let Some(ptr) = ctx.domain.ids.get(pip)
-                && let Some(brush) = ctx.domain.tables.core.brushes.get_row(ptr)
+                if let Some(ptr) = ctx.domain.pips.ids.get(pip)
+                && let Some(brush) = ctx.domain.pips.tables.core.brushes.get_row_mut(ptr)
                 {
                     brush.color.w = 0.0;
                 }
@@ -435,12 +435,12 @@ impl DungeonMaster {
         }
     }
 
-    fn check_trigger(&self, ctx: &DomainView) -> bool {
-        let Some(roller) = RollerWorld::tables(&mut ctx.domain.tables) else {
+    fn check_trigger(&self, ctx: &mut DomainView) -> bool {
+        let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) else {
             return false;
         };
         for (pip, _) in &self.spawned {
-            if let Some(ptr) = ctx.domain.ids.get(*pip) {
+            if let Some(ptr) = ctx.domain.pips.ids.get(*pip) {
                 if let Some(depth) = roller.roller_depths.get_row(ptr) {
                     if depth.d <= DUEL_TRIGGER_DISTANCE {
                         return true;
@@ -449,7 +449,7 @@ impl DungeonMaster {
             }
         }
         for (pip, _) in &self.spawned_townspeople {
-            if let Some(ptr) = ctx.domain.ids.get(*pip) {
+            if let Some(ptr) = ctx.domain.pips.ids.get(*pip) {
                 if let Some(depth) = roller.roller_depths.get_row(ptr) {
                     if depth.d <= DUEL_TRIGGER_DISTANCE {
                         return true;
@@ -468,8 +468,8 @@ impl Script for DungeonMaster {
         if self.phase == DmPhase::WaitingToSpawn && self.challenge_index == 0 {
             if let Some(retry) = self.retry.take() {
                 self.challenge_index = retry.challenge_index;
-                if let Some(roller) = RollerWorld::tables(&mut ctx.domain.tables) {
-                    if let Some(ptr) = ctx.domain.ids.get(self.player)
+                if let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) {
+                    if let Some(ptr) = ctx.domain.pips.ids.get(self.player)
                         && let Some(depth) = roller.roller_depths.get_row_mut(ptr)
                     {
                         depth.d = retry.player_d;
