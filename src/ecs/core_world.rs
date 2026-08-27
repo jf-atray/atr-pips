@@ -14,25 +14,17 @@ addition! {
     #[derive(Debug)]
     CoreWorld {
         tables: CoreTables {
-            xforms: Class<Transform, ()>,
-            brushes: Class<Brush>,
-            names: Class<String>,
-            motions: Class<Motion>,
-            pip_ids: Class<PipId>,
-        } = CoreTables {
-            xforms: Class::new(GrowthStrategy::quart_kib::<Transform>()),
-            brushes: Class::new(GrowthStrategy::quart_kib::<Brush>()),
-            names: Class::new(GrowthStrategy::quart_kib::<String>()),
-            motions: Class::new(GrowthStrategy::quart_kib::<Motion>()),
-            pip_ids: Class::new(GrowthStrategy::quart_kib::<PipId>()),
+            xforms: Class<Transform, ()> = Class::new(GrowthStrategy::quart_kib::<Transform>()),
+            brushes: Class<Brush> = Class::new(GrowthStrategy::quart_kib::<Brush>()),
+            names: Class<String> = Class::new(GrowthStrategy::quart_kib::<String>()),
+            motions: Class<Motion> = Class::new(GrowthStrategy::quart_kib::<Motion>()),
+            pip_ids: Class<PipId> = Class::new(GrowthStrategy::quart_kib::<PipId>()),
         },
         solvers: CoreSolvers {
-            motion: MotionSolver,
-        } = CoreSolvers {
-            motion: MotionSolver,
+            motion: MotionSolver = MotionSolver,
         },
-        scripts: CoreScripts {} = CoreScripts {},
-        signals: CoreSignals {} = CoreSignals {},
+        scripts: CoreScripts {},
+        signals: CoreSignals {},
     }
 }
 

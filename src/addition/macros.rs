@@ -3,10 +3,10 @@ macro_rules! addition {
     (
         $(#[$meta:meta])*
         $world:ident {
-            tables: $tables:ident { $($tfield:ident : $tty:ty),* $(,)? } = $tables_expr:expr,
-            solvers: $solvers:ident { $($sfield:ident : $sty:ty),+ $(,)? } = $solvers_expr:expr,
-            scripts: $scripts:ident { $($cfield:ident : $cty:ty),* $(,)? } = $scripts_expr:expr,
-            signals: $signals:ident { $($gfield:ident : $gty:ty),* $(,)? } = $signals_expr:expr,
+            tables: $tables:ident { $($tfield:ident : $tty:ty = $texpr:expr),+ $(,)? },
+            solvers: $solvers:ident { $($sfield:ident : $sty:ty = $sexpr:expr),+ $(,)? },
+            scripts: $scripts:ident { $($cfield:ident : $cty:ty = $cexpr:expr),* $(,)? },
+            signals: $signals:ident { $($gfield:ident : $gty:ty = $gexpr:expr),* $(,)? },
         }
     ) => {
         $(#[$meta])*
@@ -14,7 +14,7 @@ macro_rules! addition {
 
         $(#[$meta])*
         struct $tables {
-            $($tfield: $tty),*
+            $($tfield: $tty),+
         }
         impl $crate::addition::Tables for $tables {}
 
@@ -55,10 +55,10 @@ macro_rules! addition {
             type Scripts = $scripts;
             type Signals = $signals;
 
-            fn make_tables() -> Self::Tables { $tables_expr }
-            fn make_solvers() -> Self::Solvers { $solvers_expr }
-            fn make_scripts() -> Self::Scripts { $scripts_expr }
-            fn make_signals() -> Self::Signals { $signals_expr }
+            fn make_tables() -> Self::Tables { $tables { $($tfield: $texpr),+ } }
+            fn make_solvers() -> Self::Solvers { $solvers { $($sfield: $sexpr),+ } }
+            fn make_scripts() -> Self::Scripts { $scripts { $($cfield: $cexpr),* } }
+            fn make_signals() -> Self::Signals { $signals { $($gfield: $gexpr),* } }
         }
     };
 }

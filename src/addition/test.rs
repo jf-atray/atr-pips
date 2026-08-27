@@ -45,19 +45,14 @@ addition! {
     #[derive(Debug)]
     CowboyWorld {
         tables: CowboyTables {
-            hats: Class<u32, ()>,
-        } = CowboyTables {
-            hats: Class::new(GrowthStrategy::quart_kib::<u32>()),
+            hats: Class<u32, ()> = Class::new(GrowthStrategy::quart_kib::<u32>()),
         },
         solvers: CowboySolvers {
-            hats: HatSolver,
-            boots: BootSolver,
-        } = CowboySolvers {
-            hats: HatSolver::default(),
-            boots: BootSolver::default(),
+            hats: HatSolver = HatSolver::default(),
+            boots: BootSolver = BootSolver::default(),
         },
-        scripts: CowboyScripts {} = CowboyScripts {},
-        signals: CowboySignals {} = CowboySignals {},
+        scripts: CowboyScripts {},
+        signals: CowboySignals {},
     }
 }
 #[test]
