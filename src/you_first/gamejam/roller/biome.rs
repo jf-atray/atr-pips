@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use glam::{Vec2, Vec3};
 
-use crate::anims::{AnimKeyframe, AnimRules, AnimSpin, AnimTime, AnimView, AnimXyz};
+use crate::anims::{AnimKeyframe, AnimRules, AnimSpin, AnimTime, AnimWorld, AnimXyz};
 use crate::assets::SpriteEntry;
 use crate::addition::ExampleDomain;
 use crate::ecs::scope::Maker;
@@ -135,7 +135,7 @@ impl ScatterChannel {
         move |scope: &mut crate::ecs::scope::Scope| {
             body.make_into(scope);
             if is_tumbleweed && let Some((lib, rules)) = &tumbleweed {
-                let av = scope.view::<AnimView>().unwrap();
+                let av = scope.view::<AnimWorld>().unwrap();
                 av.anim_times = Some(AnimTime(0.0));
                 av.anim_keyframes = Some(AnimKeyframe {
                     id: lib.root_anim,
