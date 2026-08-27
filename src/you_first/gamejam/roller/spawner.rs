@@ -44,8 +44,8 @@ impl RollerSpawner {
     }
 
     fn player_walk_distance(&self, ctx: &mut DomainView) -> Option<f32> {
-        let roller = RollerWorld::tables(&mut ctx.domain.tables)?;
-        let player = gather_ref(&ctx.domain.ids, &roller.roller_players, self.player)?;
+        let roller = RollerWorld::tables(&mut ctx.domain.pips.tables)?;
+        let player = gather_ref(&ctx.domain.pips.ids, &roller.roller_players, self.player)?;
         Some(player.walk_distance)
     }
 }
@@ -58,9 +58,10 @@ impl Script for RollerSpawner {
 
         if self.tumbleweed.is_none() {
             let (lib, root) = build_tumbleweed_anim_library();
-            let lib_id = ctx.domain.anim_libs.insert(lib);
+            let lib_id = ctx.domain.pips.anim_libs.insert(lib);
             let rules = ctx
                 .domain
+                .pips
                 .anim_libs
                 .get(lib_id)
                 .unwrap()
