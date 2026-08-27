@@ -1,55 +1,27 @@
+use std::collections::HashMap;
+
 use slotmap::SlotMap;
 
 use crate::anims::{AnimLibId, AnimationLibrary};
+use crate::assets::SpriteEntry;
 use crate::ecs::core::CoreWorld;
 use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}, system::{SystemAddition, SystemView, SystemWorld}};
+use crate::input::Input;
 
 use super::addition::Addition;
 use super::traits::{Tables, Solvers, Scripts, Signals};
 use super::typed_map::TypedMap;
 use super::view::AsViewMut;
 
-#[derive(Default, Debug)]
-pub struct ExampleDomain {
+#[derive(Debug)]
+pub struct Pips {
     pub tables: TablesMap,
-    pub solvers: SolversMap,
-    pub scripts: ScriptsMap,
-    pub signals: SignalsMap,
-    pub anim_libs: SlotMap<AnimLibId, AnimationLibrary>,
+    pub ids: Ids,
+    pub anim_libs: AnimLibs,
     pub heading: SlotMap<ClassId, usize>,
-    pub ids: SlotMap<PipId, ClassRowPtr>,
 }
-pub type TablesMap = TypedMap<dyn Tables, <CoreWorld as Addition>::Tables>;
-pub type SolversMap = TypedMap<dyn Solvers, <CoreWorld as Addition>::Solvers>;
-pub type ScriptsMap = TypedMap<dyn Scripts, <CoreWorld as Addition>::Scripts>;
-pub type SignalsMap = TypedMap<dyn Signals, <CoreWorld as Addition>::Signals>;
 
-impl ExampleDomain {
-    pub fn get<T: Addition + 'static>(&mut self) -> Option<AsViewMut<'_, T>> {
-        let tables = self.tables.get_mut::<T, T::Tables>()?;
-        let solvers = self.solvers.get_mut::<T, T::Solvers>()?;
-        let scripts = self.scripts.get_mut::<T, T::Scripts>()?;
-        let signals = self.signals.get_mut::<T, T::Signals>()?;
-
-        let view = AsViewMut::<T>::new(tables, solvers, scripts, signals);
-        Some(view)
-    }
-
-    pub fn add<T: Addition + 'static>(&mut self) -> Result<AsViewMut<'_, T>, ()> {
-        self.tables.insert::<T>(Box::new(T::make_tables()));
-        self.solvers.insert::<T>(Box::new(T::make_solvers()));
-        self.scripts.insert::<T>(Box::new(T::make_scripts()));
-        self.signals.insert::<T>(Box::new(T::make_signals()));
-
-        self.get::<T>().ok_or(())
-    }
-
-    pub fn update_solvers(&mut self, dt: f32) {
-        for solver in self.solvers.iter_mut() {
-            solver.update(dt, &mut self.tables, &mut self.scripts, &mut self.signals);
-        }
-    }
-
+impl Pips {
     pub fn clear(&mut self) {
         self.ids.clear();
         self.heading.clear();
@@ -126,5 +98,71 @@ impl ExampleDomain {
         let class_id = class_id.unwrap_or_else(|| self.heading.insert(width));
         let row_idx = scope.commit(class_id, &mut self.tables).unwrap();
         ClassRowPtr::new(class_id, row_idx)
+    }
+}
+
+#[derive(Debug)]
+pub struct ExampleDomain {
+    pub pips: Pips,
+    pub solvers: SolversMap,
+    pub scripts: ScriptsMap,
+    pub signals: SignalsMap,
+}
+
+pub type TablesMap = TypedMap<dyn Tables, <CoreWorld as Addition>::Tables>;
+pub type SolversMap = TypedMap<dyn Solvers, <CoreWorld as Addition>::Solvers>;
+pub type ScriptsMap = TypedMap<dyn Scripts, <CoreWorld as Addition>::Scripts>;
+pub type SignalsMap = TypedMap<dyn Signals, <CoreWorld as Addition>::Signals>;
+pub type Ids = SlotMap<PipId, ClassRowPtr>;
+pub type AnimLibs = SlotMap<AnimLibId, AnimationLibrary>;
+
+impl ExampleDomain {
+    pub fn get<T: Addition + 'static>(&mut self) -> Option<AsViewMut<'_, T>> {
+        let tables = self.pips.tables.get_mut::<T, T::Tables>()?;
+        let solvers = self.solvers.get_mut::<T, T::Solvers>()?;
+        let scripts = self.scripts.get_mut::<T, T::Scripts>()?;
+        let signals = self.signals.get_mut::<T, T::Signals>()?;
+
+        let view = AsViewMut::<T>::new(tables, solvers, scripts, signals);
+        Some(view)
+    }
+
+    pub fn add<T: Addition + 'static>(&mut self) -> Result<AsViewMut<'_, T>, ()> {
+        self.pips.tables.insert::<T>(Box::new(T::make_tables()));
+        self.solvers.insert::<T>(Box::new(T::make_solvers()));
+        self.scripts.insert::<T>(Box::new(T::make_scripts()));
+        self.signals.insert::<T>(Box::new(T::make_signals()));
+
+        self.get::<T>().ok_or(())
+    }
+
+    pub fn update_solvers(
+        &mut self,
+        dt: f32,
+        input: &Input,
+        asset_registry: &HashMap<String, SpriteEntry>,
+    ) {
+        for solver in self.solvers.iter_mut() {
+            solver.update(
+                dt,
+                &mut self.pips,
+                &mut self.scripts,
+                &mut self.signals,
+                input,
+                asset_registry,
+            );
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.pips.clear();
+    }
+
+    pub fn make<M: Maker>(&mut self, maker: M) -> PipId {
+        self.pips.make(maker)
+    }
+
+    pub fn destroy(&mut self, pip: PipId) {
+        self.pips.destroy(pip)
     }
 }

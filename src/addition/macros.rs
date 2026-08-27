@@ -37,11 +37,13 @@ macro_rules! addition {
                 fn update(
                     &mut self,
                     dt: f32,
-                    tables: &mut $crate::addition::TablesMap,
+                    pips: &mut $crate::addition::Pips,
                     scripts: &mut $crate::addition::ScriptsMap,
                     signals: &mut $crate::addition::SignalsMap,
+                    input: &$crate::input::Input,
+                    asset_registry: &std::collections::HashMap<String, $crate::assets::SpriteEntry>,
                 ) {
-                    $(self.$sfield.update(dt, tables, scripts, signals);)*
+                    $(self.$sfield.update(dt, pips, scripts, signals, input, asset_registry);)*
                 }
             }
 

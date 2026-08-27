@@ -33,11 +33,16 @@ addition! {
         },
         solvers: {
             brush_flip: super::brush_flip::BrushFlipSolver = super::brush_flip::BrushFlipSolver,
+            cloud_drift: super::clouds::CloudDriftSystem = super::clouds::CloudDriftSystem::new(),
         },
         scripts: {},
         signals: {},
     }
 }
+
+#[allow(unused_imports)]
+pub use roller_world::Tables as RollerAddition;
+pub use roller_world::View as RollerView;
 
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct BrushFlip {

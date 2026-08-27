@@ -12,10 +12,13 @@ pub use {
     addition::Addition,
     domain::{
         ExampleDomain,
+        Pips,
         TablesMap,
         SolversMap,
         ScriptsMap,
         SignalsMap,
+        Ids,
+        AnimLibs,
     },
     traits::{Signals, Solver, Solvers, Tables, Scripts},
     typed_map::TypedMap,
