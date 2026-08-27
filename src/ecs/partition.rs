@@ -20,7 +20,7 @@ pub trait Partition: Any + std::fmt::Debug {
 #[macro_export]
 macro_rules! partition {
     (
-        $vis:vis struct $addition:ident as $view:ident {
+        $vis:vis struct $addition:ident as $view:ident for $world:ident {
             $($fvis:vis $fname:ident : Class<$ftype:ty $(, $ktype:ty)?>,)+
         }
     ) => {
@@ -90,7 +90,7 @@ macro_rules! partition {
             }
 
             fn addition_id(&self) -> ::std::any::TypeId {
-                ::std::any::TypeId::of::<$addition>()
+                ::std::any::TypeId::of::<$world>()
             }
 
             fn as_any_ref(&self) -> &dyn ::std::any::Any {
