@@ -67,13 +67,13 @@ macro_rules! partition {
                 0usize $(+ usize::from(self.$fname.is_some()))+
             }
 
-            fn matches(&self, class_id: $crate::ecs::ClassId, into: &dyn $crate::ecs::partition::Addition) -> bool {
+            fn matches(&self, class_id: $crate::ecs::ClassId, into: &dyn $crate::ecs::partition::Partition) -> bool {
                 let into: &dyn ::std::any::Any = into;
                 let into = into.downcast_ref::<$addition>().unwrap();
                 true $(&& self.$fname.is_some() == into.$fname.data.get(class_id).is_some())+
             }
 
-            fn commit(&mut self, class_id: $crate::ecs::ClassId, into: &mut dyn $crate::ecs::partition::Addition) -> Option<usize> {
+            fn commit(&mut self, class_id: $crate::ecs::ClassId, into: &mut dyn $crate::ecs::partition::Partition) -> Option<usize> {
                 let into: &mut dyn ::std::any::Any = into;
                 let into = into.downcast_mut::<$addition>().unwrap();
                 let mut row = None;
@@ -102,7 +102,7 @@ macro_rules! partition {
             }
         }
 
-        impl $crate::ecs::partition::Addition for $addition {
+        impl $crate::ecs::partition::Partition for $addition {
             fn view_default(&self) -> Box<dyn $crate::ecs::partition::View> {
                 Box::new($view::default())
             }

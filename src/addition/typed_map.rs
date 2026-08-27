@@ -2,12 +2,12 @@ use std::{any::TypeId, collections::HashMap, fmt::Debug};
 
 use downcast_rs::Downcast;
 
-pub struct TypedMap<T: ?Sized, K: T> {
+pub struct TypedMap<T: ?Sized, K> {
     pub core: K,
     rest: HashMap<TypeId, Box<T>>,
 }
 
-impl<T: ?Sized, K: T> TypedMap<T, K> {
+impl<T: ?Sized, K> TypedMap<T, K> {
     pub fn new(core: K) -> Self {
         Self {
             core,
@@ -15,13 +15,13 @@ impl<T: ?Sized, K: T> TypedMap<T, K> {
         }
     }
 
-    pub(super) fn insert<L: 'static>(&mut self, value: Box<T>) {
+    pub(crate) fn insert<L: 'static>(&mut self, value: Box<T>) {
         let id = TypeId::of::<L>();
         self.rest.insert(id, value);
     }
 }
 
-impl<T: ?Sized + Downcast, K: T> TypedMap<T, K> {
+impl<T: ?Sized + Downcast, K> TypedMap<T, K> {
     pub fn get_mut<L: 'static, U: 'static>(&mut self) -> Option<&mut U> {
         let id = TypeId::of::<L>();
         let value = self.rest.get_mut(&id)?;

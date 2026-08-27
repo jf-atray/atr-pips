@@ -13,7 +13,7 @@ impl MotionSolver {
 impl Script for MotionSolver {
     fn update(&mut self, ctx: &mut DomainView) {
         let dt = ctx.dt;
-        let core = &mut ctx.domain.tables.core;
+        let core = &mut ctx.domain.pips.tables.core;
         crate::query!(
             [
                 &mut core.motions,
