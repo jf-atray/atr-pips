@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::fmt;
 
 use crate::scripting::error::ScriptGetError;
 use crate::scripting::every::EveryScript;
@@ -9,10 +10,17 @@ pub struct ScriptHostMut<'a, T> {
     pub script: &'a mut T,
 }
 
-#[derive(Debug)]
 pub struct ScriptHost {
     pub(crate) every: EveryScript,
     pub(crate) script: Box<dyn Script>,
+}
+
+impl fmt::Debug for ScriptHost {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ScriptHost")
+            .field("every", &self.every)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ScriptHost {
@@ -20,7 +28,7 @@ impl ScriptHost {
         Self { every, script }
     }
 
-    pub(crate) fn downcast_mut<T: Script>(
+    pub(crate) fn downcast_mut<T: Script + 'static>(
         &mut self,
     ) -> Result<ScriptHostMut<'_, T>, ScriptGetError> {
         if (self.script.as_ref() as &dyn Any).is::<T>() {
