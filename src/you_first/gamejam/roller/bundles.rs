@@ -5,6 +5,7 @@ use crate::brushes::Brush;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::ecs::scope::{Maker, Scope};
+use crate::ecs::core::CoreView;
 use crate::ecs::{CanvasId, MaterialId};
 use crate::you_first::gamejam::roller::components::{
     BrushFlip, RollerDepth, RollerPlayer, RollerView,
@@ -27,7 +28,7 @@ pub(crate) fn roller_body(
         let mut brush = Brush::new(canvas, mat);
         brush.scale = brush_scale;
         brush.color = Vec4::ONE;
-        scope.core.with(
+        scope.view::<CoreView>().unwrap().with(
             Transform {
                 xyz: Vec3::ZERO,
                 rot: Quat::IDENTITY,
@@ -117,7 +118,7 @@ pub fn living_roller_bundle(
     let root = living_anim.root_anim;
 
     move |scope: &mut Scope| {
-        scope.core.with(
+        scope.view::<CoreView>().unwrap().with(
             Transform {
                 xyz: Vec3::ZERO,
                 rot: Quat::IDENTITY,

@@ -1,19 +1,20 @@
+use crate::addition::pair_tables;
 use crate::query;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
-use crate::you_first::gamejam::roller::components::{RollerAddition, solve_flip};
+use crate::ecs::core::CoreTablesWorld;
+use crate::you_first::gamejam::roller::components::{RollerWorld, solve_flip};
 
 #[derive(Debug)]
 pub struct BrushFlipSolver;
 
 impl Script for BrushFlipSolver {
     fn update(&mut self, ctx: &mut DomainView) {
-        let mut tables = ctx.domain.tables.view();
-        let Some(roller) = tables.additions.get_mut::<RollerAddition>() else {
+        let Some((core, roller)) = pair_tables::<CoreTablesWorld, RollerWorld>(&mut ctx.domain.tables) else {
             return;
         };
         query!(
-            [&mut tables.core.brushes, &mut roller.brush_flips],
+            [&mut core.brushes, &mut roller.brush_flips],
             |brush, flip| {
                 solve_flip(brush, flip);
             }

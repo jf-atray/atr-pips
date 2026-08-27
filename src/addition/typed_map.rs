@@ -5,7 +5,8 @@ use downcast_rs::Downcast;
 pub struct TypedMap<T: ?Sized>(HashMap<TypeId, Box<T>>);
 
 impl<T: ?Sized> TypedMap<T> {
-    pub fn insert<K: 'static>(&mut self, value: Box<T>) {
+    //so sorry but people keep reaching into here. todo, make a wrapper struct for locked visibility
+    pub(super) fn insert<K: 'static>(&mut self, value: Box<T>) {
         let id = TypeId::of::<K>();
         self.0.insert(id, value);
     }

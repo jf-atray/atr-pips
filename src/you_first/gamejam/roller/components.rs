@@ -1,6 +1,9 @@
 use glam::Vec2;
 
+use crate::addition;
 use crate::brushes::Brush;
+use crate::ecs::class::Class;
+use crate::ecs::class_strategy::GrowthStrategy;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RollerDepth {
@@ -20,13 +23,25 @@ pub struct RollerPlayer {
     pub lateral: f32,
 }
 
-crate::partition! {
-    pub struct RollerAddition as RollerView {
-        pub roller_depths: Class<RollerDepth>,
-        pub roller_players: Class<RollerPlayer>,
-        pub brush_flips: Class<BrushFlip>,
+addition! {
+    #[derive(Debug)]
+    pub struct roller_world : RollerWorld {
+        tables: {
+            roller_depths: Class<RollerDepth> = Class::new(GrowthStrategy::quart_kib::<RollerDepth>()),
+            roller_players: Class<RollerPlayer> = Class::new(GrowthStrategy::quart_kib::<RollerPlayer>()),
+            brush_flips: Class<BrushFlip> = Class::new(GrowthStrategy::quart_kib::<BrushFlip>()),
+        },
+        solvers: {
+            //todo, missing its solvers here...
+        },
+        scripts: {},
+        signals: {},
     }
 }
+
+#[allow(unused_imports)]
+pub use roller_world::Tables as RollerAddition;
+pub use roller_world::View as RollerView;
 
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub struct BrushFlip {

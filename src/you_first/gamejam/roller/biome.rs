@@ -4,7 +4,7 @@ use glam::{Vec2, Vec3};
 
 use crate::anims::{AnimKeyframe, AnimRules, AnimSpin, AnimTime, AnimView, AnimXyz};
 use crate::assets::SpriteEntry;
-use crate::ecs::domain::Domain;
+use crate::addition::ExampleDomain;
 use crate::ecs::scope::Maker;
 use crate::you_first::gamejam::duel::state::TumbleweedAnimLib;
 use crate::you_first::gamejam::roller::bundles::roller_body;
@@ -158,7 +158,7 @@ pub struct Biome {
 }
 
 impl Biome {
-    pub fn pre_seed(&mut self, domain: &mut Domain, asset_registry: &HashMap<String, SpriteEntry>) {
+    pub fn pre_seed(&mut self, domain: &mut ExampleDomain, asset_registry: &HashMap<String, SpriteEntry>) {
         let tumbleweed = self.tumbleweed.clone();
         for channel in &mut self.channels {
             if !channel.motion.pre_seed {
@@ -177,7 +177,7 @@ impl Biome {
 
     pub fn update(
         &mut self,
-        domain: &mut Domain,
+        domain: &mut ExampleDomain,
         asset_registry: &HashMap<String, SpriteEntry>,
         walk_distance: f32,
     ) {

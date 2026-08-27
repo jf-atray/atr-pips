@@ -3,8 +3,9 @@ use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::anims::{
     advance, refresh, solve_scale, solve_sheer, solve_spin, solve_sprite, solve_xyz,
-    AnimAddition,
+    AnimWorld,
 };
+use crate::ecs::core::CoreTablesWorld;
 
 #[derive(Debug)]
 pub struct AnimSolver;
@@ -19,12 +20,10 @@ impl Script for AnimSolver {
     fn update(&mut self, ctx: &mut DomainView) {
         let dt = ctx.dt;
         let libs = &ctx.domain.anim_libs;
-        let mut tables = ctx.domain.tables.view();
 
-        let Some(anim) = tables.additions.get_mut::<AnimAddition>() else {
+        let Some((anim, core)) = pair_tables::<AnimWorld, CoreTablesWorld>(&mut ctx.domain.tables) else {
             return;
         };
-        let core = &mut tables.core;
 
         query!(
             [&mut anim.anim_times, &mut anim.anim_keyframes],

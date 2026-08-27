@@ -7,7 +7,7 @@ use crate::input::Input;
 use crate::scripting::scripts::Scripts;
 use crate::scripting::solvers::Solvers;
 use crate::spacial::camera::Camera;
-use crate::ecs::domain::Domain;
+use crate::addition::ExampleDomain;
 
 //todo, for more complex cases this needs an view struct with some mut some ref borrows
 #[derive(Default)]
@@ -26,7 +26,7 @@ impl SceneAction {
 pub struct SceneContext<'a> {
     pub dt: f32,
     pub aspect: f32,
-    pub domain: &'a mut Domain,
+    pub domain: &'a mut ExampleDomain,
     pub asset_registry: &'a mut HashMap<String, SpriteEntry>,
     pub input: &'a mut Input,
     pub scripts: &'a mut Scripts,

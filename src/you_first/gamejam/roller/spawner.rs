@@ -1,3 +1,4 @@
+use crate::addition::Addition;
 use crate::anims::AnimRules;
 use crate::gather::impls::gather_ref;
 use crate::scripting::context::DomainView;
@@ -6,7 +7,7 @@ use crate::ecs::PipId;
 use crate::you_first::gamejam::duel::bundle::build_tumbleweed_anim_library;
 use crate::you_first::gamejam::duel::state::TumbleweedAnimLib;
 use crate::you_first::gamejam::roller::biome::Biome;
-use crate::you_first::gamejam::roller::components::RollerAddition;
+use crate::you_first::gamejam::roller::components::RollerWorld;
 
 const BIOME_SWAP_DISTANCE: f32 = 0.1;
 
@@ -43,7 +44,7 @@ impl RollerSpawner {
     }
 
     fn player_walk_distance(&self, ctx: &mut DomainView) -> Option<f32> {
-        let roller = ctx.domain.tables.get::<RollerAddition>()?;
+        let roller = RollerWorld::tables(&mut ctx.domain.tables)?;
         let player = gather_ref(&ctx.domain.ids, &roller.roller_players, self.player)?;
         Some(player.walk_distance)
     }

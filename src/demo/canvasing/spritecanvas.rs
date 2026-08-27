@@ -24,7 +24,8 @@ use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, CanvasUnderstander, 
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
-use crate::ecs::tables::Tables;
+use crate::addition::{Addition, TypedMap, Tables as AdditionTables};
+use crate::ecs::core::CoreTablesWorld;
 use crate::ecs::{CanvasId, MaterialId};
 
 const MAX_MATERIALS: u64 = 128;
@@ -430,12 +431,12 @@ impl SpriteCanvasSolver {
     }
 
     fn collect_sorted<'b>(
-        tables: &Tables,
+        core: &mut CoreTablesWorld::Tables,
         bump: &'b Bump,
     ) -> BumpVec<'b, ((Transform, Brush), MaterialId, CanvasId)> {
         let mut sorted = BumpVec::new_in(bump);
         crate::query!(
-            [&tables.core.xforms, &tables.core.brushes],
+            [&core.xforms, &core.brushes],
             |xform, brush| {
                 sorted.push((
                     (xform.clone(), brush.clone()),
@@ -530,7 +531,7 @@ impl SpriteCanvasSolver {
 impl CanvasSolver for SpriteCanvasSolver {
     fn solve(
         &mut self,
-        tables: &Tables,
+        tables: &mut TypedMap<dyn AdditionTables>,
         view: &mut BufferViewMut,
         sink: &mut DrawWriter,
     ) -> usize {

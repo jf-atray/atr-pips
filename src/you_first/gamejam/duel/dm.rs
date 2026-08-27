@@ -1,15 +1,17 @@
 use glam::{Vec2, Vec4};
 
+use crate::addition::Addition;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::ecs::PipId;
+use crate::ecs::core::CoreTablesWorld;
 use crate::you_first::gamejam::duel::formation::Formation;
 use crate::you_first::gamejam::duel::state::{
     BadGuyKind, BadGuySpec, ChallengeConfig, Duel, DuelState, HowdyPerfectRun, LivingAnimLib,
     PendingDuel, ReticlePattern, RetryState, Side, TownspersonKind, TownspersonSpec,
 };
 use crate::you_first::gamejam::roller::bundles::living_roller_bundle;
-use crate::you_first::gamejam::roller::components::RollerAddition;
+use crate::you_first::gamejam::roller::components::RollerWorld;
 use crate::you_first::gamejam::roller::projection::{DUEL_SPAWN_DISTANCE, DUEL_TRIGGER_DISTANCE};
 use crate::you_first::gamejam::stats::GameStats;
 
@@ -386,8 +388,10 @@ impl DungeonMaster {
                 "bandit",
             ));
             if matches!(spec.kind, BadGuyKind::Offscreen { .. }) {
+                //todo this is supposed to be gather
                 if let Some(ptr) = ctx.domain.ids.get(pip)
-                    && let Some(brush) = ctx.domain.tables.core.brushes.get_row_mut(ptr)
+                    && let Some(core) = CoreTablesWorld::tables(&mut ctx.domain.tables)
+                    && let Some(brush) = core.brushes.get_row_mut(ptr)
                 {
                     brush.color.w = 0.0;
                 }
@@ -421,8 +425,10 @@ impl DungeonMaster {
                 "townie",
             ));
             if matches!(spec.kind, TownspersonKind::Offscreen { .. }) {
+                //gather...
                 if let Some(ptr) = ctx.domain.ids.get(pip)
-                    && let Some(brush) = ctx.domain.tables.core.brushes.get_row_mut(ptr)
+                    && let Some(core) = CoreTablesWorld::tables(&mut ctx.domain.tables)
+                    && let Some(brush) = core.brushes.get_row_mut(ptr)
                 {
                     brush.color.w = 0.0;
                 }
@@ -432,7 +438,7 @@ impl DungeonMaster {
     }
 
     fn check_trigger(&self, ctx: &DomainView) -> bool {
-        let Some(roller) = ctx.domain.tables.get::<RollerAddition>() else {
+        let Some(roller) = RollerWorld::tables(&mut ctx.domain.tables) else {
             return false;
         };
         for (pip, _) in &self.spawned {
@@ -464,7 +470,7 @@ impl Script for DungeonMaster {
         if self.phase == DmPhase::WaitingToSpawn && self.challenge_index == 0 {
             if let Some(retry) = self.retry.take() {
                 self.challenge_index = retry.challenge_index;
-                if let Some(roller) = ctx.domain.tables.get_mut::<RollerAddition>() {
+                if let Some(roller) = RollerWorld::tables(&mut ctx.domain.tables) {
                     if let Some(ptr) = ctx.domain.ids.get(self.player)
                         && let Some(depth) = roller.roller_depths.get_row_mut(ptr)
                     {

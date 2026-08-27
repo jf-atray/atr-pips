@@ -1,8 +1,9 @@
+use crate::addition::Addition;
 use crate::gather::impls::gather_pair_mut;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::ecs::PipId;
-use crate::you_first::gamejam::roller::components::RollerAddition;
+use crate::you_first::gamejam::roller::components::RollerWorld;
 use crate::you_first::gamejam::roller::projection::{WALK_SPEED, depth_factor_linear, world_x};
 
 const LATERAL_SPEED: f32 = 2.1;
@@ -25,7 +26,7 @@ impl Script for PlayerLateralController {
     fn update(&mut self, ctx: &mut DomainView) {
         let lateral = ctx.input.axes.value("Horizontal");
 
-        let Some(roller) = ctx.domain.tables.get_mut::<RollerAddition>() else {
+        let Some(roller) = RollerWorld::tables(&mut ctx.domain.tables) else {
             return;
         };
         let Some((player, depth)) = gather_pair_mut(

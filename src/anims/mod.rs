@@ -2,6 +2,8 @@ use glam::Quat;
 use slotmap::SlotMap;
 
 use crate::brushes::Brush;
+use crate::ecs::class::Class;
+use crate::ecs::class_strategy::GrowthStrategy;
 use crate::ecs::{CanvasId, MaterialId};
 use crate::spacial::transform::Transform;
 
@@ -238,14 +240,20 @@ pub fn refresh(anim_time: &mut AnimTime, keyframe: &AnimKeyframe, lib: &Animatio
     }
 }
 
-crate::partition! {
-    pub struct AnimAddition as AnimView {
-        pub anim_times: Class<AnimTime>,
-        pub anim_keyframes: Class<AnimKeyframe>,
-        pub anim_spins: Class<AnimSpin>,
-        pub anim_scales: Class<AnimScale>,
-        pub anim_xyzs: Class<AnimXyz>,
-        pub anim_sheers: Class<AnimSheer>,
-        pub anim_sprites: Class<AnimSprite>,
+crate::addition! {
+    #[derive(Debug)]
+    pub struct anim_world : AnimWorld {
+        tables: {
+            anim_times: Class<AnimTime> = Class::new(GrowthStrategy::quart_kib::<AnimTime>()),
+            anim_keyframes: Class<AnimKeyframe> = Class::new(GrowthStrategy::quart_kib::<AnimKeyframe>()),
+            anim_spins: Class<AnimSpin> = Class::new(GrowthStrategy::quart_kib::<AnimSpin>()),
+            anim_scales: Class<AnimScale> = Class::new(GrowthStrategy::quart_kib::<AnimScale>()),
+            anim_xyzs: Class<AnimXyz> = Class::new(GrowthStrategy::quart_kib::<AnimXyz>()),
+            anim_sheers: Class<AnimSheer> = Class::new(GrowthStrategy::quart_kib::<AnimSheer>()),
+            anim_sprites: Class<AnimSprite> = Class::new(GrowthStrategy::quart_kib::<AnimSprite>()),
+        },
+        solvers: {},
+        scripts: {},
+        signals: {},
     }
 }

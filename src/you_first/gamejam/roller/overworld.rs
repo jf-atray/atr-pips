@@ -10,7 +10,8 @@ use zerocopy::IntoBytes as _;
 use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver, SpriteInstance};
-use crate::anims::{AnimAddition, AnimSolver};
+use crate::addition::Addition;
+use crate::anims::{AnimWorld, AnimSolver};
 use crate::gamescope::motion::MotionSolver;
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
@@ -19,6 +20,7 @@ use crate::input::AxisConfig;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::ecs::scope::Scope;
+use crate::ecs::core::CoreView;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
 use crate::you_first::gamejam::duel::bundle::build_living_anim_library;
@@ -27,7 +29,7 @@ use crate::you_first::gamejam::duel::state::LivingAnimLib;
 use crate::you_first::gamejam::roller::bundles::player_roller_bundle;
 use crate::you_first::gamejam::roller::camera::CameraDirector;
 use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
-use crate::you_first::gamejam::roller::components::RollerAddition;
+use crate::you_first::gamejam::roller::components::RollerWorld;
 use crate::you_first::gamejam::roller::controller::PlayerLateralController;
 
 use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
@@ -117,8 +119,10 @@ impl Scene for OverworldScene {
 
 impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
-        ctx.domain.tables.add(RollerAddition::new());
-        ctx.domain.tables.add(AnimAddition::new());
+        ctx.domain.tables.insert::<crate::ecs::core::CoreTablesWorld>(Box::new(crate::ecs::core::CoreTablesWorld::make_tables()));
+        ctx.domain.tables.insert::<crate::ecs::system::SystemWorld>(Box::new(crate::ecs::system::SystemWorld::make_tables()));
+        ctx.domain.tables.insert::<RollerWorld>(Box::new(RollerWorld::make_tables()));
+        ctx.domain.tables.insert::<AnimWorld>(Box::new(AnimWorld::make_tables()));
 
         let solver_id = ctx.gpu
             .canvas_renderer_mut()
@@ -160,7 +164,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
-            scope.core.with(
+            scope.view::<CoreView>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(0.0, WALK_HORIZON_Y - GROUND_STRIP_HEIGHT * 0.5, ground_z),
                     rot: Quat::IDENTITY,
@@ -188,7 +192,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
-            scope.core.with(
+            scope.view::<CoreView>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(0.0, tilted_y, tilted_z),
                     rot: Quat::from_rotation_x(tilt_rad),
@@ -212,7 +216,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(0.6, 0.75, 0.9, 1.0);
-            scope.core.with(
+            scope.view::<CoreView>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(0.0, WALK_HORIZON_Y + 5.0, 0.95),
                     rot: Quat::IDENTITY,
@@ -236,7 +240,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(1.0, 1.0, 0.6, 1.0);
-            scope.core.with(
+            scope.view::<CoreView>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(-0.3, 0.9, 0.93),
                     rot: Quat::IDENTITY,
@@ -449,7 +453,8 @@ impl OverworldScene {
 
         let current_x = ctx.camera.pos.x;
         let target_x = if let Some(player) = self.player
-            && let Some(xform) = gather_ref(&ctx.domain.ids, &ctx.domain.tables.core.xforms, player)
+            && let Some(core) = crate::ecs::core::CoreTablesWorld::tables(&mut ctx.domain.tables)
+            && let Some(xform) = gather_ref(&ctx.domain.ids, &core.xforms, player)
         {
             let player_x = xform.xyz.x;
             let delta = player_x - current_x;

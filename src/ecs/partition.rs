@@ -4,14 +4,14 @@ use crate::ecs::ClassId;
 
 pub trait View: Any {
     fn width(&self) -> usize;
-    fn matches(&self, class_id: ClassId, into: &dyn Addition) -> bool;
-    fn commit(&mut self, class_id: ClassId, into: &mut dyn Addition) -> Option<usize>;
+    fn matches(&self, class_id: ClassId, into: &dyn Partition) -> bool;
+    fn commit(&mut self, class_id: ClassId, into: &mut dyn Partition) -> Option<usize>;
     fn addition_id(&self) -> TypeId;
     fn as_any_ref(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub trait Addition: Any + std::fmt::Debug {
+pub trait Partition: Any + std::fmt::Debug {
     fn view_default(&self) -> Box<dyn View>;
     fn destroy(&mut self, class_id: ClassId, row_idx: usize);
     fn clear(&mut self);

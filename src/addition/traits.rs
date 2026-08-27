@@ -1,8 +1,9 @@
 use downcast_rs::{Downcast, impl_downcast};
 
+use crate::ecs::partition::Partition;
 use super::typed_map::TypedMap;
 
-pub trait Tables: Downcast {}
+pub trait Tables: Downcast + Partition {}
 pub trait Solver: Downcast {}
 
 pub trait Solvers: Downcast {

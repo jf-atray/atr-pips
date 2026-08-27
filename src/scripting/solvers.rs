@@ -14,7 +14,7 @@ use crate::scripting::host::{ScriptHost, ScriptHostMut};
 use crate::scripting::id::SolverId;
 use crate::scripting::script::Script;
 use crate::scripting::scripts::Scripts;
-use crate::ecs::domain::Domain;
+use crate::addition::ExampleDomain;
 
 #[derive(Debug)]
 pub struct Solvers {
@@ -94,7 +94,7 @@ impl Solvers {
     pub fn update_enabled(
         &self,
         dt: f32,
-        domain: &mut Domain,
+        domain: &mut ExampleDomain,
         scripts: &Scripts,
         asset_registry: &HashMap<String, SpriteEntry>,
         input: &Input,

@@ -35,7 +35,8 @@ impl<T, K> Class<T, K> {
         let col = self.data.get(id.class_id)?;
         Some(&col.vec[id.row_idx])
     }
-    pub fn get_row_mut(&mut self, id: &ClassRowPtr) -> Option<&mut T> {
+    // stop letting everyone reach into here!!!!
+    pub(super) fn get_row_mut(&mut self, id: &ClassRowPtr) -> Option<&mut T> {
         let col = self.data.get_mut(id.class_id)?;
         Some(&mut col.vec[id.row_idx])
     }

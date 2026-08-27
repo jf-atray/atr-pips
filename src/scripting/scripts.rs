@@ -13,7 +13,7 @@ use crate::scripting::host::{ScriptHost, ScriptHostMut};
 use crate::scripting::id::ScriptId;
 use crate::scripting::script::Script;
 use crate::scripting::solvers::Solvers;
-use crate::ecs::domain::Domain;
+use crate::addition::ExampleDomain;
 
 // making a disjoint thin view to do a dynamic check is just the same as
 // doing that check here anyway using std features
@@ -99,7 +99,7 @@ impl Scripts {
     pub fn update_enabled(
         &self,
         dt: f32,
-        domain: &mut Domain,
+        domain: &mut ExampleDomain,
         solvers: &Solvers,
         asset_registry: &HashMap<String, SpriteEntry>,
         input: &Input,

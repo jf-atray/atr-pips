@@ -7,11 +7,11 @@ use crate::gpuscope::Gpu;
 use crate::input::Input;
 use crate::scripting::{Scripts, Solvers};
 use crate::spacial::camera::Camera;
-use crate::ecs::domain::Domain;
+use crate::addition::ExampleDomain;
 
 #[derive(Debug)]
 pub struct Game {
-    pub domain: Domain,
+    pub domain: ExampleDomain,
     pub camera: Camera,
     pub asset_registry: HashMap<String, SpriteEntry>,
     pub input: Input,
@@ -23,7 +23,7 @@ pub struct Game {
 impl Game {
     pub fn new(asset_registry: HashMap<String, SpriteEntry>) -> Self {
         Self {
-            domain: Domain::new(),
+            domain: ExampleDomain::default(),
             camera: Camera::new(),
             asset_registry,
             input: Input::new(),

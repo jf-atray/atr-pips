@@ -1,5 +1,6 @@
 use glam::{Quat, Vec3, Vec4};
 
+use crate::addition::Addition;
 use crate::brushes::Brush;
 use crate::gather::impls::gather_mut;
 use crate::scripting::context::DomainView;
@@ -8,6 +9,7 @@ use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::ecs::PipId;
 use crate::ecs::scope::Scope;
+use crate::ecs::core::CoreView;
 
 const CLOUD_SPRITES: &[(&str, f32)] = &[("cloud_1", 4.0), ("cloud_2", 1.0)];
 
@@ -46,7 +48,7 @@ impl CloudDriftSystem {
                 brush.scale =
                     Vec3::new(w / sprite.natural_scale.x, h / sprite.natural_scale.y, 1.0);
                 brush.color = Vec4::ONE;
-                scope.core.with(
+                scope.view::<CoreView>().unwrap().with(
                     Transform {
                         xyz: Vec3::new(x, y, CLOUD_Z),
                         rot: Quat::IDENTITY,
@@ -70,8 +72,12 @@ impl Script for CloudDriftSystem {
         }
 
         for &pip in &self.clouds {
+            let Some(core) = CoreTablesWorld::tables(&mut ctx.domain.tables) else {
+                continue;
+            };
             if let Some(xform) =
-                gather_mut(&ctx.domain.ids, &mut ctx.domain.tables.core.xforms, pip)
+            // why isnt this the right gather???
+                gather_mut(&ctx.domain.ids, &mut core.xforms, pip)
                 && xform.xyz.x > CLOUD_WRAP_X
             {
                 xform.xyz.x = -CLOUD_WRAP_X;

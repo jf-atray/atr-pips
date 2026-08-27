@@ -8,6 +8,7 @@ use crate::anims::*;
 use crate::brushes::Brush;
 use crate::ecs::{CanvasId, MaterialId};
 use crate::ecs::scope::Scope;
+use crate::ecs::core::CoreView;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::you_first::gamejam::duel::components::{
@@ -26,7 +27,8 @@ pub fn duel_cursor_bundle(
 ) -> impl FnOnce(&mut Scope) {
     let name = name.into();
     move |scope: &mut Scope| {
-        scope.core.with(
+        //todo the point of core is not needing an unwrap
+        scope.view::<CoreView>().unwrap().with(
             Transform {
                 xyz: Vec3::new(lateral, y, 0.2),
                 rot: Quat::IDENTITY,
@@ -57,7 +59,7 @@ pub fn duel_enemy_bundle(
 ) -> impl FnOnce(&mut Scope) {
     let name = name.into();
     move |scope: &mut Scope| {
-        scope.core.with(
+        scope.view::<CoreView>().unwrap().with(
             Transform {
                 xyz: Vec3::new(x, y, 0.2),
                 rot: Quat::IDENTITY,

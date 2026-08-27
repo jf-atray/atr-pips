@@ -9,12 +9,13 @@ use crate::scripting::id::ScriptId;
 use crate::scripting::script::Script;
 use crate::scripting::scripts::Scripts;
 use crate::scripting::solvers::Solvers;
-use crate::ecs::domain::Domain;
-use crate::ecs::tables::Tables;
+use crate::addition::ExampleDomain;
+use crate::addition::TypedMap;
+use crate::addition::Tables as AdditionTables;
 
 pub struct DomainView<'a> {
     pub dt: f32,
-    pub domain: &'a mut Domain,
+    pub domain: &'a mut ExampleDomain,
     pub scripts: &'a Scripts,
     pub solvers: &'a Solvers,
     pub input: &'a Input,
@@ -25,7 +26,7 @@ pub struct DomainView<'a> {
 impl<'a> DomainView<'a> {
     pub(crate) fn new(
         dt: f32,
-        domain: &'a mut Domain,
+        domain: &'a mut ExampleDomain,
         scripts: &'a Scripts,
         solvers: &'a Solvers,
         input: &'a Input,
@@ -47,7 +48,7 @@ impl<'a> DomainView<'a> {
         &mut self,
     ) -> (
         &slotmap::SlotMap<crate::ecs::PipId, crate::ecs::ClassRowPtr>,
-        &mut Tables,
+        &mut TypedMap<dyn AdditionTables>,
     ) {
         (&self.domain.ids, &mut self.domain.tables)
     }
