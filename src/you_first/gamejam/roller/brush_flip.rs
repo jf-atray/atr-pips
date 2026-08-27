@@ -1,4 +1,4 @@
-use crate::addition::{Pips, Solver};
+use crate::addition::{Addition, Pips, Solver};
 use crate::query;
 use crate::you_first::gamejam::roller::components::{RollerWorld, solve_flip};
 
@@ -17,11 +17,12 @@ impl BrushFlipSolver {
         _input: &crate::input::Input,
         _asset_registry: &std::collections::HashMap<String, crate::assets::SpriteEntry>,
     ) {
+        let core = &mut pips.tables.core;
         let Some(roller) = RollerWorld::tables(&mut pips.tables) else {
             return;
         };
         query!(
-            [&mut pips.tables.core.brushes, &mut roller.brush_flips],
+            [&mut core.brushes, &mut roller.brush_flips],
             |brush, flip| {
                 solve_flip(brush, flip);
             }
