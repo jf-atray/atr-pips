@@ -9,13 +9,13 @@ use wgpu::{
 };
 
 use crate::spacial::camera::Camera;
-use crate::addition::{TypedMap, Tables as AdditionTables};
+use crate::addition::{TablesMap, Tables as AdditionTables};
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId};
 
 pub trait CanvasSolver: Any + std::fmt::Debug {
     fn solve(
         &mut self,
-        tables: &mut TypedMap<dyn AdditionTables>,
+        tables: &mut TablesMap,
         view: &mut BufferViewMut,
         sink: &mut DrawWriter,
     ) -> usize;
@@ -140,7 +140,7 @@ impl CanvasRenderer {
         }
     }
 
-    pub fn prepare(&mut self, tables: &mut TypedMap<dyn AdditionTables>, camera: &Camera, encoder: &mut CommandEncoder) {
+    pub fn prepare(&mut self, tables: &mut TablesMap, camera: &Camera, encoder: &mut CommandEncoder) {
         for (every, canvas) in self.canvases.values_mut() {
             every.draws.clear();
             canvas.prepare(camera, encoder, &mut self.staging_belt);
