@@ -1,5 +1,8 @@
 use glam::Vec2;
 
+pub use super::brush_flip;
+pub use super::clouds;
+
 use crate::addition;
 use crate::brushes::Brush;
 use crate::ecs::class::Class;
