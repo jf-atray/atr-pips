@@ -43,16 +43,16 @@ impl BootSolver {
 
 addition! {
     #[derive(Debug)]
-    CowboyWorld {
-        tables: CowboyTables {
+    struct cowboy_world : CowboyWorld {
+        tables: {
             hats: Class<u32, ()> = Class::new(GrowthStrategy::quart_kib::<u32>()),
         },
-        solvers: CowboySolvers {
+        solvers: {
             hats: HatSolver = HatSolver::default(),
             boots: BootSolver = BootSolver::default(),
         },
-        scripts: CowboyScripts {},
-        signals: CowboySignals {},
+        scripts: {},
+        signals: {},
     }
 }
 #[test]

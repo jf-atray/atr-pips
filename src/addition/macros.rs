@@ -2,63 +2,75 @@
 macro_rules! addition {
     (
         $(#[$meta:meta])*
-        $world:ident {
-            tables: $tables:ident { $($tfield:ident : $tty:ty = $texpr:expr),+ $(,)? },
-            solvers: $solvers:ident { $($sfield:ident : $sty:ty = $sexpr:expr),+ $(,)? },
-            scripts: $scripts:ident { $($cfield:ident : $cty:ty = $cexpr:expr),* $(,)? },
-            signals: $signals:ident { $($gfield:ident : $gty:ty = $gexpr:expr),* $(,)? },
+        $vis:vis struct $module:ident : $world:ident {
+            tables: { $($tfield:ident : $tty:ty = $texpr:expr),+ $(,)? },
+            solvers: { $($sfield:ident : $sty:ty = $sexpr:expr),+ $(,)? },
+            scripts: { $($cfield:ident : $cty:ty = $cexpr:expr),* $(,)? },
+            signals: { $($gfield:ident : $gty:ty = $gexpr:expr),* $(,)? },
         }
     ) => {
         $(#[$meta])*
-        struct $world {}
+        $vis struct $world {}
 
-        $(#[$meta])*
-        struct $tables {
-            $($tfield: $tty),+
-        }
-        impl $crate::addition::Tables for $tables {}
+        mod $module {
+            use super::*;
 
-        $(#[$meta])*
-        struct $solvers {
-            $($sfield: $sty),+
-        }
-
-        $(impl $crate::addition::Solver for $sty {})+
-
-        impl $crate::addition::Solvers for $solvers {
-            fn update(
-                &mut self,
-                dt: f32,
-                tables: &mut $crate::addition::TypedMap<dyn $crate::addition::Tables>,
-                scripts: &mut $crate::addition::TypedMap<dyn $crate::addition::Scripts>,
-                signals: &mut $crate::addition::TypedMap<dyn $crate::addition::Signals>,
-            ) {
-                $(self.$sfield.update(dt, tables, scripts, signals);)+
+            #[derive(Debug)]
+            pub struct Tables {
+                $(pub $tfield: $tty),+
             }
-        }
+            impl $crate::addition::Tables for Tables {}
 
-        $(#[$meta])*
-        struct $scripts {
-            $($cfield: $cty),*
-        }
-        impl $crate::addition::Scripts for $scripts {}
+            #[derive(Debug)]
+            pub struct Solvers {
+                $(pub $sfield: $sty),+
+            }
 
-        $(#[$meta])*
-        struct $signals {
-            $($gfield: $gty),*
+            $(impl $crate::addition::Solver for $sty {})+
+
+            impl $crate::addition::Solvers for Solvers {
+                fn update(
+                    &mut self,
+                    dt: f32,
+                    tables: &mut $crate::addition::TypedMap<dyn $crate::addition::Tables>,
+                    scripts: &mut $crate::addition::TypedMap<dyn $crate::addition::Scripts>,
+                    signals: &mut $crate::addition::TypedMap<dyn $crate::addition::Signals>,
+                ) {
+                    $(self.$sfield.update(dt, tables, scripts, signals);)+
+                }
+            }
+
+            #[derive(Debug)]
+            pub struct Scripts {
+                $(pub $cfield: $cty),*
+            }
+            impl $crate::addition::Scripts for Scripts {}
+
+            #[derive(Debug)]
+            pub struct Signals {
+                $(pub $gfield: $gty),*
+            }
+            impl $crate::addition::Signals for Signals {}
         }
-        impl $crate::addition::Signals for $signals {}
 
         impl $crate::addition::Addition for $world {
-            type Tables = $tables;
-            type Solvers = $solvers;
-            type Scripts = $scripts;
-            type Signals = $signals;
+            type Tables = $module::Tables;
+            type Solvers = $module::Solvers;
+            type Scripts = $module::Scripts;
+            type Signals = $module::Signals;
 
-            fn make_tables() -> Self::Tables { $tables { $($tfield: $texpr),+ } }
-            fn make_solvers() -> Self::Solvers { $solvers { $($sfield: $sexpr),+ } }
-            fn make_scripts() -> Self::Scripts { $scripts { $($cfield: $cexpr),* } }
-            fn make_signals() -> Self::Signals { $signals { $($gfield: $gexpr),* } }
+            fn make_tables() -> Self::Tables {
+                $module::Tables { $($tfield: $texpr),+ }
+            }
+            fn make_solvers() -> Self::Solvers {
+                $module::Solvers { $($sfield: $sexpr),+ }
+            }
+            fn make_scripts() -> Self::Scripts {
+                $module::Scripts { $($cfield: $cexpr),* }
+            }
+            fn make_signals() -> Self::Signals {
+                $module::Signals { $($gfield: $gexpr),* }
+            }
         }
     };
 }

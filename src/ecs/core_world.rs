@@ -12,19 +12,19 @@ pub struct MotionSolver;
 
 addition! {
     #[derive(Debug)]
-    CoreWorld {
-        tables: CoreTables {
+    pub struct core_world : CoreWorld {
+        tables: {
             xforms: Class<Transform, ()> = Class::new(GrowthStrategy::quart_kib::<Transform>()),
             brushes: Class<Brush> = Class::new(GrowthStrategy::quart_kib::<Brush>()),
             names: Class<String> = Class::new(GrowthStrategy::quart_kib::<String>()),
             motions: Class<Motion> = Class::new(GrowthStrategy::quart_kib::<Motion>()),
             pip_ids: Class<PipId> = Class::new(GrowthStrategy::quart_kib::<PipId>()),
         },
-        solvers: CoreSolvers {
+        solvers: {
             motion: MotionSolver = MotionSolver,
         },
-        scripts: CoreScripts {},
-        signals: CoreSignals {},
+        scripts: {},
+        signals: {},
     }
 }
 
