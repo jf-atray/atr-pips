@@ -72,12 +72,8 @@ impl Script for CloudDriftSystem {
         }
 
         for &pip in &self.clouds {
-            let Some(core) = CoreTablesWorld::tables(&mut ctx.domain.tables) else {
-                continue;
-            };
             if let Some(xform) =
-            // why isnt this the right gather???
-                gather_mut(&ctx.domain.ids, &mut core.xforms, pip)
+                gather_mut(&ctx.domain.ids, &mut ctx.domain.tables.core.xforms, pip)
                 && xform.xyz.x > CLOUD_WRAP_X
             {
                 xform.xyz.x = -CLOUD_WRAP_X;

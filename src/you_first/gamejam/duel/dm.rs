@@ -390,8 +390,7 @@ impl DungeonMaster {
             if matches!(spec.kind, BadGuyKind::Offscreen { .. }) {
                 //todo this is supposed to be gather
                 if let Some(ptr) = ctx.domain.ids.get(pip)
-                    && let Some(core) = CoreWorld::tables(&mut ctx.domain.tables)
-                    && let Some(brush) = core.brushes.get_row_mut(ptr)
+                && let Some(brush) = ctx.domain.tables.core.brushes.get_row(ptr)
                 {
                     brush.color.w = 0.0;
                 }
@@ -427,8 +426,7 @@ impl DungeonMaster {
             if matches!(spec.kind, TownspersonKind::Offscreen { .. }) {
                 //gather...
                 if let Some(ptr) = ctx.domain.ids.get(pip)
-                    && let Some(core) = CoreWorld::tables(&mut ctx.domain.tables)
-                    && let Some(brush) = core.brushes.get_row_mut(ptr)
+                && let Some(brush) = ctx.domain.tables.core.brushes.get_row(ptr)
                 {
                     brush.color.w = 0.0;
                 }

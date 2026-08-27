@@ -453,8 +453,7 @@ impl OverworldScene {
 
         let current_x = ctx.camera.pos.x;
         let target_x = if let Some(player) = self.player
-            && let Some(core) = crate::ecs::core::CoreWorld::tables(&mut ctx.domain.tables)
-            && let Some(xform) = gather_ref(&ctx.domain.ids, &core.xforms, player)
+            && let Some(xform) = gather_ref(&ctx.domain.ids, &ctx.domain.tables.core.xforms, player)
         {
             let player_x = xform.xyz.x;
             let delta = player_x - current_x;
