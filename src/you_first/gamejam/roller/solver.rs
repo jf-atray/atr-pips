@@ -5,7 +5,7 @@ use crate::query;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::ecs::PipId;
-use crate::ecs::core::CoreTablesWorld;
+use crate::ecs::core::CoreWorld;
 use crate::ecs::system::SystemWorld;
 use crate::you_first::gamejam::roller::components::RollerWorld;
 use crate::you_first::gamejam::roller::projection::{
@@ -38,7 +38,7 @@ impl Script for RollerProjectionSolver {
         }
 
         {
-            let Some((roller, core)) = pair_tables::<RollerWorld, CoreTablesWorld>(&mut ctx.domain.tables) else {
+            let Some((roller, core)) = pair_tables::<RollerWorld, CoreWorld>(&mut ctx.domain.tables) else {
                 return;
             };
 

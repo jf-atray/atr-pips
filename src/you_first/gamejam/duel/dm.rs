@@ -4,7 +4,7 @@ use crate::addition::Addition;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
 use crate::ecs::PipId;
-use crate::ecs::core::CoreTablesWorld;
+use crate::ecs::core::CoreWorld;
 use crate::you_first::gamejam::duel::formation::Formation;
 use crate::you_first::gamejam::duel::state::{
     BadGuyKind, BadGuySpec, ChallengeConfig, Duel, DuelState, HowdyPerfectRun, LivingAnimLib,
@@ -390,7 +390,7 @@ impl DungeonMaster {
             if matches!(spec.kind, BadGuyKind::Offscreen { .. }) {
                 //todo this is supposed to be gather
                 if let Some(ptr) = ctx.domain.ids.get(pip)
-                    && let Some(core) = CoreTablesWorld::tables(&mut ctx.domain.tables)
+                    && let Some(core) = CoreWorld::tables(&mut ctx.domain.tables)
                     && let Some(brush) = core.brushes.get_row_mut(ptr)
                 {
                     brush.color.w = 0.0;
@@ -427,7 +427,7 @@ impl DungeonMaster {
             if matches!(spec.kind, TownspersonKind::Offscreen { .. }) {
                 //gather...
                 if let Some(ptr) = ctx.domain.ids.get(pip)
-                    && let Some(core) = CoreTablesWorld::tables(&mut ctx.domain.tables)
+                    && let Some(core) = CoreWorld::tables(&mut ctx.domain.tables)
                     && let Some(brush) = core.brushes.get_row_mut(ptr)
                 {
                     brush.color.w = 0.0;

@@ -1,7 +1,6 @@
 pub mod class;
 pub mod class_strategy;
 pub mod core;
-pub mod core_world;
 pub mod partition;
 pub mod scope;
 pub mod system;

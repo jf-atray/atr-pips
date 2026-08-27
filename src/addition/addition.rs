@@ -1,6 +1,7 @@
 use super::traits::{Tables, Solvers, Scripts, Signals};
 use super::typed_map::TypedMap;
 
+
 pub trait Addition: Sized + 'static {
     type Tables: Tables;
     type Solvers: Solvers;

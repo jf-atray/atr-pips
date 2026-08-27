@@ -1,6 +1,7 @@
 use slotmap::SlotMap;
 
 use crate::anims::{AnimLibId, AnimationLibrary};
+use crate::ecs::core::CoreWorld;
 use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}, system::{SystemAddition, SystemView, SystemWorld}};
 
 use super::addition::Addition;
@@ -10,14 +11,18 @@ use super::view::AsViewMut;
 
 #[derive(Default, Debug)]
 pub struct ExampleDomain {
-    pub tables: TypedMap<dyn Tables>,
-    pub solvers: TypedMap<dyn Solvers>,
-    pub scripts: TypedMap<dyn Scripts>,
-    pub signals: TypedMap<dyn Signals>,
+    pub tables: TablesMap,
+    pub solvers: SolversMap,
+    pub scripts: ScriptsMap,
+    pub signals: SignalsMap,
     pub anim_libs: SlotMap<AnimLibId, AnimationLibrary>,
     pub heading: SlotMap<ClassId, usize>,
     pub ids: SlotMap<PipId, ClassRowPtr>,
 }
+pub type TablesMap = TypedMap<dyn Tables, <CoreWorld as Addition>::Tables>;
+pub type SolversMap = TypedMap<dyn Solvers, <CoreWorld as Addition>::Solvers>;
+pub type ScriptsMap = TypedMap<dyn Scripts, <CoreWorld as Addition>::Scripts>;
+pub type SignalsMap = TypedMap<dyn Signals, <CoreWorld as Addition>::Signals>;
 
 impl ExampleDomain {
     pub fn get<T: Addition + 'static>(&mut self) -> Option<AsViewMut<'_, T>> {

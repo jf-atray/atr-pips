@@ -5,7 +5,7 @@ use crate::anims::{
     advance, refresh, solve_scale, solve_sheer, solve_spin, solve_sprite, solve_xyz,
     AnimWorld,
 };
-use crate::ecs::core::CoreTablesWorld;
+use crate::ecs::core::CoreWorld;
 
 #[derive(Debug)]
 pub struct AnimSolver;
@@ -21,7 +21,7 @@ impl Script for AnimSolver {
         let dt = ctx.dt;
         let libs = &ctx.domain.anim_libs;
 
-        let Some((anim, core)) = pair_tables::<AnimWorld, CoreTablesWorld>(&mut ctx.domain.tables) else {
+        let Some((anim, core)) = pair_tables::<AnimWorld, CoreWorld>(&mut ctx.domain.tables) else {
             return;
         };
 

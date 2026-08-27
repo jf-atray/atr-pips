@@ -14,7 +14,7 @@ impl MotionSolver {
 impl Script for MotionSolver {
     fn update(&mut self, ctx: &mut DomainView) {
         let dt = ctx.dt;
-        let Some(core) = crate::ecs::core::CoreTablesWorld::tables(&mut ctx.domain.tables) else {
+        let Some(core) = crate::ecs::core::CoreWorld::tables(&mut ctx.domain.tables) else {
             return;
         };
         crate::query!(

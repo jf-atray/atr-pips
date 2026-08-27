@@ -119,7 +119,7 @@ impl Scene for OverworldScene {
 
 impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
-        ctx.domain.tables.insert::<crate::ecs::core::CoreTablesWorld>(Box::new(crate::ecs::core::CoreTablesWorld::make_tables()));
+        ctx.domain.tables.insert::<crate::ecs::core::CoreWorld>(Box::new(crate::ecs::core::CoreWorld::make_tables()));
         ctx.domain.tables.insert::<crate::ecs::system::SystemWorld>(Box::new(crate::ecs::system::SystemWorld::make_tables()));
         ctx.domain.tables.insert::<RollerWorld>(Box::new(RollerWorld::make_tables()));
         ctx.domain.tables.insert::<AnimWorld>(Box::new(AnimWorld::make_tables()));
@@ -453,7 +453,7 @@ impl OverworldScene {
 
         let current_x = ctx.camera.pos.x;
         let target_x = if let Some(player) = self.player
-            && let Some(core) = crate::ecs::core::CoreTablesWorld::tables(&mut ctx.domain.tables)
+            && let Some(core) = crate::ecs::core::CoreWorld::tables(&mut ctx.domain.tables)
             && let Some(xform) = gather_ref(&ctx.domain.ids, &core.xforms, player)
         {
             let player_x = xform.xyz.x;

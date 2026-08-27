@@ -25,7 +25,7 @@ use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
 use crate::addition::{Addition, TypedMap, Tables as AdditionTables};
-use crate::ecs::core::CoreTablesWorld;
+use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, MaterialId};
 
 const MAX_MATERIALS: u64 = 128;
@@ -431,7 +431,7 @@ impl SpriteCanvasSolver {
     }
 
     fn collect_sorted<'b>(
-        core: &mut CoreTablesWorld::Tables,
+        core: &mut CoreWorld::Tables,
         bump: &'b Bump,
     ) -> BumpVec<'b, ((Transform, Brush), MaterialId, CanvasId)> {
         let mut sorted = BumpVec::new_in(bump);

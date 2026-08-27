@@ -7,7 +7,7 @@ use crate::spacial::transform::Transform;
 
 addition! {
     #[derive(Debug)]
-    pub struct core_tables : CoreTablesWorld {
+    pub struct core_tables : CoreWorld {
         tables: {
             xforms: Class<Transform, ()> = Class::new(GrowthStrategy::quart_kib::<Transform>()),
             brushes: Class<Brush> = Class::new(GrowthStrategy::quart_kib::<Brush>()),
