@@ -5,14 +5,14 @@ use crate::brushes::Brush;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::ecs::scope::{Maker, Scope};
-use crate::ecs::core::CoreView;
+use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, MaterialId};
 use crate::you_first::gamejam::roller::components::{
-    BrushFlip, RollerDepth, RollerPlayer, RollerView,
+    BrushFlip, RollerDepth, RollerPlayer, RollerWorld,
 };
 use crate::you_first::gamejam::roller::projection::WALK_SPEED;
 use crate::you_first::gamejam::duel::state::LivingAnimLib;
-use crate::anims::{AnimKeyframe, AnimScale, AnimSheer, AnimTime, AnimView, AnimXyz};
+use crate::anims::{AnimKeyframe, AnimScale, AnimSheer, AnimTime, AnimWorld, AnimXyz};
 use crate::assets::SpriteEntry;
 
 
@@ -28,7 +28,7 @@ pub(crate) fn roller_body(
         let mut brush = Brush::new(canvas, mat);
         brush.scale = brush_scale;
         brush.color = Vec4::ONE;
-        scope.view::<CoreView>().unwrap().with(
+        scope.view::<CoreWorld>().unwrap().with(
             Transform {
                 xyz: Vec3::ZERO,
                 rot: Quat::IDENTITY,
@@ -37,7 +37,7 @@ pub(crate) fn roller_body(
             name,
             Motion::default(),
         );
-        let rv = scope.view::<RollerView>().unwrap();
+        let rv = scope.view::<RollerWorld>().unwrap();
         rv.roller_depths = Some(roller_depth);
         rv.brush_flips = Some(brush_flip);
     }
@@ -79,10 +79,10 @@ pub fn player_roller_bundle(
     let root = living_anim.root_anim;
     move |scope: &mut Scope| {
         body.make_into(scope);
-        let rv = scope.view::<RollerView>().unwrap();
+        let rv = scope.view::<RollerWorld>().unwrap();
         rv.roller_players = Some(roller_player);
 
-        let av = scope.view::<AnimView>().unwrap();
+        let av = scope.view::<AnimWorld>().unwrap();
         av.anim_times = Some(AnimTime(0.0));
         av.anim_keyframes = Some(AnimKeyframe { id: root, lib });
         av.anim_scales = Some(AnimScale::default());
@@ -118,7 +118,7 @@ pub fn living_roller_bundle(
     let root = living_anim.root_anim;
 
     move |scope: &mut Scope| {
-        scope.view::<CoreView>().unwrap().with(
+        scope.view::<CoreWorld>().unwrap().with(
             Transform {
                 xyz: Vec3::ZERO,
                 rot: Quat::IDENTITY,
@@ -128,11 +128,11 @@ pub fn living_roller_bundle(
             Motion::default(),
         );
 
-        let rv = scope.view::<RollerView>().unwrap();
+        let rv = scope.view::<RollerWorld>().unwrap();
         rv.roller_depths = Some(roller_depth);
         rv.brush_flips = Some(BrushFlip { is_flipped: false });
 
-        let av = scope.view::<AnimView>().unwrap();
+        let av = scope.view::<AnimWorld>().unwrap();
         av.anim_times = Some(AnimTime(0.0));
         av.anim_keyframes = Some(AnimKeyframe { id: root, lib });
         av.anim_scales = Some(AnimScale::default());

@@ -1,10 +1,10 @@
 use glam::{Quat, Vec3, Vec4};
 use std::collections::HashMap;
 
-use crate::addition::{Pips, Solver};
+use crate::addition::Pips;
 use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
-use crate::ecs::core::core_tables;
+use crate::ecs::core::CoreWorld;
 use crate::ecs::PipId;
 use crate::ecs::scope::Scope;
 use crate::gather::impls::gather_mut;
@@ -53,7 +53,7 @@ impl CloudDriftSystem {
                     Vec3::new(w / sprite.natural_scale.x, h / sprite.natural_scale.y, 1.0);
                 brush.color = Vec4::ONE;
                 scope
-                    .view::<core_tables::View>()
+                    .view::<CoreWorld>()
                     .unwrap()
                     .with(
                         Transform {

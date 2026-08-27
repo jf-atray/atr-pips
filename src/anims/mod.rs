@@ -252,7 +252,7 @@ crate::addition! {
             anim_sheers: Class<AnimSheer> = Class::new(GrowthStrategy::quart_kib::<AnimSheer>()),
             anim_sprites: Class<AnimSprite> = Class::new(GrowthStrategy::quart_kib::<AnimSprite>()),
         },
-        solvers: {},
+        solvers: { anim_solver: crate::anims::solver::AnimSolver = crate::anims::solver::AnimSolver },
         scripts: {},
         signals: {},
     }
