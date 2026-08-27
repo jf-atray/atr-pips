@@ -173,7 +173,7 @@ impl App {
 
         if let Some(mut frame) = gpu.begin_frame() {
             gpu.device.canvas_renderer.prepare(
-                &game.domain.tables,
+                &mut game.domain.pips.tables,
                 &game.camera,
                 &mut frame.encoder,
             );

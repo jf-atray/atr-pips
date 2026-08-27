@@ -18,7 +18,7 @@ macro_rules! addition {
             use super::*;
 
             $crate::partition! {
-                pub struct Tables as View {
+                pub struct Tables as View for $world {
                     $(pub $tfield : Class<$ftype $(, $ktype)?>,)+
                 }
             }
@@ -65,6 +65,7 @@ macro_rules! addition {
             type Solvers = $module::Solvers;
             type Scripts = $module::Scripts;
             type Signals = $module::Signals;
+            type View = $module::View;
 
             fn make_tables() -> Self::Tables {
                 $module::Tables { $($tfield: $texpr),+ }
