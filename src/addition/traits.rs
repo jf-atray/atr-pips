@@ -8,6 +8,7 @@ pub trait Solver: Downcast {}
 pub trait Solvers: Downcast {
     fn update(
         &mut self,
+        dt: f32,
         tables: &mut TypedMap<dyn Tables>,
         scripts: &mut TypedMap<dyn Scripts>,
         signals: &mut TypedMap<dyn Signals>,

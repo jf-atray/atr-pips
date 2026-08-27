@@ -31,9 +31,9 @@ impl ExampleDomain {
         self.get::<T>().ok_or(())
     }
 
-    pub fn update_solvers(&mut self) {
+    pub fn update_solvers(&mut self, dt: f32) {
         for solver in self.solvers.iter_mut() {
-            solver.update(&mut self.tables, &mut self.scripts, &mut self.signals);
+            solver.update(dt, &mut self.tables, &mut self.scripts, &mut self.signals);
         }
     }
 }

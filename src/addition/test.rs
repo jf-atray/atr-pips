@@ -13,6 +13,7 @@ struct HatSolver {
 impl HatSolver {
     fn update(
         &mut self,
+        _dt: f32,
         tables: &mut TypedMap<dyn Tables>,
         _scripts: &mut TypedMap<dyn Scripts>,
         _signals: &mut TypedMap<dyn Signals>,
@@ -30,6 +31,7 @@ struct BootSolver {
 impl BootSolver {
     fn update(
         &mut self,
+        _dt: f32,
         tables: &mut TypedMap<dyn Tables>,
         _scripts: &mut TypedMap<dyn Scripts>,
         _signals: &mut TypedMap<dyn Signals>,

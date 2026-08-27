@@ -1,0 +1,56 @@
+use crate::addition;
+use crate::brushes::Brush;
+use crate::ecs::class::Class;
+use crate::ecs::class_strategy::GrowthStrategy;
+use crate::ecs::PipId;
+use crate::spacial::motion::Motion;
+use crate::spacial::transform::Transform;
+
+#[derive(Debug)]
+pub struct MotionSolver;
+
+addition! {
+    #[derive(Debug)]
+    CoreWorld {
+        tables: CoreTables {
+            xforms: Class<Transform, ()>,
+            brushes: Class<Brush>,
+            names: Class<String>,
+            motions: Class<Motion>,
+            pip_ids: Class<PipId>,
+        } = CoreTables {
+            xforms: Class::new(GrowthStrategy::quart_kib::<Transform>()),
+            brushes: Class::new(GrowthStrategy::quart_kib::<Brush>()),
+            names: Class::new(GrowthStrategy::quart_kib::<String>()),
+            motions: Class::new(GrowthStrategy::quart_kib::<Motion>()),
+            pip_ids: Class::new(GrowthStrategy::quart_kib::<PipId>()),
+        },
+        solvers: CoreSolvers {
+            motion: MotionSolver,
+        } = CoreSolvers {
+            motion: MotionSolver,
+        },
+        scripts: CoreScripts {} = CoreScripts {},
+        signals: CoreSignals {} = CoreSignals {},
+    }
+}
+
+impl MotionSolver {
+    fn update(
+        &mut self,
+        dt: f32,
+        tables: &mut addition::TypedMap<dyn addition::Tables>,
+        _scripts: &mut addition::TypedMap<dyn addition::Scripts>,
+        _signals: &mut addition::TypedMap<dyn addition::Signals>,
+    ) {
+        let Some(core) = tables.get_mut::<CoreWorld, CoreTables>() else {
+            return;
+        };
+        crate::query!(
+            [&mut core.motions, &mut core.xforms],
+            |motion: &mut Motion, xform: &mut Transform| {
+                xform.xyz += motion.vel * dt;
+            }
+        );
+    }
+}

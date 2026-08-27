@@ -1,3 +1,4 @@
+#[macro_export]
 macro_rules! addition {
     (
         $(#[$meta:meta])*
@@ -27,11 +28,12 @@ macro_rules! addition {
         impl $crate::addition::Solvers for $solvers {
             fn update(
                 &mut self,
+                dt: f32,
                 tables: &mut $crate::addition::TypedMap<dyn $crate::addition::Tables>,
                 scripts: &mut $crate::addition::TypedMap<dyn $crate::addition::Scripts>,
                 signals: &mut $crate::addition::TypedMap<dyn $crate::addition::Signals>,
             ) {
-                $(self.$sfield.update(tables, scripts, signals);)+
+                $(self.$sfield.update(dt, tables, scripts, signals);)+
             }
         }
 
