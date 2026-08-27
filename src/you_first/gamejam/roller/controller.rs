@@ -26,11 +26,11 @@ impl Script for PlayerLateralController {
     fn update(&mut self, ctx: &mut DomainView) {
         let lateral = ctx.input.axes.value("Horizontal");
 
-        let Some(roller) = RollerWorld::tables(&mut ctx.domain.tables) else {
+        let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) else {
             return;
         };
         let Some((player, depth)) = gather_pair_mut(
-            &ctx.domain.ids,
+            &ctx.domain.pips.ids,
             &mut roller.roller_players,
             &mut roller.roller_depths,
             self.player,
