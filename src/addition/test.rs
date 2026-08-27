@@ -19,7 +19,7 @@ impl HatSolver {
         _signals: &mut TypedMap<dyn Signals>,
     ) {
         self.drawn += 1;
-        let _ = tables.get_mut::<CowboyWorld, CowboyTables>();
+        let _ = CowboyWorld::tables(tables);
     }
 }
 
@@ -37,7 +37,7 @@ impl BootSolver {
         _signals: &mut TypedMap<dyn Signals>,
     ) {
         self.worn += 1;
-        let _ = tables.get_mut::<CowboyWorld, CowboyTables>();
+        let _ = CowboyWorld::tables(tables);
     }
 }
 
@@ -67,9 +67,7 @@ pub fn creation() {
     println!("{rslt:#?}");
     assert_matches!(rslt, Ok(_));
 
-    let cowboy_tables = domain
-        .tables
-        .get_mut::<CowboyWorld, CowboyTables>()
+    let cowboy_tables = CowboyWorld::tables(&mut domain.tables)
         .expect("Expect cowboyworld to exist by now.");
     let _ = cowboy_tables;
 }

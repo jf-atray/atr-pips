@@ -1,3 +1,4 @@
+use crate::addition::Addition;
 use crate::addition;
 use crate::brushes::Brush;
 use crate::ecs::class::Class;
@@ -43,7 +44,7 @@ impl MotionSolver {
         _scripts: &mut addition::TypedMap<dyn addition::Scripts>,
         _signals: &mut addition::TypedMap<dyn addition::Signals>,
     ) {
-        let Some(core) = tables.get_mut::<CoreWorld, CoreTables>() else {
+        let Some(core) = CoreWorld::tables(tables) else {
             return;
         };
         crate::query!(
