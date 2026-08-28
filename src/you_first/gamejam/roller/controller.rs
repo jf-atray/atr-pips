@@ -1,8 +1,10 @@
-use crate::addition::Addition;
-use crate::gather::impls::gather_pair_mut;
-use crate::scripting::context::DomainView;
-use crate::scripting::script::Script;
+use std::collections::HashMap;
+
+use crate::addition::{Pips, ScriptsMap, SignalsMap, Solver};
+use crate::assets::SpriteEntry;
 use crate::ecs::PipId;
+use crate::gather::impls::gather_pair_mut;
+use crate::input::Input;
 use crate::you_first::gamejam::roller::components::RollerWorld;
 use crate::you_first::gamejam::roller::projection::{WALK_SPEED, depth_factor_linear, world_x};
 
@@ -16,21 +18,29 @@ pub struct PlayerLateralController {
     player: PipId,
 }
 
+impl Solver for PlayerLateralController {}
+
 impl PlayerLateralController {
     pub fn new(player: PipId) -> Self {
         Self { player }
     }
-}
 
-impl Script for PlayerLateralController {
-    fn update(&mut self, ctx: &mut DomainView) {
-        let lateral = ctx.input.axes.value("Horizontal");
+    pub fn update(
+        &mut self,
+        dt: f32,
+        pips: &mut Pips,
+        _scripts: &mut ScriptsMap,
+        _signals: &mut SignalsMap,
+        input: &Input,
+        _asset_registry: &HashMap<String, SpriteEntry>,
+    ) {
+        let lateral = input.axes.value("Horizontal");
 
-        let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) else {
+        let Some(roller) = RollerWorld::tables(&mut pips.tables) else {
             return;
         };
         let Some((player, depth)) = gather_pair_mut(
-            &ctx.domain.pips.ids,
+            &pips.ids,
             &mut roller.roller_players,
             &mut roller.roller_depths,
             self.player,
@@ -44,9 +54,9 @@ impl Script for PlayerLateralController {
         let wx_cur = world_x(1.0, t_cur).max(0.01);
         let speed_scale = wx_ref / wx_cur;
 
-        player.lateral = (player.lateral + lateral * LATERAL_SPEED * speed_scale * ctx.dt)
+        player.lateral = (player.lateral + lateral * LATERAL_SPEED * speed_scale * dt)
             .clamp(PLAYER_X_MIN, PLAYER_X_MAX);
-        player.walk_distance += WALK_SPEED * ctx.dt;
+        player.walk_distance += WALK_SPEED * dt;
         depth.lateral = player.lateral;
     }
 }

@@ -14,9 +14,9 @@ impl HatSolver {
     fn update(
         &mut self,
         _dt: f32,
-        tables: &mut TypedMap<dyn Tables>,
-        _scripts: &mut TypedMap<dyn Scripts>,
-        _signals: &mut TypedMap<dyn Signals>,
+        tables: &mut Polysystem<dyn Tables>,
+        _scripts: &mut Polysystem<dyn Scripts>,
+        _signals: &mut Polysystem<dyn Signals>,
     ) {
         self.drawn += 1;
         let _ = CowboyWorld::tables(tables);
@@ -32,9 +32,9 @@ impl BootSolver {
     fn update(
         &mut self,
         _dt: f32,
-        tables: &mut TypedMap<dyn Tables>,
-        _scripts: &mut TypedMap<dyn Scripts>,
-        _signals: &mut TypedMap<dyn Signals>,
+        tables: &mut Polysystem<dyn Tables>,
+        _scripts: &mut Polysystem<dyn Scripts>,
+        _signals: &mut Polysystem<dyn Signals>,
     ) {
         self.worn += 1;
         let _ = CowboyWorld::tables(tables);

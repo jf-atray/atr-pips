@@ -1,4 +1,3 @@
-use std::any::TypeId;
 use std::collections::HashMap;
 
 use slotmap::SlotMap;
@@ -12,7 +11,7 @@ use crate::input::Input;
 
 use super::addition::Addition;
 use super::traits::{Tables, Solvers, Scripts, Signals};
-use super::typed_map::TypedMap;
+use super::typed_map::Polysystem;
 use super::view::AsViewMut;
 
 #[derive(Debug)]
@@ -116,42 +115,12 @@ pub struct ExampleDomain {
     pub signals: SignalsMap,
 }
 
-pub type TablesMap = TypedMap<dyn Tables, <CoreWorld as Addition>::Tables>;
-pub type SolversMap = TypedMap<dyn Solvers, <CoreWorld as Addition>::Solvers>;
-pub type ScriptsMap = TypedMap<dyn Scripts, <CoreWorld as Addition>::Scripts>;
-pub type SignalsMap = TypedMap<dyn Signals, <CoreWorld as Addition>::Signals>;
+pub type TablesMap = Polysystem<dyn Tables, <CoreWorld as Addition>::Tables>;
+pub type SolversMap = Polysystem<dyn Solvers, <CoreWorld as Addition>::Solvers>;
+pub type ScriptsMap = Polysystem<dyn Scripts, <CoreWorld as Addition>::Scripts>;
+pub type SignalsMap = Polysystem<dyn Signals, <CoreWorld as Addition>::Signals>;
 pub type Ids = SlotMap<PipId, ClassRowPtr>;
 pub type AnimLibs = SlotMap<AnimLibId, AnimationLibrary>;
-
-pub fn pair_tables<A: Addition + 'static, B: Addition + 'static>(
-    tables: &mut TablesMap,
-) -> Option<(&mut A::Tables, &mut B::Tables)> {
-    let a_id = TypeId::of::<A>();
-    let b_id = TypeId::of::<B>();
-    if a_id == b_id {
-        return None;
-    }
-    if a_id == TypeId::of::<CoreWorld>() {
-        let b = tables.rest.get_mut(&b_id)?;
-        let b = b.as_mut().downcast_mut::<B::Tables>()?;
-        let core: &mut dyn Tables = &mut tables.core;
-        let a = core.downcast_mut::<A::Tables>()?;
-        Some((a, b))
-    } else if b_id == TypeId::of::<CoreWorld>() {
-        let a = tables.rest.get_mut(&a_id)?;
-        let a = a.as_mut().downcast_mut::<A::Tables>()?;
-        let core: &mut dyn Tables = &mut tables.core;
-        let b = core.downcast_mut::<B::Tables>()?;
-        Some((a, b))
-    } else {
-        let [Some(a), Some(b)] = tables.rest.get_disjoint_mut([&a_id, &b_id]) else {
-            return None;
-        };
-        let a = a.as_mut().downcast_mut::<A::Tables>()?;
-        let b = b.as_mut().downcast_mut::<B::Tables>()?;
-        Some((a, b))
-    }
-}
 
 impl ExampleDomain {
     pub fn get<T: Addition + 'static>(&mut self) -> Option<AsViewMut<'_, T>> {
@@ -179,6 +148,14 @@ impl ExampleDomain {
         input: &Input,
         asset_registry: &HashMap<String, SpriteEntry>,
     ) {
+        self.solvers.core.update(
+            dt,
+            &mut self.pips,
+            &mut self.scripts,
+            &mut self.signals,
+            input,
+            asset_registry,
+        );
         for solver in self.solvers.iter_mut() {
             solver.update(
                 dt,

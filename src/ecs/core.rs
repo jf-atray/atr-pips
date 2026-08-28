@@ -14,7 +14,7 @@ addition! {
             names: Class<String> = Class::new(GrowthStrategy::quart_kib::<String>()),
             motions: Class<Motion> = Class::new(GrowthStrategy::quart_kib::<Motion>()),
         },
-        solvers: {},
+        solvers: { motion: crate::gamescope::motion::MotionSolver = crate::gamescope::motion::MotionSolver::new() },
         scripts: {},
         signals: {},
     }

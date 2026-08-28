@@ -1,7 +1,7 @@
 use glam::{Quat, Vec3, Vec4};
 use std::collections::HashMap;
 
-use crate::addition::Pips;
+use crate::addition::{Pips, Solver};
 use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::ecs::core::CoreWorld;

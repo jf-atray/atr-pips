@@ -1,6 +1,6 @@
 use std::{any::TypeId, collections::HashMap};
 
-use crate::addition::{Addition, Tables as AdditionTables, TypedMap};
+use crate::addition::{Addition, Tables as AdditionTables, Polysystem};
 use crate::ecs::{ClassId, partition::View};
 
 #[derive(Default)]
@@ -22,7 +22,7 @@ impl Scope {
     pub(crate) fn matches<W: Addition>(
         &self,
         class_id: ClassId,
-        tables: &TypedMap<dyn AdditionTables, W::Tables>,
+        tables: &Polysystem<dyn AdditionTables, W::Tables>,
     ) -> bool {
         for (addition_id, view) in &self.additions {
             let tables_any: &dyn AdditionTables = if *addition_id == TypeId::of::<W>() {
@@ -43,7 +43,7 @@ impl Scope {
     pub(crate) fn commit<W: Addition>(
         &mut self,
         class_id: ClassId,
-        tables: &mut TypedMap<dyn AdditionTables, W::Tables>,
+        tables: &mut Polysystem<dyn AdditionTables, W::Tables>,
     ) -> Option<usize> {
         let mut row = None;
         for (addition_id, view) in &mut self.additions {

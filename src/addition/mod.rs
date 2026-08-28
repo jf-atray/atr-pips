@@ -21,7 +21,7 @@ pub use {
         AnimLibs,
     },
     traits::{Signals, Solver, Solvers, Tables, Scripts},
-    typed_map::TypedMap,
+    typed_map::Polysystem,
 };
 
 #[cfg(test)]
