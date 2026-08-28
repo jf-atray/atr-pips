@@ -23,10 +23,10 @@ use crate::ecs::scope::Scope;
 use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId, PipId};
 
-use crate::you_first::gamejam::duel::bundle::build_living_anim_library;
+use crate::you_first::gamejam::duel::bundle::{build_living_anim_library, build_reticle_anim_library};
 use crate::you_first::gamejam::duel::components::DuelWorld;
 
-use crate::you_first::gamejam::duel::state::LivingAnimLib;
+use crate::you_first::gamejam::duel::state::{LivingAnimLib, ReticleAnimLib};
 use crate::you_first::gamejam::roller::bundles::player_roller_bundle;
 use crate::you_first::gamejam::roller::camera::CameraDirector;
 
@@ -36,8 +36,10 @@ use crate::you_first::gamejam::roller::components::RollerWorld;
 const DESIGN_W: f32 = 1280.0;
 const DESIGN_H: f32 = 720.0;
 const HORIZON_NDC_Y: f32 = 1.0 / 3.0;
-// Visible world width for the roller; the world height is this divided by DESIGN_W/DESIGN_H.
-const CAMERA_BOUNDS: f32 = 8.0 * (DESIGN_W / DESIGN_H);
+// Styx walk/duel camera bounds. Visible world width; camera height scales with aspect.
+const WALK_ZOOM: f32 = 8.0;
+const DUEL_ZOOM: f32 = 12.0;
+const CAMERA_BOUNDS: f32 = WALK_ZOOM;
 const CAMERA_MARGIN: f32 = 3.0;
 
 const WALK_HORIZON_Y: f32 = 0.0;
@@ -133,6 +135,14 @@ impl OverworldScene {
         let living_anim = LivingAnimLib {
             lib: living_lib_id,
             root_anim: living_root,
+        };
+
+        let (reticle_lib, slow, fast) = build_reticle_anim_library();
+        let reticle_lib_id = ctx.domain.pips.anim_libs.insert(reticle_lib);
+        let reticle_anim = ReticleAnimLib {
+            lib: reticle_lib_id,
+            slow_anim: slow,
+            fast_anim: fast,
         };
 
         let player = ctx
@@ -277,6 +287,7 @@ impl OverworldScene {
         if let Some(view) = ctx.domain.get::<DuelWorld>() {
             view.solvers.dungeon_master.player = Some(player_id);
             view.solvers.dungeon_master.living_anim = Some(living_anim);
+            view.solvers.dungeon_master.reticle_anim = Some(reticle_anim);
         }
     }
 
@@ -474,7 +485,9 @@ impl OverworldScene {
 
         self.camera_director
             .set_pan_target(Vec2::new(target_x, camera_y));
+        self.camera_director.pan.speed = 0.0;
         self.camera_director.set_zoom_target(zoom);
+        self.camera_director.zoom.speed = 0.0;
         self.camera_director.update(ctx.camera, ctx.dt);
     }
 

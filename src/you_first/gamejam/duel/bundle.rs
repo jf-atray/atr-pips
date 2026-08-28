@@ -5,12 +5,14 @@ use std::f32::consts::{PI, TAU};
 use glam::{Quat, Vec2, Vec3, Vec4};
 
 use crate::anims::*;
+use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, MaterialId};
 use crate::ecs::scope::Scope;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
+use crate::ecs::PipId;
 use crate::you_first::gamejam::duel::components::{
     DuelCursor, DuelEnemy, DuelReticle, DuelWorld,
 };
@@ -83,11 +85,13 @@ pub fn duel_enemy_bundle(
             fire_countdown: None,
         });
         dv.duel_reticles = Some(DuelReticle {
+            pip: PipId::default(),
             lateral: x,
             d: y,
             speed,
             sway_phase: 0.0,
             snapped: false,
+            was_fast: false,
         });
     }
 }
@@ -373,4 +377,35 @@ pub fn build_tumbleweed_anim_library() -> (AnimationLibrary, AnimId) {
     lib.get_mut(bounce).unwrap().next = Some((t, bounce));
 
     (lib, bounce)
+}
+
+pub fn duel_reticle_bundle(
+    pos: Vec3,
+    size: Vec2,
+    color: Vec4,
+    sprite: &SpriteEntry,
+    lib: AnimLibId,
+    slow: AnimId,
+    name: impl Into<String>,
+) -> impl FnOnce(&mut Scope) {
+    let name = name.into();
+    let base_scale = size / sprite.natural_scale;
+    let mut brush = Brush::new(sprite.canvas, sprite.material);
+    brush.color = color;
+    brush.scale = Vec3::new(base_scale.x, base_scale.y, 1.0);
+    move |scope: &mut Scope| {
+        scope.view::<CoreWorld>().unwrap().with(
+            Transform {
+                xyz: pos,
+                rot: Quat::IDENTITY,
+            },
+            brush,
+            name,
+            Motion::default(),
+        );
+        let av = scope.view::<AnimWorld>().unwrap();
+        av.anim_times = Some(AnimTime(0.0));
+        av.anim_keyframes = Some(AnimKeyframe { id: slow, lib });
+        av.anim_spins = Some(AnimSpin::default());
+    }
 }

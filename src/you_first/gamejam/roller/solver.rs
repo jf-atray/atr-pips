@@ -47,6 +47,7 @@ impl RollerProjectionSolver {
             [(); &mut roller.roller_depths, (); &pips.pip_ids],
             |depth, pip_id| {
                 if Some(*pip_id) == player {
+                    log::info!("player d = {}", depth.d);
                     return;
                 }
 

@@ -1,19 +1,21 @@
 use std::collections::HashMap;
 
-use glam::{Vec2, Vec4};
+use glam::{Vec2, Vec3, Vec4};
 
 use crate::addition::{Addition, Ids, Pips, ScriptsMap, SignalsMap, Solver};
+use crate::anims::{AnimId, AnimLibId, AnimWorld};
 use crate::assets::SpriteEntry;
 use crate::ecs::PipId;
 use crate::ecs::class::Class;
 use crate::gather::impls::{gather_mut, gather_ref};
 use crate::input::Input;
+use crate::you_first::gamejam::duel::bundle::duel_reticle_bundle;
+use crate::you_first::gamejam::duel::components::{DuelReticle, DuelWorld};
 use crate::you_first::gamejam::duel::formation::Formation;
 use crate::you_first::gamejam::duel::state::{
     BadGuyKind, BadGuySpec, ChallengeConfig, Duel, DuelPhase, HowdyPerfectRun, LivingAnimLib,
-    PendingDuel, ReticlePattern, RetryState, Side, TownspersonKind, TownspersonSpec,
+    PendingDuel, ReticleAnimLib, ReticlePattern, RetryState, Side, TownspersonKind, TownspersonSpec,
 };
-use crate::you_first::gamejam::duel::components::DuelWorld;
 use crate::you_first::gamejam::roller::bundles::living_roller_bundle;
 use crate::you_first::gamejam::roller::components::{RollerDepth, RollerWorld};
 use crate::you_first::gamejam::roller::projection::{
@@ -74,6 +76,7 @@ enum DmPhase {
 pub struct DungeonMaster {
     pub player: Option<PipId>,
     pub living_anim: Option<LivingAnimLib>,
+    pub reticle_anim: Option<ReticleAnimLib>,
     pub duel: Duel,
     pub game_stats: GameStats,
     pub howdy_perfect_run: HowdyPerfectRun,
@@ -90,11 +93,13 @@ impl DungeonMaster {
     pub fn new(
         player: Option<PipId>,
         living_anim: Option<LivingAnimLib>,
+        reticle_anim: Option<ReticleAnimLib>,
         retry: Option<RetryState>,
     ) -> Self {
         Self {
             player,
             living_anim,
+            reticle_anim,
             duel: Duel::new(),
             game_stats: GameStats::default(),
             howdy_perfect_run: HowdyPerfectRun::new(),
@@ -456,6 +461,103 @@ impl DungeonMaster {
         }
         false
     }
+
+    fn update_reticles(&mut self, pips: &mut Pips, dt: f32, slow: AnimId, fast: AnimId) {
+        let Some(player) = self.player else {
+            return;
+        };
+        let player_pos = gather_ref(&pips.ids, &pips.tables.core.xforms, player)
+            .map(|t| Vec2::new(t.xyz.x, t.xyz.y))
+            .unwrap_or(Vec2::ZERO);
+
+        self.reticle_homing(player_pos, dt);
+        self.reticle_separation(dt);
+        self.reticle_sync(pips, player_pos, slow, fast);
+    }
+
+    fn reticle_homing(&mut self, player_pos: Vec2, dt: f32) {
+        for ret in &mut self.duel.reticles {
+            if ret.snapped {
+                ret.lateral = player_pos.x;
+                ret.d = player_pos.y;
+                continue;
+            }
+            let pos = Vec2::new(ret.lateral, ret.d);
+            let dist = pos.distance(player_pos);
+            let target = if dist < RETICLE_HOMING_RANGE {
+                player_pos
+            } else {
+                player_pos + sway_offset(ret.sway_phase + ret.speed)
+            };
+            let speed_mul = if dist < RETICLE_HOMING_RANGE {
+                RETICLE_HOMING_SPEED_MUL
+            } else {
+                1.0
+            };
+            let new_pos = pos + aniso_step(target - pos, dt * speed_mul);
+            ret.sway_phase += dt;
+            ret.lateral = new_pos.x;
+            ret.d = new_pos.y;
+        }
+    }
+
+    fn reticle_separation(&mut self, dt: f32) {
+        let positions: Vec<(usize, Vec2)> = self
+            .duel
+            .reticles
+            .iter()
+            .enumerate()
+            .map(|(i, r)| (i, Vec2::new(r.lateral, r.d)))
+            .collect();
+        for (i, ret) in self.duel.reticles.iter_mut().enumerate() {
+            if ret.snapped {
+                continue;
+            }
+            let pos = Vec2::new(ret.lateral, ret.d);
+            let mut push = Vec2::ZERO;
+            for (j, other) in &positions {
+                if i == *j {
+                    continue;
+                }
+                let delta = pos - *other;
+                let dist = delta.length();
+                if dist < RETICLE_SEPARATION_MIN && dist > 1e-6 {
+                    let strength = (RETICLE_SEPARATION_MIN - dist) / RETICLE_SEPARATION_MIN;
+                    push += delta.normalize() * strength;
+                }
+            }
+            let new_pos = pos + push * RETICLE_SEPARATION_SPEED * dt;
+            ret.lateral = new_pos.x;
+            ret.d = new_pos.y;
+        }
+    }
+
+    fn reticle_sync(&mut self, pips: &mut Pips, player_pos: Vec2, slow: AnimId, fast: AnimId) {
+        let Some(anim) = AnimWorld::tables(&mut pips.tables.pile) else {
+            return;
+        };
+        for ret in &mut self.duel.reticles {
+            let pos = Vec2::new(ret.lateral, ret.d);
+            let is_fast = ret.snapped || pos.distance(player_pos) < RETICLE_HOMING_RANGE;
+            if is_fast != ret.was_fast {
+                ret.was_fast = is_fast;
+                let new_id = if is_fast { fast } else { slow };
+                if let Some(keyframe) =
+                    gather_mut(&pips.ids, &mut anim.anim_keyframes, ret.pip)
+                {
+                    keyframe.id = new_id;
+                }
+                if let Some(time) = gather_mut(&pips.ids, &mut anim.anim_times, ret.pip) {
+                    time.0 = f32::NAN;
+                }
+            }
+            if let Some(x) = gather_mut(&pips.ids, &mut pips.tables.core.xforms, ret.pip) {
+                x.xyz.x = pos.x;
+                x.xyz.y = pos.y;
+                x.xyz.z = 0.2;
+            }
+        }
+    }
 }
 
 impl Solver for DungeonMaster {}
@@ -532,9 +634,32 @@ impl DungeonMaster {
             }
             DmPhase::DuelInProgress => {
                 if self.duel.phase == DuelPhase::Idle {
+                    for ret in self.duel.reticles.drain(..) {
+                        pips.destroy(ret.pip);
+                    }
                     self.game_stats.completed_levels += 1;
                     self.phase = DmPhase::PostDuelDelay;
                     self.delay_timer = 0.0;
+                } else {
+                    let (lib, slow, fast) = match self.reticle_anim.as_ref() {
+                        Some(a) => (Some(a.lib), Some(a.slow_anim), Some(a.fast_anim)),
+                        None => (None, None, None),
+                    };
+                    if self.duel.phase == DuelPhase::Active && self.duel.reticles.is_empty() {
+                        if let (Some(lib), Some(slow), _) = (lib, slow, fast) {
+                            let new = spawn_reticles_for(
+                                &self.duel.bad_guys,
+                                pips,
+                                asset_registry,
+                                lib,
+                                slow,
+                            );
+                            self.duel.reticles.extend(new);
+                        }
+                    }
+                    if let (Some(slow), Some(fast)) = (slow, fast) {
+                        self.update_reticles(pips, dt, slow, fast);
+                    }
                 }
             }
             DmPhase::PostDuelDelay => {
@@ -551,4 +676,72 @@ impl DungeonMaster {
             duel_signals.duel_state = self.duel.state();
         }
     }
+}
+
+fn spawn_reticles_for(
+    bad_guys: &[(PipId, BadGuySpec)],
+    pips: &mut Pips,
+    asset_registry: &HashMap<String, SpriteEntry>,
+    lib: AnimLibId,
+    slow: AnimId,
+) -> Vec<DuelReticle> {
+    let bad_aim = asset_registry
+        .get("bad_aim")
+        .unwrap_or(asset_registry.get("__white__").expect("missing __white__ sprite"));
+    let size = Vec2::splat(0.5);
+    let color = Vec4::new(180.0 / 255.0, 40.0 / 255.0, 40.0 / 255.0, 1.0);
+    bad_guys
+        .iter()
+        .enumerate()
+        .map(|(i, (pip, _spec))| {
+            let pos = gather_ref(&pips.ids, &pips.tables.core.xforms, *pip)
+                .map(|t| t.xyz)
+                .unwrap_or(Vec3::ZERO);
+            let seed = (i as f32) * 1.5;
+            let ret = pips.make(duel_reticle_bundle(
+                pos, size, color, bad_aim, lib, slow, "reticle",
+            ));
+            DuelReticle {
+                pip: ret,
+                lateral: pos.x,
+                d: pos.y,
+                speed: seed,
+                sway_phase: 0.0,
+                snapped: false,
+                was_fast: false,
+            }
+        })
+        .collect()
+}
+
+const BADGUY_WANDER_SPEED: f32 = 0.4;
+const BADGUY_WANDER_AMP: f32 = 0.65;
+const RETICLE_SPEED_X: f32 = 1.5;
+const RETICLE_SPEED_Y: f32 = 0.9;
+const RETICLE_SNAP_THRESHOLD: f32 = 0.60;
+const RETICLE_HOMING_RANGE: f32 = 0.95;
+const RETICLE_HOMING_SPEED_MUL: f32 = 3.8;
+const SWAY_RADIUS: f32 = 1.4;
+const SWAY_SPEED: f32 = 2.1;
+const RETICLE_SEPARATION_MIN: f32 = 2.9;
+const RETICLE_SEPARATION_SPEED: f32 = 3.0;
+const ARENA_MIN_Y: f32 = -4.5;
+const ARENA_MAX_Y: f32 = 0.0;
+
+fn aniso_step(delta: Vec2, dt: f32) -> Vec2 {
+    let scaled = Vec2::new(delta.x / RETICLE_SPEED_X, delta.y / RETICLE_SPEED_Y);
+    let scaled_len = scaled.length();
+    if scaled_len < 1e-6 {
+        return Vec2::ZERO;
+    }
+    let step = dt.min(scaled_len);
+    let unit = scaled / scaled_len;
+    Vec2::new(unit.x * RETICLE_SPEED_X, unit.y * RETICLE_SPEED_Y) * step
+}
+
+fn sway_offset(time: f32) -> Vec2 {
+    Vec2::new(
+        SWAY_RADIUS * (SWAY_SPEED * time).sin(),
+        SWAY_RADIUS * (SWAY_SPEED * 2.0 * time).sin(),
+    )
 }

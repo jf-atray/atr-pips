@@ -2,6 +2,7 @@
 
 use crate::anims::{AnimId, AnimLibId};
 use crate::ecs::PipId;
+use crate::you_first::gamejam::duel::components::DuelReticle;
 use crate::you_first::gamejam::duel::formation::Formation;
 use crate::you_first::gamejam::roller::state::Pulse;
 use glam::Vec2;
@@ -311,7 +312,9 @@ pub struct RetryState {
 
 #[derive(Debug)]
 pub struct Duel {
-    pub pending: Option<PendingDuel>,
+    pub bad_guys: Vec<(PipId, BadGuySpec)>,
+    pub townspeople: Vec<(PipId, TownspersonSpec)>,
+    pub reticles: Vec<DuelReticle>,
     pub phase: DuelPhase,
     pub timer: f32,
 }
@@ -319,7 +322,9 @@ pub struct Duel {
 impl Duel {
     pub fn new() -> Self {
         Self {
-            pending: None,
+            bad_guys: Vec::new(),
+            townspeople: Vec::new(),
+            reticles: Vec::new(),
             phase: DuelPhase::Idle,
             timer: 0.0,
         }
@@ -337,7 +342,8 @@ impl Duel {
 
     pub fn request(&mut self, pending: PendingDuel) {
         if matches!(self.state(), DuelState::Inactive) {
-            self.pending = Some(pending);
+            self.bad_guys = pending.bad_guys;
+            self.townspeople = pending.townspeople;
             self.phase = DuelPhase::ZoomOut;
             self.timer = 0.0;
         }
@@ -346,11 +352,8 @@ impl Duel {
     pub fn tick(&mut self, dt: f32) {
         match self.phase {
             DuelPhase::ZoomOut => {
-                if self.pending.is_some() {
-                    self.pending = None;
-                    self.phase = DuelPhase::Active;
-                    self.timer = 0.0;
-                }
+                self.phase = DuelPhase::Active;
+                self.timer = 0.0;
             }
             DuelPhase::Active => {
                 self.timer += dt;
