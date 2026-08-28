@@ -269,6 +269,7 @@ impl OverworldScene {
         if let Some(view) = ctx.domain.get::<RollerWorld>() {
             view.solvers.player_lateral.player = Some(player_id);
             view.solvers.roller_spawner.player = Some(player_id);
+            view.solvers.roller_projection.player = Some(player_id);
         }
     }
 
