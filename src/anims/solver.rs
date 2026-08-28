@@ -1,11 +1,14 @@
-use crate::query;
-use crate::scripting::context::DomainView;
-use crate::scripting::script::Script;
+use std::collections::HashMap;
+
+use crate::addition::{Pips, ScriptsMap, SignalsMap};
 use crate::anims::{
     advance, refresh, solve_scale, solve_sheer, solve_spin, solve_sprite, solve_xyz,
     AnimWorld,
 };
+use crate::assets::SpriteEntry;
 use crate::ecs::core::CoreWorld;
+use crate::input::Input;
+use crate::query;
 
 #[derive(Debug)]
 pub struct AnimSolver;
@@ -14,14 +17,19 @@ impl AnimSolver {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl Script for AnimSolver {
-    fn update(&mut self, ctx: &mut DomainView) {
-        let dt = ctx.dt;
-        let libs = &ctx.domain.anim_libs;
+    pub fn update(
+        &mut self,
+        dt: f32,
+        pips: &mut Pips,
+        _scripts: &mut ScriptsMap,
+        _signals: &mut SignalsMap,
+        _input: &Input,
+        _asset_registry: &HashMap<String, SpriteEntry>,
+    ) {
+        let libs = &pips.anim_libs;
 
-        let Some((anim, core)) = pair_tables::<AnimWorld, CoreWorld>(&mut ctx.domain.tables) else {
+        let Some(anim) = AnimWorld::tables(&mut pips.tables) else {
             return;
         };
 
