@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 
-use crate::addition::{Pips, ScriptsMap, SignalsMap};
+use crate::addition::{Pips, ScriptsMap, SignalsMap, Solver};
 use crate::anims::{
     advance, refresh, solve_scale, solve_sheer, solve_spin, solve_sprite, solve_xyz,
     AnimWorld,
 };
 use crate::assets::SpriteEntry;
-use crate::ecs::core::CoreWorld;
 use crate::input::Input;
 use crate::query;
 
 #[derive(Debug)]
 pub struct AnimSolver;
+
+impl Solver for AnimSolver {}
 
 impl AnimSolver {
     pub fn new() -> Self {
@@ -28,8 +29,9 @@ impl AnimSolver {
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
         let libs = &pips.anim_libs;
+        let core = &mut pips.tables.core;
 
-        let Some(anim) = AnimWorld::tables(&mut pips.tables) else {
+        let Some(anim) = AnimWorld::tables(&mut pips.tables.pile) else {
             return;
         };
 

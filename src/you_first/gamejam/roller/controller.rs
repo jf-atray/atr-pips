@@ -36,7 +36,7 @@ impl PlayerLateralController {
     ) {
         let lateral = input.axes.value("Horizontal");
 
-        let Some(roller) = RollerWorld::tables(&mut pips.tables) else {
+        let Some(roller) = RollerWorld::tables(&mut pips.tables.pile) else {
             return;
         };
         let Some((player, depth)) = gather_pair_mut(

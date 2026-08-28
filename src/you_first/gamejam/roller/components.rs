@@ -37,6 +37,7 @@ addition! {
         solvers: {
             brush_flip: super::brush_flip::BrushFlipSolver = super::brush_flip::BrushFlipSolver,
             cloud_drift: super::clouds::CloudDriftSystem = super::clouds::CloudDriftSystem::new(),
+            roller_projection: crate::you_first::gamejam::roller::solver::RollerProjectionSolver = crate::you_first::gamejam::roller::solver::RollerProjectionSolver,
         },
         scripts: {},
         signals: {},

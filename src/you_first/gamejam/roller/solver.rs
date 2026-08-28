@@ -1,22 +1,34 @@
+use std::collections::HashMap;
+
 use glam::Vec3;
 
+use crate::addition::{Pips, ScriptsMap, SignalsMap, Solver};
+use crate::assets::SpriteEntry;
+use crate::input::Input;
 use crate::query;
-use crate::scripting::context::DomainView;
-use crate::scripting::script::Script;
-use crate::ecs::PipId;
 use crate::you_first::gamejam::roller::components::RollerWorld;
 use crate::you_first::gamejam::roller::projection::{
-    DESPAWN_T, GROUND_Y, HORIZON_Y, WALK_SPEED, depth_factor, project, world_z,
+    GROUND_Y, HORIZON_Y, project, world_z,
 };
 
 #[derive(Debug)]
 pub struct RollerProjectionSolver;
 
-impl Script for RollerProjectionSolver {
-    fn update(&mut self, ctx: &mut DomainView) {
-        let mut to_despawn: Vec<PipId> = Vec::new();
+impl Solver for RollerProjectionSolver {}
 
-        let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) else {
+impl RollerProjectionSolver {
+    pub fn update(
+        &mut self,
+        _dt: f32,
+        pips: &mut Pips,
+        _scripts: &mut ScriptsMap,
+        _signals: &mut SignalsMap,
+        _input: &Input,
+        _asset_registry: &HashMap<String, SpriteEntry>,
+    ) {
+        let core = &mut pips.tables.core;
+
+        let Some(roller) = RollerWorld::tables(&mut pips.tables.pile) else {
             return;
         };
 
@@ -36,9 +48,5 @@ impl Script for RollerProjectionSolver {
                 );
             }
         );
-
-        for pip in to_despawn {
-            ctx.domain.destroy(pip);
-        }
     }
 }
