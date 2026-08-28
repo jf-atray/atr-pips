@@ -30,8 +30,6 @@ macro_rules! addition {
                 $(pub $sfield: $sty),*
             }
 
-            $(impl $crate::addition::Solver for $sty {})*
-
             impl $crate::addition::Solvers for Solvers {
                 #[allow(unused_variables)]
                 fn update(
