@@ -1,4 +1,4 @@
-use super::addition::Addition;
+use super::core::Addition;
 use super::traits::{Tables, Solvers, Scripts, Signals};
 
 #[derive(Debug)]

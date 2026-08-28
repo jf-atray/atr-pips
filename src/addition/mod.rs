@@ -1,7 +1,7 @@
 #[macro_use]
 mod macros;
 
-mod addition;
+mod core;
 mod domain;
 mod traits;
 mod typed_map;
@@ -9,7 +9,7 @@ mod view;
 
 #[allow(unused_imports)]
 pub use {
-    addition::Addition,
+    core::Addition,
     domain::{
         ExampleDomain,
         Pips,

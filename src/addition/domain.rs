@@ -9,7 +9,7 @@ use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}};
 use crate::ecs::partition::Partition;
 use crate::input::Input;
 
-use super::addition::Addition;
+use super::core::Addition;
 use super::traits::{Tables, Solvers, Scripts, Signals};
 use super::typed_map::Polysystem;
 use super::view::AsViewMut;
