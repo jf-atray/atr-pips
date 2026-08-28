@@ -2,7 +2,7 @@ use slotmap::SlotMap;
 
 use crate::ecs::{ClassRowPtr, PipId, class::Class};
 
-pub fn gather_ref<'a, T, K>(
+pub(crate) fn gather_ref<'a, T, K>(
     ids: &SlotMap<PipId, ClassRowPtr>,
     class: &'a Class<T, K>,
     pip: PipId,
@@ -11,7 +11,7 @@ pub fn gather_ref<'a, T, K>(
     class.get_row(ptr)
 }
 
-pub fn gather_mut<'a, T, K>(
+pub(crate) fn gather_mut<'a, T, K>(
     ids: &SlotMap<PipId, ClassRowPtr>,
     class: &'a mut Class<T, K>,
     pip: PipId,
@@ -20,7 +20,7 @@ pub fn gather_mut<'a, T, K>(
     class.get_row_mut(ptr)
 }
 
-pub fn gather_pair_ref<'a, T, K, U, L>(
+pub(crate) fn gather_pair_ref<'a, T, K, U, L>(
     ids: &SlotMap<PipId, ClassRowPtr>,
     a: &'a Class<T, K>,
     b: &'a Class<U, L>,
@@ -30,7 +30,7 @@ pub fn gather_pair_ref<'a, T, K, U, L>(
     Some((a.get_row(ptr)?, b.get_row(ptr)?))
 }
 
-pub fn gather_pair_mut<'a, T, K, U, L>(
+pub(crate) fn gather_pair_mut<'a, T, K, U, L>(
     ids: &SlotMap<PipId, ClassRowPtr>,
     a: &'a mut Class<T, K>,
     b: &'a mut Class<U, L>,

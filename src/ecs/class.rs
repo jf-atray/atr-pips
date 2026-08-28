@@ -10,43 +10,42 @@ use crate::ecs::{
 
 #[derive(Debug)]
 pub struct Class<T, K = ()> {
-    pub growth: GrowthStrategy,
+    pub(crate) growth: GrowthStrategy,
     //todo, worry about excessive vec ptr memory bloat later
-    pub data: SecondaryMap<ClassId, Columnar<T, K>>,
-    pub class: BTreeSet<ClassId>,
+    pub(crate) data: SecondaryMap<ClassId, Columnar<T, K>>,
+    pub(crate) class: BTreeSet<ClassId>,
 
 }
 impl<T, K> Class<T, K> {
-    pub fn new(growth: GrowthStrategy) -> Self {
+    pub(crate) fn new(growth: GrowthStrategy) -> Self {
         let data = SecondaryMap::new();
         Self { growth, data, class: BTreeSet::new() }
     }
-    pub fn stake(&mut self, class_id: ClassId, k: K) -> &mut Self{
+    pub(crate) fn stake(&mut self, class_id: ClassId, k: K) -> &mut Self{
         self.data.insert(class_id, Columnar::new(k));
         let _notdupe = self.class.insert(class_id);
         self
     }
-    pub fn with_capacity(capacity: usize, _rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
+    pub(crate) fn with_capacity(capacity: usize, _rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
         let data = SecondaryMap::with_capacity(capacity);
         Self { growth, data, class: BTreeSet::new() }
     }
 
-    pub fn get_row(&self, id: &ClassRowPtr) -> Option<&T> {
+    pub(super) fn get_row(&self, id: &ClassRowPtr) -> Option<&T> {
         let col = self.data.get(id.class_id)?;
         Some(&col.vec[id.row_idx])
     }
-    // stop letting everyone reach into here!!!!
     pub(super) fn get_row_mut(&mut self, id: &ClassRowPtr) -> Option<&mut T> {
         let col = self.data.get_mut(id.class_id)?;
         Some(&mut col.vec[id.row_idx])
     }
 
-    pub unsafe fn get_row_unchecked(&self, id: &ClassRowPtr) -> Option<&T> {
+    pub(super) unsafe fn get_row_unchecked(&self, id: &ClassRowPtr) -> Option<&T> {
         let col = self.data.get(id.class_id)?;
         let row = unsafe { col.get_unchecked(id.row_idx) };
         Some(row)
     }
-    pub unsafe fn get_row_unchecked_mut(&mut self, id: &ClassRowPtr) -> Option<&mut T> {
+    pub(super) unsafe fn get_row_unchecked_mut(&mut self, id: &ClassRowPtr) -> Option<&mut T> {
         let col = self.data.get_mut(id.class_id)?;
         let row = unsafe { col.get_unchecked_mut(id.row_idx) };
         Some(row)
@@ -54,7 +53,7 @@ impl<T, K> Class<T, K> {
 }
 
 impl<T, K: PartialEq> Class<T, K> {
-    pub fn get_col_or_insert_with_key(&mut self, id: ClassId, k: K) -> &mut Columnar<T, K> {
+    pub(crate) fn get_col_or_insert_with_key(&mut self, id: ClassId, k: K) -> &mut Columnar<T, K> {
         if self.data.contains_key(id) {
             debug_assert!(
                 self.data.get(id).unwrap().key == k,
@@ -68,7 +67,7 @@ impl<T, K: PartialEq> Class<T, K> {
 }
 
 impl<T, K: Default + PartialEq> Class<T, K> {
-    pub fn get_col_or_insert(&mut self, id: ClassId) -> &mut Columnar<T, K> {
+    pub(crate) fn get_col_or_insert(&mut self, id: ClassId) -> &mut Columnar<T, K> {
         self.get_col_or_insert_with_key(id, K::default())
     }
 }
@@ -79,19 +78,19 @@ impl<T, K: Default + PartialEq> Class<T, K> {
 //then the ClassId() itself can be an enum on where to lookup
 #[derive(Debug)]
 pub struct Columnar<T, K = ()> {
-    pub key: K,
-    pub vec: Vec<T>,
+    pub(crate) key: K,
+    pub(super) vec: Vec<T>,
 }
 
 impl<T, K> Columnar<T, K> {
-    pub fn new(key: K) -> Self {
+    pub(super) fn new(key: K) -> Self {
         Self {
             key,
             vec: Vec::new(),
         }
     }
 
-    pub fn with_capacity(key: K, capacity: usize) -> Self {
+    pub(super) fn with_capacity(key: K, capacity: usize) -> Self {
         Self {
             key,
             vec: Vec::with_capacity(capacity),

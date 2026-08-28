@@ -7,7 +7,7 @@ use glam::{Quat, Vec2, Vec3, Vec4};
 use crate::anims::*;
 use crate::brushes::Brush;
 use crate::ecs::core::CoreWorld;
-use crate::ecs::{CanvasId, MaterialId, PipId};
+use crate::ecs::{CanvasId, MaterialId};
 use crate::ecs::scope::Scope;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;

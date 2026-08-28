@@ -1,6 +1,7 @@
 pub mod class;
 pub mod class_strategy;
 pub mod core;
+pub mod gather;
 pub mod partition;
 pub mod scope;
 
@@ -14,12 +15,12 @@ slotmap::new_key_type! {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct ClassRowPtr {
-    pub class_id: ClassId, //u64. pain in the arse to shrink but also lol memory.
-    pub row_idx: usize,
+pub(crate) struct ClassRowPtr {
+    pub(crate) class_id: ClassId, //u64. pain in the arse to shrink but also lol memory.
+    pub(crate) row_idx: usize,
 }
 impl ClassRowPtr {
-    pub fn new(class_id: ClassId, row_idx: usize) -> Self {
+    pub(crate) fn new(class_id: ClassId, row_idx: usize) -> Self {
         Self { class_id, row_idx }
     }
 }

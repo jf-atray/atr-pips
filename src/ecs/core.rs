@@ -1,6 +1,6 @@
 use crate::addition;
 use crate::brushes::Brush;
-use crate::ecs::{class::Class, PipId};
+use crate::ecs::class::Class;
 use crate::ecs::class_strategy::GrowthStrategy;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;

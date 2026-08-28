@@ -20,7 +20,6 @@ mod canvases;
 mod clip;
 mod demo;
 mod gamescope;
-mod gather;
 mod gpuscope;
 mod input;
 mod libscope;
@@ -31,6 +30,8 @@ mod spacial;
 mod ecs;
 mod windowing;
 mod you_first;
+
+pub use crate::ecs::gather;
 
 use std::sync::Arc;
 use winit::event_loop;
