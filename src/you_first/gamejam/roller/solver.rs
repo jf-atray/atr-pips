@@ -29,7 +29,7 @@ impl RollerProjectionSolver {
         dt: f32,
         pips: &mut Pips,
         _scripts: &mut ScriptsMap,
-        _signals: &mut SignalsMap,
+        signals: &mut SignalsMap,
         _input: &Input,
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
@@ -38,11 +38,13 @@ impl RollerProjectionSolver {
         };
 
         let player = self.player;
-        let walk_speed = WALK_SPEED;
+        let walk_speed = RollerWorld::signals(signals)
+            .map(|s| s.walk_speed)
+            .unwrap_or(WALK_SPEED);
         let mut to_despawn: Vec<PipId> = Vec::new();
 
         query!(
-            [&mut roller.roller_depths, &pips.pip_ids],
+            [(); &mut roller.roller_depths, (); &pips.pip_ids],
             |depth, pip_id| {
                 if Some(*pip_id) == player {
                     return;

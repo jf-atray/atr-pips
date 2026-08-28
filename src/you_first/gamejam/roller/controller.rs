@@ -5,6 +5,8 @@ use crate::assets::SpriteEntry;
 use crate::ecs::PipId;
 use crate::gather::impls::gather_pair_mut;
 use crate::input::Input;
+use crate::you_first::gamejam::duel::components::DuelWorld;
+use crate::you_first::gamejam::duel::state::DuelState;
 use crate::you_first::gamejam::roller::components::RollerWorld;
 use crate::you_first::gamejam::roller::projection::{WALK_SPEED, depth_factor_linear, world_x};
 
@@ -34,9 +36,12 @@ impl PlayerLateralController {
         input: &Input,
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
-        let (duel_active, walk_speed) = RollerWorld::signals(signals)
-            .map(|s| (s.duel_active, s.walk_speed))
-            .unwrap_or((false, WALK_SPEED));
+        let walk_speed = RollerWorld::signals(signals)
+            .map(|s| s.walk_speed)
+            .unwrap_or(WALK_SPEED);
+        let duel_active = DuelWorld::signals(signals)
+            .map(|s| matches!(&s.duel_state, DuelState::Active))
+            .unwrap_or(false);
         let lateral = if duel_active {
             0.0
         } else {

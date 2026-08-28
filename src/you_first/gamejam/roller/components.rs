@@ -49,7 +49,6 @@ addition! {
         scripts: {},
         signals: {
             walk_speed: f32 = WALK_SPEED,
-            duel_active: bool = false,
         },
     }
 }

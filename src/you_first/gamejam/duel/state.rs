@@ -311,7 +311,6 @@ pub struct RetryState {
 
 #[derive(Debug)]
 pub struct Duel {
-    pub state: DuelState,
     pub pending: Option<PendingDuel>,
     pub phase: DuelPhase,
     pub timer: f32,
@@ -320,16 +319,24 @@ pub struct Duel {
 impl Duel {
     pub fn new() -> Self {
         Self {
-            state: DuelState::Inactive,
             pending: None,
             phase: DuelPhase::Idle,
             timer: 0.0,
         }
     }
 
+    pub fn state(&self) -> DuelState {
+        match self.phase {
+            DuelPhase::Idle => DuelState::Inactive,
+            DuelPhase::ZoomOut => DuelState::Requested,
+            DuelPhase::Active => DuelState::Active,
+            DuelPhase::ScurryLoss => DuelState::Done(DuelOutcome::Loss),
+            _ => DuelState::Done(DuelOutcome::Win),
+        }
+    }
+
     pub fn request(&mut self, pending: PendingDuel) {
-        if matches!(self.state, DuelState::Inactive) {
-            self.state = DuelState::Requested;
+        if matches!(self.state(), DuelState::Inactive) {
             self.pending = Some(pending);
             self.phase = DuelPhase::ZoomOut;
             self.timer = 0.0;
@@ -339,9 +346,8 @@ impl Duel {
     pub fn tick(&mut self, dt: f32) {
         match self.phase {
             DuelPhase::ZoomOut => {
-                if matches!(self.state, DuelState::Requested) {
+                if self.pending.is_some() {
                     self.pending = None;
-                    self.state = DuelState::Active;
                     self.phase = DuelPhase::Active;
                     self.timer = 0.0;
                 }
@@ -349,7 +355,6 @@ impl Duel {
             DuelPhase::Active => {
                 self.timer += dt;
                 if self.timer >= 2.0 {
-                    self.state = DuelState::Done(DuelOutcome::Win);
                     self.phase = DuelPhase::Returning;
                     self.timer = 0.0;
                 }
@@ -364,18 +369,13 @@ impl Duel {
             DuelPhase::ZoomIn => {
                 self.timer += dt;
                 if self.timer >= 0.5 {
-                    self.state = DuelState::Inactive;
                     self.phase = DuelPhase::Idle;
                     self.timer = 0.0;
                 }
             }
             DuelPhase::ScurryLoss => {}
             DuelPhase::Done => {}
-            DuelPhase::Idle => {
-                if matches!(self.state, DuelState::Requested) {
-                    self.phase = DuelPhase::ZoomOut;
-                }
-            }
+            DuelPhase::Idle => {}
         }
     }
 }

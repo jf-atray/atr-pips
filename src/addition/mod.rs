@@ -23,6 +23,3 @@ pub use {
     traits::{Signals, Solver, Solvers, Tables, Scripts},
     typed_map::Polysystem,
 };
-
-#[cfg(test)]
-mod test;

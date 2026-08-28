@@ -1,18 +1,24 @@
+use std::collections::HashMap;
+
 use glam::{Vec2, Vec4};
 
-use crate::addition::Addition;
-use crate::scripting::context::DomainView;
-use crate::scripting::script::Script;
+use crate::addition::{Addition, Ids, Pips, ScriptsMap, SignalsMap, Solver};
+use crate::assets::SpriteEntry;
 use crate::ecs::PipId;
-use crate::ecs::core::CoreWorld;
+use crate::ecs::class::Class;
+use crate::gather::impls::{gather_mut, gather_ref};
+use crate::input::Input;
 use crate::you_first::gamejam::duel::formation::Formation;
 use crate::you_first::gamejam::duel::state::{
-    BadGuyKind, BadGuySpec, ChallengeConfig, Duel, DuelState, HowdyPerfectRun, LivingAnimLib,
+    BadGuyKind, BadGuySpec, ChallengeConfig, Duel, DuelPhase, HowdyPerfectRun, LivingAnimLib,
     PendingDuel, ReticlePattern, RetryState, Side, TownspersonKind, TownspersonSpec,
 };
+use crate::you_first::gamejam::duel::components::DuelWorld;
 use crate::you_first::gamejam::roller::bundles::living_roller_bundle;
-use crate::you_first::gamejam::roller::components::RollerWorld;
-use crate::you_first::gamejam::roller::projection::{DUEL_SPAWN_DISTANCE, DUEL_TRIGGER_DISTANCE};
+use crate::you_first::gamejam::roller::components::{RollerDepth, RollerWorld};
+use crate::you_first::gamejam::roller::projection::{
+    DUEL_SPAWN_DISTANCE, DUEL_TRIGGER_DISTANCE,
+};
 use crate::you_first::gamejam::stats::GameStats;
 
 const POST_DUEL_DELAY: f32 = 2.6;
@@ -66,8 +72,8 @@ enum DmPhase {
 
 #[derive(Debug)]
 pub struct DungeonMaster {
-    pub player: PipId,
-    pub living_anim: LivingAnimLib,
+    pub player: Option<PipId>,
+    pub living_anim: Option<LivingAnimLib>,
     pub duel: Duel,
     pub game_stats: GameStats,
     pub howdy_perfect_run: HowdyPerfectRun,
@@ -82,8 +88,8 @@ pub struct DungeonMaster {
 
 impl DungeonMaster {
     pub fn new(
-        player: PipId,
-        living_anim: LivingAnimLib,
+        player: Option<PipId>,
+        living_anim: Option<LivingAnimLib>,
         retry: Option<RetryState>,
     ) -> Self {
         Self {
@@ -364,13 +370,18 @@ impl DungeonMaster {
         ]
     }
 
-    fn spawn_challenge(&mut self, ctx: &mut DomainView, config: &ChallengeConfig) {
+    fn spawn_challenge(
+        &mut self,
+        pips: &mut Pips,
+        asset_registry: &HashMap<String, SpriteEntry>,
+        living_anim: &LivingAnimLib,
+        config: &ChallengeConfig,
+    ) {
         self.spawned.clear();
         let bg_positions = config.bad_guy_formation.positions(config.bad_guys.len());
-        let bandit = match ctx.asset_registry.get("bandit-1") {
+        let bandit = match asset_registry.get("bandit-1") {
             Some(s) => s,
-            None => ctx
-                .asset_registry
+            None => asset_registry
                 .get("__white__")
                 .expect("missing bandit-1 and __white__ sprite"),
         };
@@ -378,20 +389,17 @@ impl DungeonMaster {
             let (lat_offset, d_offset) = bg_positions[i];
             let lateral = lat_offset;
             let d = DUEL_SPAWN_DISTANCE + d_offset;
-            let pip = ctx.domain.make(living_roller_bundle(
+            let pip = pips.make(living_roller_bundle(
                 lateral,
                 d,
                 Vec2::splat(1.28125),
                 Vec4::ONE,
                 bandit,
-                &self.living_anim,
+                living_anim,
                 "bandit",
             ));
             if matches!(spec.kind, BadGuyKind::Offscreen { .. }) {
-                //todo this is supposed to be gather
-                if let Some(ptr) = ctx.domain.pips.ids.get(pip)
-                && let Some(brush) = ctx.domain.pips.tables.core.brushes.get_row_mut(ptr)
-                {
+                if let Some(brush) = gather_mut(&pips.ids, &mut pips.tables.core.brushes, pip) {
                     brush.color.w = 0.0;
                 }
             }
@@ -400,10 +408,9 @@ impl DungeonMaster {
 
         self.spawned_townspeople.clear();
         let tp_positions = config.townsperson_formation.positions(config.townspeople.len());
-        let townie = match ctx.asset_registry.get("townie_1") {
+        let townie = match asset_registry.get("townie_1") {
             Some(s) => s,
-            None => ctx
-                .asset_registry
+            None => asset_registry
                 .get("__white__")
                 .expect("missing townie_1 and __white__ sprite"),
         };
@@ -414,20 +421,17 @@ impl DungeonMaster {
                 Side::Right => 4.5,
             };
             let d = DUEL_SPAWN_DISTANCE + d_offset * 1.7;
-            let pip = ctx.domain.make(living_roller_bundle(
+            let pip = pips.make(living_roller_bundle(
                 lateral,
                 d,
                 Vec2::splat(1.28125),
                 Vec4::ONE,
                 townie,
-                &self.living_anim,
+                living_anim,
                 "townie",
             ));
             if matches!(spec.kind, TownspersonKind::Offscreen { .. }) {
-                //gather...
-                if let Some(ptr) = ctx.domain.pips.ids.get(pip)
-                && let Some(brush) = ctx.domain.pips.tables.core.brushes.get_row_mut(ptr)
-                {
+                if let Some(brush) = gather_mut(&pips.ids, &mut pips.tables.core.brushes, pip) {
                     brush.color.w = 0.0;
                 }
             }
@@ -435,25 +439,18 @@ impl DungeonMaster {
         }
     }
 
-    fn check_trigger(&self, ctx: &mut DomainView) -> bool {
-        let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) else {
-            return false;
-        };
+    fn check_trigger(&self, ids: &Ids, roller_depths: &Class<RollerDepth>) -> bool {
         for (pip, _) in &self.spawned {
-            if let Some(ptr) = ctx.domain.pips.ids.get(*pip) {
-                if let Some(depth) = roller.roller_depths.get_row(ptr) {
-                    if depth.d <= DUEL_TRIGGER_DISTANCE {
-                        return true;
-                    }
+            if let Some(depth) = gather_ref(ids, roller_depths, *pip) {
+                if depth.d <= DUEL_TRIGGER_DISTANCE {
+                    return true;
                 }
             }
         }
         for (pip, _) in &self.spawned_townspeople {
-            if let Some(ptr) = ctx.domain.pips.ids.get(*pip) {
-                if let Some(depth) = roller.roller_depths.get_row(ptr) {
-                    if depth.d <= DUEL_TRIGGER_DISTANCE {
-                        return true;
-                    }
+            if let Some(depth) = gather_ref(ids, roller_depths, *pip) {
+                if depth.d <= DUEL_TRIGGER_DISTANCE {
+                    return true;
                 }
             }
         }
@@ -461,17 +458,34 @@ impl DungeonMaster {
     }
 }
 
-impl Script for DungeonMaster {
-    fn update(&mut self, ctx: &mut DomainView) {
-        self.duel.tick(ctx.dt);
+impl Solver for DungeonMaster {}
+
+impl DungeonMaster {
+    pub fn update(
+        &mut self,
+        dt: f32,
+        pips: &mut Pips,
+        _scripts: &mut ScriptsMap,
+        signals: &mut SignalsMap,
+        _input: &Input,
+        asset_registry: &HashMap<String, SpriteEntry>,
+    ) {
+        self.duel.tick(dt);
+
+        let Some(living_anim) = self.living_anim.clone() else {
+            return;
+        };
+
+        let ids = &pips.ids;
+        let Some(roller) = RollerWorld::tables(&mut pips.tables.pile) else {
+            return;
+        };
 
         if self.phase == DmPhase::WaitingToSpawn && self.challenge_index == 0 {
             if let Some(retry) = self.retry.take() {
                 self.challenge_index = retry.challenge_index;
-                if let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) {
-                    if let Some(ptr) = ctx.domain.pips.ids.get(self.player)
-                        && let Some(depth) = roller.roller_depths.get_row_mut(ptr)
-                    {
+                if let Some(player) = self.player {
+                    if let Some(depth) = gather_mut(ids, &mut roller.roller_depths, player) {
                         depth.d = retry.player_d;
                     }
                 }
@@ -498,40 +512,43 @@ impl Script for DungeonMaster {
                     self.game_stats.highscore =
                         self.game_stats.highscore.max(self.game_stats.items_collected);
                     self.game_stats.flush();
-                    return;
+                } else {
+                    let config = self.challenges[self.challenge_index].clone();
+                    self.spawn_challenge(pips, asset_registry, &living_anim, &config);
+                    self.phase = DmPhase::ChallengeActive;
                 }
-                let config = self.challenges[self.challenge_index].clone();
-                self.spawn_challenge(ctx, &config);
-                self.phase = DmPhase::ChallengeActive;
             }
             DmPhase::ChallengeActive => {
-                if !matches!(self.duel.state, DuelState::Inactive) {
-                    return;
-                }
-                if self.check_trigger(ctx) {
-                    let pending = PendingDuel {
-                        bad_guys: std::mem::take(&mut self.spawned),
-                        townspeople: std::mem::take(&mut self.spawned_townspeople),
-                    };
-                    self.duel.request(pending);
-                    self.phase = DmPhase::DuelInProgress;
+                if self.duel.phase == DuelPhase::Idle {
+                    if self.check_trigger(ids, &roller.roller_depths) {
+                        let pending = PendingDuel {
+                            bad_guys: std::mem::take(&mut self.spawned),
+                            townspeople: std::mem::take(&mut self.spawned_townspeople),
+                        };
+                        self.duel.request(pending);
+                        self.phase = DmPhase::DuelInProgress;
+                    }
                 }
             }
             DmPhase::DuelInProgress => {
-                if matches!(self.duel.state, DuelState::Inactive) {
+                if self.duel.phase == DuelPhase::Idle {
                     self.game_stats.completed_levels += 1;
                     self.phase = DmPhase::PostDuelDelay;
                     self.delay_timer = 0.0;
                 }
             }
             DmPhase::PostDuelDelay => {
-                self.delay_timer += ctx.dt;
+                self.delay_timer += dt;
                 if self.delay_timer >= POST_DUEL_DELAY {
                     self.challenge_index += 1;
                     self.phase = DmPhase::WaitingToSpawn;
                 }
             }
             DmPhase::Finished => {}
+        }
+
+        if let Some(duel_signals) = DuelWorld::signals(signals) {
+            duel_signals.duel_state = self.duel.state();
         }
     }
 }
