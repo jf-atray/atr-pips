@@ -124,6 +124,22 @@ pub type SignalsMap = Polysystem<dyn Signals, <CoreWorld as Addition>::Signals>;
 pub type Ids = SlotMap<PipId, ClassRowPtr>;
 pub type AnimLibs = SlotMap<AnimLibId, AnimationLibrary>;
 
+impl Default for ExampleDomain {
+    fn default() -> Self {
+        Self {
+            pips: Pips {
+                tables: TablesMap::new(CoreWorld::make_tables()),
+                ids: Ids::default(),
+                anim_libs: AnimLibs::default(),
+                heading: SlotMap::default(),
+            },
+            solvers: SolversMap::new(CoreWorld::make_solvers()),
+            scripts: ScriptsMap::new(CoreWorld::make_scripts()),
+            signals: SignalsMap::new(CoreWorld::make_signals()),
+        }
+    }
+}
+
 impl ExampleDomain {
     pub fn get<T: Addition + 'static>(&mut self) -> Option<AsViewMut<'_, T>> {
         let tables = self.pips.tables.get_mut::<T, T::Tables>()?;
