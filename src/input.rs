@@ -72,8 +72,7 @@ impl VirtualAxes {
     pub fn value(&self, name: &str) -> f32 {
         self.states
             .get(name)
-            .map(|(c, _)| c.signum() as f32)
-            .unwrap_or(0.0)
+            .map_or(0.0, |(c, _)| c.signum() as f32)
     }
 
     pub fn delta(&self, name: &str) -> Option<i32> {

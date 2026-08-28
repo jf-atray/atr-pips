@@ -199,6 +199,6 @@ impl ExampleDomain {
     }
 
     pub fn destroy(&mut self, pip: PipId) {
-        self.pips.destroy(pip)
+        self.pips.destroy(pip);
     }
 }

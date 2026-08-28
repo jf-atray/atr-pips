@@ -139,7 +139,7 @@ impl App {
         self.target_dt = windowing.window.current_monitor().and_then(|monitor| {
             monitor
                 .refresh_rate_millihertz()
-                .map(|hz| hz as f64 / 1000.0)
+                .map(|hz| f64::from(hz) / 1000.0)
         });
         self.target_fps = self
             .target_dt
@@ -416,8 +416,6 @@ impl ApplicationHandler<GpuReady> for App {
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
         let state = std::mem::replace(&mut self.state, AppState::Boot);
         self.state = state
-            .into_suspend()
-            .map(|(state, _gpu)| state)
-            .unwrap_or_else(|other| other);
+            .into_suspend().map_or_else(|other| other, |(state, _gpu)| state);
     }
 }
