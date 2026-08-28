@@ -24,7 +24,7 @@ use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, CanvasUnderstander, 
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
-use crate::addition::{Addition, TablesMap, Tables as AdditionTables};
+use crate::addition::{Addition, TablesMap};
 use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, MaterialId};
 

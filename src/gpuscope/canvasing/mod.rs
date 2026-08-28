@@ -9,7 +9,7 @@ use wgpu::{
 };
 
 use crate::spacial::camera::Camera;
-use crate::addition::{TablesMap, Tables as AdditionTables};
+use crate::addition::TablesMap;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId};
 
 pub trait CanvasSolver: Any + std::fmt::Debug {

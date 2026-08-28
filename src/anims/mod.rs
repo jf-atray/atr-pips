@@ -8,7 +8,6 @@ use crate::ecs::{CanvasId, MaterialId};
 use crate::spacial::transform::Transform;
 
 pub mod solver;
-pub use solver::AnimSolver;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnimTime(pub f32);
