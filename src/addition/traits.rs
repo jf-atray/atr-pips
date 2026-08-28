@@ -8,10 +8,10 @@ use crate::input::Input;
 
 use super::domain::{Pips, ScriptsMap, SignalsMap};
 
-pub trait Tables: Downcast + Partition {}
-pub trait Solver: Downcast {}
+pub trait Tables: Downcast + Partition + std::fmt::Debug {}
+pub trait Solver: Downcast + std::fmt::Debug {}
 
-pub trait Solvers: Downcast {
+pub trait Solvers: Downcast + std::fmt::Debug {
     fn update(
         &mut self,
         dt: f32,
@@ -23,8 +23,8 @@ pub trait Solvers: Downcast {
     );
 }
 
-pub trait Scripts: Downcast {}
-pub trait Signals: Downcast {}
+pub trait Scripts: Downcast + std::fmt::Debug {}
+pub trait Signals: Downcast + std::fmt::Debug {}
 
 impl_downcast!(Tables);
 impl_downcast!(Solvers);

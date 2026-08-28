@@ -7,7 +7,7 @@ use glam::{Quat, Vec2, Vec3, Vec4};
 use crate::anims::*;
 use crate::brushes::Brush;
 use crate::ecs::core::CoreWorld;
-use crate::ecs::{CanvasId, MaterialId};
+use crate::ecs::{CanvasId, MaterialId, PipId};
 use crate::ecs::scope::Scope;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
@@ -40,6 +40,8 @@ pub fn duel_cursor_bundle(
             },
             name,
             Motion::default(),
+
+
         );
         let dv = scope.view::<DuelWorld>().unwrap();
         dv.duel_cursors = Some(DuelCursor { lateral });
@@ -71,6 +73,8 @@ pub fn duel_enemy_bundle(
             },
             name,
             Motion::default(),
+
+
         );
         let dv = scope.view::<DuelWorld>().unwrap();
         dv.duel_enemies = Some(DuelEnemy {

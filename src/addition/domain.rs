@@ -17,6 +17,7 @@ use super::view::AsViewMut;
 #[derive(Debug)]
 pub struct Pips {
     pub tables: TablesMap,
+    pub pip_ids: crate::ecs::class::Class<PipId>,
     pub ids: Ids,
     pub anim_libs: AnimLibs,
     pub heading: SlotMap<ClassId, usize>,
@@ -27,6 +28,7 @@ impl Pips {
         self.ids.clear();
         self.heading.clear();
         self.anim_libs.clear();
+        self.pip_ids.data.values_mut().for_each(|c| c.clear());
         self.tables.core.clear();
         for tables in self.tables.iter_mut() {
             tables.clear();
@@ -47,9 +49,7 @@ impl Pips {
 
         self.destroy_ptr(&ptr);
         let displaced = self
-            .tables
-            .core
-            .pip_id
+            .pip_ids
             .data
             .get(ptr.class_id)
             .and_then(|col| col.get(ptr.row_idx))
@@ -69,6 +69,9 @@ impl Pips {
         for tables in self.tables.iter_mut() {
             tables.destroy(ptr.class_id, ptr.row_idx);
         }
+        if let Some(col) = self.pip_ids.data.get_mut(ptr.class_id) {
+            col.swap_remove(ptr.row_idx);
+        }
     }
 
     fn commit_with<F: FnOnce(&mut Scope)>(&mut self, pip: PipId, f: F) -> ClassRowPtr {
@@ -84,9 +87,6 @@ impl Pips {
         }
 
         f(&mut scope);
-        if let Some(core_view) = scope.view::<CoreWorld>() {
-            core_view.pip_id = Some(pip);
-        }
 
         let width = scope.width();
 
@@ -105,6 +105,7 @@ impl Pips {
 
         let class_id = class_id.unwrap_or_else(|| self.heading.insert(width));
         let row_idx = scope.commit::<CoreWorld>(class_id, &mut self.tables).unwrap();
+        self.pip_ids.get_col_or_insert(class_id).push(pip);
         ClassRowPtr::new(class_id, row_idx)
     }
 }
@@ -129,6 +130,9 @@ impl Default for ExampleDomain {
         Self {
             pips: Pips {
                 tables: TablesMap::new(CoreWorld::make_tables()),
+                pip_ids: crate::ecs::class::Class::new(
+                    crate::ecs::class_strategy::GrowthStrategy::quart_kib::<PipId>(),
+                ),
                 ids: Ids::default(),
                 anim_libs: AnimLibs::default(),
                 heading: SlotMap::default(),

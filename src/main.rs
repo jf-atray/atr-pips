@@ -26,7 +26,6 @@ mod input;
 mod libscope;
 mod physics;
 mod query;
-mod scripting;
 mod seek;
 mod spacial;
 mod ecs;

@@ -65,6 +65,8 @@ impl CloudDriftSystem {
                         Motion {
                             vel: Vec3::new(CLOUD_DRIFT_SPEED, 0.0, 0.0),
                         },
+
+
                     );
             });
             self.clouds.push(pip);

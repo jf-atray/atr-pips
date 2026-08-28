@@ -1,9 +1,11 @@
-use crate::addition::Addition;
+use std::collections::HashMap;
+
+use crate::addition::{Addition, Pips, ScriptsMap, SignalsMap, Solver};
 use crate::anims::AnimRules;
-use crate::gather::impls::gather_ref;
-use crate::scripting::context::DomainView;
-use crate::scripting::script::Script;
+use crate::assets::SpriteEntry;
 use crate::ecs::PipId;
+use crate::gather::impls::gather_ref;
+use crate::input::Input;
 use crate::you_first::gamejam::duel::bundle::build_tumbleweed_anim_library;
 use crate::you_first::gamejam::duel::state::TumbleweedAnimLib;
 use crate::you_first::gamejam::roller::biome::Biome;
@@ -29,13 +31,15 @@ impl Lifecycle {
 
 #[derive(Debug)]
 pub struct RollerSpawner {
-    player: PipId,
+    pub player: Option<PipId>,
     biome: Lifecycle,
     tumbleweed: Option<(TumbleweedAnimLib, AnimRules)>,
 }
 
+impl Solver for RollerSpawner {}
+
 impl RollerSpawner {
-    pub const fn new(player: PipId) -> Self {
+    pub const fn new(player: Option<PipId>) -> Self {
         Self {
             player,
             biome: Lifecycle::Pending,
@@ -43,25 +47,30 @@ impl RollerSpawner {
         }
     }
 
-    fn player_walk_distance(&self, ctx: &mut DomainView) -> Option<f32> {
-        let roller = RollerWorld::tables(&mut ctx.domain.pips.tables)?;
-        let player = gather_ref(&ctx.domain.pips.ids, &roller.roller_players, self.player)?;
+    fn player_walk_distance(&self, pips: &mut Pips) -> Option<f32> {
+        let player = self.player?;
+        let roller = RollerWorld::tables(&mut pips.tables.pile)?;
+        let player = gather_ref(&pips.ids, &roller.roller_players, player)?;
         Some(player.walk_distance)
     }
-}
 
-impl Script for RollerSpawner {
-    fn update(&mut self, ctx: &mut DomainView) {
-        let Some(walk_distance) = self.player_walk_distance(ctx) else {
+    pub fn update(
+        &mut self,
+        _dt: f32,
+        pips: &mut Pips,
+        _scripts: &mut ScriptsMap,
+        _signals: &mut SignalsMap,
+        _input: &Input,
+        asset_registry: &HashMap<String, SpriteEntry>,
+    ) {
+        let Some(walk_distance) = self.player_walk_distance(pips) else {
             return;
         };
 
         if self.tumbleweed.is_none() {
             let (lib, root) = build_tumbleweed_anim_library();
-            let lib_id = ctx.domain.pips.anim_libs.insert(lib);
-            let rules = ctx
-                .domain
-                .pips
+            let lib_id = pips.anim_libs.insert(lib);
+            let rules = pips
                 .anim_libs
                 .get(lib_id)
                 .unwrap()
@@ -77,19 +86,19 @@ impl Script for RollerSpawner {
         match &mut self.biome {
             Lifecycle::Pending => {
                 let mut biome = Biome::sparse_desert(tumbleweed);
-                biome.pre_seed(ctx.domain, ctx.asset_registry);
+                biome.pre_seed(pips, asset_registry);
                 self.biome = Lifecycle::Sparse(biome);
             }
             Lifecycle::Sparse(biome) if walk_distance >= BIOME_SWAP_DISTANCE => {
                 let mut next = Biome::default_desert(tumbleweed);
-                next.pre_seed(ctx.domain, ctx.asset_registry);
+                next.pre_seed(pips, asset_registry);
                 self.biome = Lifecycle::Default(next);
             },
             _ => {}
         }
 
         if let Some(biome) = self.biome.biome_mut() {
-            biome.update(ctx.domain, ctx.asset_registry, walk_distance);
+            biome.update(pips, asset_registry, walk_distance);
         }
     }
 }

@@ -10,9 +10,9 @@ use zerocopy::IntoBytes as _;
 use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{BasicSpriteCanvas, SpriteCanvasSolver, SpriteInstance};
-use crate::addition::Addition;
-use crate::anims::{AnimWorld, AnimSolver};
-use crate::gamescope::motion::MotionSolver;
+
+use crate::anims::AnimWorld;
+
 use crate::gamescope::scene::{Scene, SceneContext};
 use crate::gather::impls::gather_ref;
 use crate::gpuscope::canvasing::{CanvasTrait, CanvasUnderstander};
@@ -22,18 +22,15 @@ use crate::spacial::transform::Transform;
 use crate::ecs::scope::Scope;
 use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId, PipId};
-use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
+
 use crate::you_first::gamejam::duel::bundle::build_living_anim_library;
-use crate::you_first::gamejam::duel::dm::DungeonMaster;
+
 use crate::you_first::gamejam::duel::state::LivingAnimLib;
 use crate::you_first::gamejam::roller::bundles::player_roller_bundle;
 use crate::you_first::gamejam::roller::camera::CameraDirector;
-use crate::you_first::gamejam::roller::clouds::CloudDriftSystem;
-use crate::you_first::gamejam::roller::components::RollerWorld;
-use crate::you_first::gamejam::roller::controller::PlayerLateralController;
 
-use crate::you_first::gamejam::roller::solver::RollerProjectionSolver;
-use crate::you_first::gamejam::roller::spawner::RollerSpawner;
+use crate::you_first::gamejam::roller::components::RollerWorld;
+
 
 const DESIGN_W: f32 = 1280.0;
 const DESIGN_H: f32 = 720.0;
@@ -119,9 +116,8 @@ impl Scene for OverworldScene {
 
 impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
-        ctx.domain.tables.insert::<crate::ecs::core::CoreWorld>(Box::new(crate::ecs::core::CoreWorld::make_tables()));
-        ctx.domain.tables.insert::<RollerWorld>(Box::new(RollerWorld::make_tables()));
-        ctx.domain.tables.insert::<AnimWorld>(Box::new(AnimWorld::make_tables()));
+        let _ = ctx.domain.add::<RollerWorld>();
+        let _ = ctx.domain.add::<AnimWorld>();
 
         let solver_id = ctx.gpu
             .canvas_renderer_mut()
@@ -129,9 +125,6 @@ impl OverworldScene {
             .insert(Box::new(SpriteCanvasSolver::new()));
 
         self.make_canvas(ctx, solver_id);
-        ctx.solvers.register(RollerProjectionSolver);
-        ctx.solvers.register(MotionSolver);
-        ctx.solvers.register(AnimSolver);
 
         let (living_lib, living_root) = build_living_anim_library();
         let living_lib_id = ctx.domain.pips.anim_libs.insert(living_lib);
@@ -170,6 +163,8 @@ impl OverworldScene {
                 brush,
                 "ground".to_string(),
                 Motion::default(),
+
+    
             );
         });
         self.ground = Some(ground);
@@ -198,6 +193,8 @@ impl OverworldScene {
                 brush,
                 "tilted_ground".to_string(),
                 Motion::default(),
+
+    
             );
         });
         self.tilted_ground = Some(tilted);
@@ -222,6 +219,8 @@ impl OverworldScene {
                 brush,
                 "sky".to_string(),
                 Motion::default(),
+
+    
             );
         });
         self.sky = Some(sky);
@@ -246,6 +245,8 @@ impl OverworldScene {
                 brush,
                 "sun".to_string(),
                 Motion::default(),
+
+    
             );
         });
         self.sun = Some(sun);
@@ -265,12 +266,10 @@ impl OverworldScene {
             ),
         );
 
-        ctx.solvers
-            .register(PlayerLateralController::new(player_id));
-        ctx.solvers.register(RollerSpawner::new(player_id));
-
-        ctx.solvers
-            .register(DungeonMaster::new(player_id, living_anim.clone(), None));
+        if let Some(view) = ctx.domain.get::<RollerWorld>() {
+            view.solvers.player_lateral.player = Some(player_id);
+            view.solvers.roller_spawner.player = Some(player_id);
+        }
     }
 
     fn make_canvas(&mut self, ctx: &mut SceneContext, solver_id: CanvasSolverId) {

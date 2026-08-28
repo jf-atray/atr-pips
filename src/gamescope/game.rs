@@ -1,11 +1,9 @@
-
 use std::collections::HashMap;
 
 use crate::assets::SpriteEntry;
 use crate::gamescope::scene::{NoopScene, Scene, SceneAction, SceneContext};
 use crate::gpuscope::Gpu;
 use crate::input::Input;
-use crate::scripting::{Scripts, Solvers};
 use crate::spacial::camera::Camera;
 use crate::addition::ExampleDomain;
 
@@ -15,8 +13,6 @@ pub struct Game {
     pub camera: Camera,
     pub asset_registry: HashMap<String, SpriteEntry>,
     pub input: Input,
-    pub scripts: Scripts,
-    pub solvers: Solvers,
     pub scene: Box<dyn Scene>,
 }
 
@@ -27,8 +23,6 @@ impl Game {
             camera: Camera::new(),
             asset_registry,
             input: Input::new(),
-            scripts: Scripts::new(),
-            solvers: Solvers::new(),
             scene: Box::new(NoopScene),
         }
     }
@@ -45,30 +39,13 @@ impl Game {
             domain: &mut self.domain,
             asset_registry: &mut self.asset_registry,
             input: &mut self.input,
-            scripts: &mut self.scripts,
-            solvers: &mut self.solvers,
             camera: &mut self.camera,
             gpu,
             game_action: &mut game_action,
         };
         self.scene.update(&mut ctx);
 
-        self.scripts.update_enabled(
-            dt,
-            &mut self.domain,
-            &self.solvers,
-            &self.asset_registry,
-            &self.input,
-            &game_action,
-        );
-        self.solvers.update_enabled(
-            dt,
-            &mut self.domain,
-            &self.scripts,
-            &self.asset_registry,
-            &self.input,
-            &game_action,
-        );
+        self.domain.update_solvers(dt, &self.input, &self.asset_registry);
 
         if let Some(next) = game_action.next_scene.take() {
             self.set_scene(next);

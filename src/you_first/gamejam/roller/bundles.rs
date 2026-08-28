@@ -6,7 +6,7 @@ use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::ecs::scope::{Maker, Scope};
 use crate::ecs::core::CoreWorld;
-use crate::ecs::{CanvasId, MaterialId};
+use crate::ecs::{CanvasId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::components::{
     BrushFlip, RollerDepth, RollerPlayer, RollerWorld,
 };
@@ -36,6 +36,8 @@ pub(crate) fn roller_body(
             brush,
             name,
             Motion::default(),
+
+
         );
         let rv = scope.view::<RollerWorld>().unwrap();
         rv.roller_depths = Some(roller_depth);
@@ -126,6 +128,8 @@ pub fn living_roller_bundle(
             brush,
             name,
             Motion::default(),
+
+
         );
 
         let rv = scope.view::<RollerWorld>().unwrap();
