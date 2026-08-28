@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use crate::addition::pair_tables;
+use crate::addition::{Addition, pair_tables};
 use crate::query;
 use crate::scripting::context::DomainView;
 use crate::scripting::script::Script;
@@ -20,7 +20,7 @@ impl Script for RollerProjectionSolver {
         let mut to_despawn: Vec<PipId> = Vec::new();
 
         {
-            let Some((roller, system)) = pair_tables::<RollerWorld, SystemWorld>(&mut ctx.domain.tables) else {
+            let Some((roller, system)) = pair_tables::<RollerWorld, SystemWorld>(&mut ctx.domain.pips.tables) else {
                 return;
             };
 
@@ -38,7 +38,7 @@ impl Script for RollerProjectionSolver {
         }
 
         {
-            let Some((roller, core)) = pair_tables::<RollerWorld, CoreWorld>(&mut ctx.domain.tables) else {
+            let Some(roller) = RollerWorld::tables(&mut ctx.domain.pips.tables) else {
                 return;
             };
 
