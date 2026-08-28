@@ -1,6 +1,6 @@
 use std::{any::TypeId, collections::HashMap};
 
-use crate::addition::{TypedMap, Tables as AdditionTables};
+use crate::addition::{Addition, Tables as AdditionTables, TypedMap};
 use crate::ecs::{ClassId, partition::View};
 
 #[derive(Default)]
@@ -9,20 +9,29 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn view<T: View>(&mut self) -> Option<&mut T> {
+    pub fn view<T: Addition>(&mut self) -> Option<&mut T::View> {
         let view_id = TypeId::of::<T>();
         let view_any = self.additions.get_mut(&view_id)?;
-        view_any.as_any_mut().downcast_mut::<T>()
+        view_any.as_any_mut().downcast_mut::<T::View>()
     }
 
     pub(crate) fn width(&self) -> usize {
         self.additions.values().map(|v| v.width()).sum()
     }
 
-    pub(crate) fn matches(&self, class_id: ClassId, tables: &TypedMap<dyn AdditionTables>) -> bool {
+    pub(crate) fn matches<W: Addition>(
+        &self,
+        class_id: ClassId,
+        tables: &TypedMap<dyn AdditionTables, W::Tables>,
+    ) -> bool {
         for (addition_id, view) in &self.additions {
-            let Some(tables_any) = tables.get_dyn(addition_id) else {
-                return false;
+            let tables_any: &dyn AdditionTables = if *addition_id == TypeId::of::<W>() {
+                &tables.core
+            } else {
+                let Some(t) = tables.get_dyn(*addition_id) else {
+                    return false;
+                };
+                t
             };
             if !view.matches(class_id, tables_any) {
                 return false;
@@ -31,14 +40,20 @@ impl Scope {
         true
     }
 
-    pub(crate) fn commit(
+    pub(crate) fn commit<W: Addition>(
         &mut self,
         class_id: ClassId,
-        tables: &mut TypedMap<dyn AdditionTables>,
+        tables: &mut TypedMap<dyn AdditionTables, W::Tables>,
     ) -> Option<usize> {
         let mut row = None;
         for (addition_id, view) in &mut self.additions {
-            if let Some(tables_any) = tables.get_dyn_mut(addition_id) {
+            if *addition_id == TypeId::of::<W>() {
+                let tables_any: &mut dyn AdditionTables = &mut tables.core;
+                let view_row = view.commit(class_id, tables_any);
+                if row.is_none() {
+                    row = view_row;
+                }
+            } else if let Some(tables_any) = tables.get_dyn_mut(*addition_id) {
                 let view_row = view.commit(class_id, tables_any);
                 if row.is_none() {
                     row = view_row;

@@ -1,12 +1,13 @@
 use super::domain::{TablesMap, SolversMap, ScriptsMap, SignalsMap};
 use super::traits::{Tables, Solvers, Scripts, Signals};
-
+use crate::ecs::partition::View as ViewTrait;
 
 pub trait Addition: Sized + 'static {
     type Tables: Tables;
     type Solvers: Solvers;
     type Scripts: Scripts;
     type Signals: Signals;
+    type View: ViewTrait;
     fn make_tables() -> Self::Tables;
     fn make_solvers() -> Self::Solvers;
     fn make_scripts() -> Self::Scripts;

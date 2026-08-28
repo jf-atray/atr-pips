@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::collections::HashMap;
 
 use slotmap::SlotMap;
@@ -5,7 +6,8 @@ use slotmap::SlotMap;
 use crate::anims::{AnimLibId, AnimationLibrary};
 use crate::assets::SpriteEntry;
 use crate::ecs::core::CoreWorld;
-use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}, system::{SystemAddition, SystemView, SystemWorld}};
+use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}, system::SystemWorld};
+use crate::ecs::partition::Partition;
 use crate::input::Input;
 
 use super::addition::Addition;
@@ -26,6 +28,7 @@ impl Pips {
         self.ids.clear();
         self.heading.clear();
         self.anim_libs.clear();
+        self.tables.core.clear();
         for tables in self.tables.iter_mut() {
             tables.clear();
         }
@@ -46,7 +49,7 @@ impl Pips {
         self.destroy_ptr(&ptr);
         let displaced = self
             .tables
-            .get_mut::<SystemWorld, SystemAddition>()
+            .get_mut::<SystemWorld, SystemWorld::Tables>()
             .and_then(|sys| sys.pip_id.data.get(ptr.class_id))
             .and_then(|col| col.get(ptr.row_idx))
             .copied();
@@ -61,6 +64,7 @@ impl Pips {
     }
 
     fn destroy_ptr(&mut self, ptr: &ClassRowPtr) {
+        self.tables.core.destroy(ptr.class_id, ptr.row_idx);
         for tables in self.tables.iter_mut() {
             tables.destroy(ptr.class_id, ptr.row_idx);
         }
@@ -69,14 +73,17 @@ impl Pips {
     fn commit_with<F: FnOnce(&mut Scope)>(&mut self, pip: PipId, f: F) -> ClassRowPtr {
         let mut scope = Scope::default();
 
+        {
+            let view = self.tables.core.view_default();
+            scope.additions.insert(view.addition_id(), view);
+        }
         for tables in self.tables.iter_mut() {
             let view = tables.view_default();
-            let view_id = view.as_any_ref().type_id();
-            scope.additions.insert(view_id, view);
+            scope.additions.insert(view.addition_id(), view);
         }
 
         f(&mut scope);
-        if let Some(sys_view) = scope.view::<SystemView>() {
+        if let Some(sys_view) = scope.view::<SystemWorld>() {
             sys_view.pip_id = Some(pip);
         }
 
@@ -89,14 +96,14 @@ impl Pips {
             .filter(|(_, v)| **v == width)
             .map(|(k, _)| k)
         {
-            if scope.matches(id, &self.tables) {
+            if scope.matches::<CoreWorld>(id, &self.tables) {
                 class_id = Some(id);
                 break;
             }
         }
 
         let class_id = class_id.unwrap_or_else(|| self.heading.insert(width));
-        let row_idx = scope.commit(class_id, &mut self.tables).unwrap();
+        let row_idx = scope.commit::<CoreWorld>(class_id, &mut self.tables).unwrap();
         ClassRowPtr::new(class_id, row_idx)
     }
 }
@@ -115,6 +122,36 @@ pub type ScriptsMap = TypedMap<dyn Scripts, <CoreWorld as Addition>::Scripts>;
 pub type SignalsMap = TypedMap<dyn Signals, <CoreWorld as Addition>::Signals>;
 pub type Ids = SlotMap<PipId, ClassRowPtr>;
 pub type AnimLibs = SlotMap<AnimLibId, AnimationLibrary>;
+
+pub fn pair_tables<A: Addition + 'static, B: Addition + 'static>(
+    tables: &mut TablesMap,
+) -> Option<(&mut A::Tables, &mut B::Tables)> {
+    let a_id = TypeId::of::<A>();
+    let b_id = TypeId::of::<B>();
+    if a_id == b_id {
+        return None;
+    }
+    if a_id == TypeId::of::<CoreWorld>() {
+        let b = tables.rest.get_mut(&b_id)?;
+        let b = b.as_mut().downcast_mut::<B::Tables>()?;
+        let core: &mut dyn Tables = &mut tables.core;
+        let a = core.downcast_mut::<A::Tables>()?;
+        Some((a, b))
+    } else if b_id == TypeId::of::<CoreWorld>() {
+        let a = tables.rest.get_mut(&a_id)?;
+        let a = a.as_mut().downcast_mut::<A::Tables>()?;
+        let core: &mut dyn Tables = &mut tables.core;
+        let b = core.downcast_mut::<B::Tables>()?;
+        Some((a, b))
+    } else {
+        let [Some(a), Some(b)] = tables.rest.get_disjoint_mut([&a_id, &b_id]) else {
+            return None;
+        };
+        let a = a.as_mut().downcast_mut::<A::Tables>()?;
+        let b = b.as_mut().downcast_mut::<B::Tables>()?;
+        Some((a, b))
+    }
+}
 
 impl ExampleDomain {
     pub fn get<T: Addition + 'static>(&mut self) -> Option<AsViewMut<'_, T>> {

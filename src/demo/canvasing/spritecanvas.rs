@@ -24,7 +24,7 @@ use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, CanvasUnderstander, 
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
-use crate::addition::{Addition, TypedMap, Tables as AdditionTables};
+use crate::addition::{Addition, TablesMap, Tables as AdditionTables};
 use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, MaterialId};
 
@@ -431,7 +431,7 @@ impl SpriteCanvasSolver {
     }
 
     fn collect_sorted<'b>(
-        core: &mut CoreWorld::Tables,
+        core: &mut <CoreWorld as Addition>::Tables,
         bump: &'b Bump,
     ) -> BumpVec<'b, ((Transform, Brush), MaterialId, CanvasId)> {
         let mut sorted = BumpVec::new_in(bump);
@@ -531,13 +531,13 @@ impl SpriteCanvasSolver {
 impl CanvasSolver for SpriteCanvasSolver {
     fn solve(
         &mut self,
-        tables: &mut TypedMap<dyn AdditionTables>,
+        tables: &mut TablesMap,
         view: &mut BufferViewMut,
         sink: &mut DrawWriter,
     ) -> usize {
         self.bump.reset();
 
-        let mut sorted = Self::collect_sorted(tables, &self.bump);
+        let mut sorted = Self::collect_sorted(&mut tables.core, &self.bump);
         if sorted.is_empty() {
             return 0;
         }
