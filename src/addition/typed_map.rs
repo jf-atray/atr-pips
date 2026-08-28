@@ -35,7 +35,7 @@ impl<T: ?Sized + Downcast, K> TypedMap<T, K> {
     }
 }
 
-impl<T: ?Sized + Debug, K: T + Debug> Debug for TypedMap<T, K> {
+impl<T: ?Sized + Debug, K: Debug> Debug for TypedMap<T, K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TypedMap")
             .field("core", &self.core)
