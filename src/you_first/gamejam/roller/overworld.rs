@@ -120,7 +120,6 @@ impl Scene for OverworldScene {
 impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
         ctx.domain.tables.insert::<crate::ecs::core::CoreWorld>(Box::new(crate::ecs::core::CoreWorld::make_tables()));
-        ctx.domain.tables.insert::<crate::ecs::system::SystemWorld>(Box::new(crate::ecs::system::SystemWorld::make_tables()));
         ctx.domain.tables.insert::<RollerWorld>(Box::new(RollerWorld::make_tables()));
         ctx.domain.tables.insert::<AnimWorld>(Box::new(AnimWorld::make_tables()));
 

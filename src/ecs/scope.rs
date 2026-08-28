@@ -28,7 +28,7 @@ impl Scope {
             let tables_any: &dyn AdditionTables = if *addition_id == TypeId::of::<W>() {
                 &tables.core
             } else {
-                let Some(t) = tables.get_dyn(*addition_id) else {
+                let Some(t) = tables.get_t(*addition_id) else {
                     return false;
                 };
                 t
@@ -53,7 +53,7 @@ impl Scope {
                 if row.is_none() {
                     row = view_row;
                 }
-            } else if let Some(tables_any) = tables.get_dyn_mut(*addition_id) {
+            } else if let Some(tables_any) = tables.get_t_mut(*addition_id) {
                 let view_row = view.commit(class_id, tables_any);
                 if row.is_none() {
                     row = view_row;

@@ -3,7 +3,6 @@ pub mod class_strategy;
 pub mod core;
 pub mod partition;
 pub mod scope;
-pub mod system;
 
 slotmap::new_key_type! {
     pub struct ClassId;

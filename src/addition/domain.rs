@@ -5,7 +5,7 @@ use slotmap::SlotMap;
 use crate::anims::{AnimLibId, AnimationLibrary};
 use crate::assets::SpriteEntry;
 use crate::ecs::core::CoreWorld;
-use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}, system::SystemWorld};
+use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}};
 use crate::ecs::partition::Partition;
 use crate::input::Input;
 
@@ -48,8 +48,10 @@ impl Pips {
         self.destroy_ptr(&ptr);
         let displaced = self
             .tables
-            .get_mut::<SystemWorld, SystemWorld::Tables>()
-            .and_then(|sys| sys.pip_id.data.get(ptr.class_id))
+            .core
+            .pip_id
+            .data
+            .get(ptr.class_id)
             .and_then(|col| col.get(ptr.row_idx))
             .copied();
 
@@ -82,8 +84,8 @@ impl Pips {
         }
 
         f(&mut scope);
-        if let Some(sys_view) = scope.view::<SystemWorld>() {
-            sys_view.pip_id = Some(pip);
+        if let Some(core_view) = scope.view::<CoreWorld>() {
+            core_view.pip_id = Some(pip);
         }
 
         let width = scope.width();

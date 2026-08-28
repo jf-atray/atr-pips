@@ -39,6 +39,18 @@ impl<T: ?Sized> Polypile<T> {
 }
 
 impl<T: ?Sized + Downcast, K> Polysystem<T, K> {
+    pub fn get_mut<L: 'static, U: 'static>(&mut self) -> Option<&mut U> {
+        self.pile.get_mut::<L, U>()
+    }
+
+    pub fn get_t(&self, id: TypeId) -> Option<&T> {
+        self.pile.get_dyn(id)
+    }
+
+    pub fn get_t_mut(&mut self, id: TypeId) -> Option<&mut T> {
+        self.pile.get_dyn_mut(id)
+    }
+
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         let one = std::iter::once(&mut self.core);
         one.chain(self.pile.0.values_mut().map(|b| b.as_mut()))
@@ -50,6 +62,14 @@ impl<T: ?Sized + Downcast> Polypile<T> {
         let value = self.0.get_mut(&id)?;
         let inner = value.as_mut();
         inner.as_any_mut().downcast_mut::<U>()
+    }
+
+    pub fn get_dyn(&self, id: TypeId) -> Option<&T> {
+        self.0.get(&id).map(|b| b.as_ref())
+    }
+
+    pub fn get_dyn_mut(&mut self, id: TypeId) -> Option<&mut T> {
+        self.0.get_mut(&id).map(|b| b.as_mut())
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::addition;
 use crate::brushes::Brush;
-use crate::ecs::class::Class;
+use crate::ecs::{class::Class, PipId};
 use crate::ecs::class_strategy::GrowthStrategy;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
@@ -13,6 +13,7 @@ addition! {
             brushes: Class<Brush> = Class::new(GrowthStrategy::quart_kib::<Brush>()),
             names: Class<String> = Class::new(GrowthStrategy::quart_kib::<String>()),
             motions: Class<Motion> = Class::new(GrowthStrategy::quart_kib::<Motion>()),
+            pip_id: Class<PipId> = Class::new(GrowthStrategy::quart_kib::<PipId>()),
         },
         solvers: { motion: crate::gamescope::motion::MotionSolver = crate::gamescope::motion::MotionSolver::new() },
         scripts: {},
