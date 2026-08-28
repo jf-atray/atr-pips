@@ -1,5 +1,5 @@
-use super::domain::{TablesMap, SolversMap, ScriptsMap, SignalsMap};
 use super::traits::{Tables, Solvers, Scripts, Signals};
+use crate::addition::typed_map::Polypile;
 use crate::ecs::partition::View as ViewTrait;
 
 pub trait Addition: Sized + 'static {
@@ -13,16 +13,20 @@ pub trait Addition: Sized + 'static {
     fn make_scripts() -> Self::Scripts;
     fn make_signals() -> Self::Signals;
 
-    fn tables(map: &mut TablesMap) -> Option<&mut Self::Tables> {
-        map.get_mut::<Self, Self::Tables>()
+    fn tables<T: AsMut<Polypile<dyn Tables>>>(map: &mut T) -> Option<&mut Self::Tables> {
+        let pile = map.as_mut();
+        pile.get_mut::<Self, Self::Tables>()
     }
-    fn solvers(map: &mut SolversMap) -> Option<&mut Self::Solvers> {
-        map.get_mut::<Self, Self::Solvers>()
+    fn solvers<T: AsMut<Polypile<dyn Solvers>>>(map: &mut T) -> Option<&mut Self::Solvers> {
+        let pile = map.as_mut();
+        pile.get_mut::<Self, Self::Solvers>()
     }
-    fn scripts(map: &mut ScriptsMap) -> Option<&mut Self::Scripts> {
-        map.get_mut::<Self, Self::Scripts>()
+    fn scripts<T: AsMut<Polypile<dyn Scripts>>>(map: &mut T) -> Option<&mut Self::Scripts> {
+        let pile = map.as_mut();
+        pile.get_mut::<Self, Self::Scripts>()
     }
-    fn signals(map: &mut SignalsMap) -> Option<&mut Self::Signals> {
-        map.get_mut::<Self, Self::Signals>()
+    fn signals<T: AsMut<Polypile<dyn Signals>>>(map: &mut T) -> Option<&mut Self::Signals> {
+        let pile = map.as_mut();
+        pile.get_mut::<Self, Self::Signals>()
     }
 }

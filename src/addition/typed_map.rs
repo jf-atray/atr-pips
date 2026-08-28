@@ -8,6 +8,17 @@ pub struct Polysystem<T: ?Sized, K> {
 }
 pub struct Polypile<T: ?Sized>(HashMap<TypeId, Box<T>>);
 
+impl<T: ?Sized, K> AsRef<Polypile<T>> for Polysystem<T, K> {
+    fn as_ref(&self) -> &Polypile<T> {
+        &self.pile
+    }
+}
+impl<T: ?Sized, K> AsMut<Polypile<T>> for Polysystem<T, K> {
+    fn as_mut(&mut self) -> &mut Polypile<T> {
+        &mut self.pile
+    }
+}
+
 impl<T: ?Sized, K> Polysystem<T, K> {
     pub fn new(core: K) -> Self {
         Self {
