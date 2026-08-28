@@ -29,7 +29,6 @@ mod seek;
 mod spacial;
 mod ecs;
 mod windowing;
-mod you_first;
 
 pub use crate::ecs::gather;
 

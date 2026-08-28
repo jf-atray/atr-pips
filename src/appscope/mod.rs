@@ -10,10 +10,10 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
 use crate::gamescope::game::Game;
+use crate::gamescope::scene::NoopScene;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
-use crate::you_first::gamejam::roller::overworld::OverworldScene;
 
 pub struct App {
     lib: Arc<Lib>,
@@ -360,10 +360,8 @@ impl ApplicationHandler<GpuReady> for App {
         let state = std::mem::replace(&mut self.state, AppState::Boot);
 
         let game = if let AppState::AwaitingGpu { .. } = &state {
-            const PIXELS_PER_UNIT: f32 = 512.0;
-
             let mut game = Game::new(HashMap::new());
-            game.set_scene(Box::new(OverworldScene::new(PIXELS_PER_UNIT)));
+            game.set_scene(Box::new(NoopScene));
 
             Some(Box::new(game))
         } else if let AppState::Lost { .. } = &state {
