@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::addition::{Pips, ScriptsMap, SignalsMap, Solver};
+use crate::addition::{Addition, Pips, ScriptsMap, SignalsMap, Solver};
 use crate::anims::{
     advance, refresh, solve_scale, solve_sheer, solve_spin, solve_sprite, solve_xyz,
     AnimWorld,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::addition::{Pips, ScriptsMap, SignalsMap, Solver};
+use crate::addition::{Addition, Pips, ScriptsMap, SignalsMap, Solver};
 use crate::assets::SpriteEntry;
 use crate::ecs::PipId;
 use crate::gather::impls::gather_pair_mut;
@@ -15,13 +15,13 @@ const PLAYER_X_MAX: f32 = 5.0;
 
 #[derive(Debug)]
 pub struct PlayerLateralController {
-    player: PipId,
+    pub player: Option<PipId>,
 }
 
 impl Solver for PlayerLateralController {}
 
 impl PlayerLateralController {
-    pub fn new(player: PipId) -> Self {
+    pub fn new(player: Option<PipId>) -> Self {
         Self { player }
     }
 
@@ -36,6 +36,10 @@ impl PlayerLateralController {
     ) {
         let lateral = input.axes.value("Horizontal");
 
+        let Some(player) = self.player else {
+            return;
+        };
+
         let Some(roller) = RollerWorld::tables(&mut pips.tables.pile) else {
             return;
         };
@@ -43,7 +47,7 @@ impl PlayerLateralController {
             &pips.ids,
             &mut roller.roller_players,
             &mut roller.roller_depths,
-            self.player,
+            player,
         ) else {
             return;
         };

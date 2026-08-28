@@ -4,7 +4,7 @@ use glam::{Vec2, Vec3};
 
 use crate::anims::{AnimKeyframe, AnimRules, AnimSpin, AnimTime, AnimWorld, AnimXyz};
 use crate::assets::SpriteEntry;
-use crate::addition::ExampleDomain;
+use crate::addition::Pips;
 use crate::ecs::scope::Maker;
 use crate::you_first::gamejam::duel::state::TumbleweedAnimLib;
 use crate::you_first::gamejam::roller::bundles::roller_body;
@@ -158,7 +158,7 @@ pub struct Biome {
 }
 
 impl Biome {
-    pub fn pre_seed(&mut self, domain: &mut ExampleDomain, asset_registry: &HashMap<String, SpriteEntry>) {
+    pub fn pre_seed(&mut self, pips: &mut Pips, asset_registry: &HashMap<String, SpriteEntry>) {
         let tumbleweed = self.tumbleweed.clone();
         for channel in &mut self.channels {
             if !channel.motion.pre_seed {
@@ -169,7 +169,7 @@ impl Biome {
             let mut d = FAR_Z - step;
             while d >= NEAR_Z {
                 let (lateral, is_left) = channel.place();
-                domain.make(channel.to_maker(asset_registry, lateral, d, is_left, tumbleweed.clone()));
+                pips.make(channel.to_maker(asset_registry, lateral, d, is_left, tumbleweed.clone()));
                 d -= step;
             }
         }
@@ -177,7 +177,7 @@ impl Biome {
 
     pub fn update(
         &mut self,
-        domain: &mut ExampleDomain,
+        pips: &mut Pips,
         asset_registry: &HashMap<String, SpriteEntry>,
         walk_distance: f32,
     ) {
@@ -188,7 +188,7 @@ impl Biome {
 
                 let d = channel.motion.spawn_depth;
                 let (lateral, is_left) = channel.place();
-                domain.make(channel.to_maker(asset_registry, lateral, d, is_left, tumbleweed.clone()));
+                pips.make(channel.to_maker(asset_registry, lateral, d, is_left, tumbleweed.clone()));
             }
         }
     }

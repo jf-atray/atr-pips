@@ -2,6 +2,8 @@ use glam::Vec2;
 
 pub use super::brush_flip;
 pub use super::clouds;
+pub use super::controller;
+pub use super::spawner;
 
 use crate::addition;
 use crate::brushes::Brush;
@@ -35,6 +37,8 @@ addition! {
             brush_flips: Class<BrushFlip> = Class::new(GrowthStrategy::quart_kib::<BrushFlip>()),
         },
         solvers: {
+            player_lateral: super::controller::PlayerLateralController = super::controller::PlayerLateralController::new(None),
+            roller_spawner: super::spawner::RollerSpawner = super::spawner::RollerSpawner::new(None),
             brush_flip: super::brush_flip::BrushFlipSolver = super::brush_flip::BrushFlipSolver,
             cloud_drift: super::clouds::CloudDriftSystem = super::clouds::CloudDriftSystem::new(),
             roller_projection: crate::you_first::gamejam::roller::solver::RollerProjectionSolver = crate::you_first::gamejam::roller::solver::RollerProjectionSolver,

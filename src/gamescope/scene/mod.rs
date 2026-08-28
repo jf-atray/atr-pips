@@ -4,8 +4,6 @@ use std::collections::HashMap;
 use crate::assets::SpriteEntry;
 use crate::gpuscope::Gpu;
 use crate::input::Input;
-use crate::scripting::scripts::Scripts;
-use crate::scripting::solvers::Solvers;
 use crate::spacial::camera::Camera;
 use crate::addition::ExampleDomain;
 
@@ -29,8 +27,6 @@ pub struct SceneContext<'a> {
     pub domain: &'a mut ExampleDomain,
     pub asset_registry: &'a mut HashMap<String, SpriteEntry>,
     pub input: &'a mut Input,
-    pub scripts: &'a mut Scripts,
-    pub solvers: &'a mut Solvers,
     pub camera: &'a mut Camera,
     pub gpu: &'a mut Gpu,
     pub game_action: &'a SceneAction,

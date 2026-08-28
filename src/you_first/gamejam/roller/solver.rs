@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use glam::Vec3;
 
-use crate::addition::{Pips, ScriptsMap, SignalsMap, Solver};
+use crate::addition::{Addition, Pips, ScriptsMap, SignalsMap, Solver};
 use crate::assets::SpriteEntry;
 use crate::input::Input;
 use crate::query;

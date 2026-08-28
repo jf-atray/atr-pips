@@ -18,7 +18,7 @@ impl BrushFlipSolver {
         _asset_registry: &std::collections::HashMap<String, crate::assets::SpriteEntry>,
     ) {
         let core = &mut pips.tables.core;
-        let Some(roller) = RollerWorld::tables(&mut pips.tables) else {
+        let Some(roller) = RollerWorld::tables(&mut pips.tables.pile) else {
             return;
         };
         query!(

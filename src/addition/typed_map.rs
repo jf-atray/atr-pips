@@ -26,13 +26,17 @@ impl<T: ?Sized, K> Polysystem<T, K> {
             pile: Polypile::new(),
         }
     }
+
+    pub fn insert<L: 'static>(&mut self, value: Box<T>) {
+        self.pile.0.insert(TypeId::of::<L>(), value);
+    }
 }
 impl<T: ?Sized> Polypile<T> {
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
-    pub(crate) fn insert<L: 'static>(&mut self, value: Box<T>) {
+    pub fn insert<L: 'static>(&mut self, value: Box<T>) {
         let id = TypeId::of::<L>();
         self.0.insert(id, value);
     }
@@ -44,16 +48,15 @@ impl<T: ?Sized + Downcast, K> Polysystem<T, K> {
     }
 
     pub fn get_t(&self, id: TypeId) -> Option<&T> {
-        self.pile.get_dyn(id)
+        self.pile.get_t(id)
     }
 
     pub fn get_t_mut(&mut self, id: TypeId) -> Option<&mut T> {
-        self.pile.get_dyn_mut(id)
+        self.pile.get_t_mut(id)
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        let one = std::iter::once(&mut self.core);
-        one.chain(self.pile.0.values_mut().map(|b| b.as_mut()))
+        self.pile.0.values_mut().map(|b| b.as_mut())
     }
 }
 impl<T: ?Sized + Downcast> Polypile<T> {
@@ -64,12 +67,24 @@ impl<T: ?Sized + Downcast> Polypile<T> {
         inner.as_any_mut().downcast_mut::<U>()
     }
 
-    pub fn get_dyn(&self, id: TypeId) -> Option<&T> {
+    pub fn get_t(&self, id: TypeId) -> Option<&T> {
         self.0.get(&id).map(|b| b.as_ref())
     }
 
-    pub fn get_dyn_mut(&mut self, id: TypeId) -> Option<&mut T> {
+    pub fn get_t_mut(&mut self, id: TypeId) -> Option<&mut T> {
         self.0.get_mut(&id).map(|b| b.as_mut())
+    }
+}
+
+impl<T: ?Sized> AsRef<Polypile<T>> for Polypile<T> {
+    fn as_ref(&self) -> &Polypile<T> {
+        self
+    }
+}
+
+impl<T: ?Sized> AsMut<Polypile<T>> for Polypile<T> {
+    fn as_mut(&mut self) -> &mut Polypile<T> {
+        self
     }
 }
 
