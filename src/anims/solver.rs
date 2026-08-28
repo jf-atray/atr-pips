@@ -19,6 +19,7 @@ impl AnimSolver {
         Self
     }
 
+    #[allow(clippy::unused_self, reason = "called via solver dispatch")]
     pub fn update(
         &mut self,
         dt: f32,
@@ -55,7 +56,7 @@ impl AnimSolver {
                     && let Some(seq) = lib.get(keyframe.id)
                 {
                     let rules = &seq.rules;
-                    spin.func = rules.spin.clone();
+                    spin.func.clone_from(&rules.spin);
                 }
             }
         );
@@ -118,21 +119,21 @@ impl AnimSolver {
         query!(
             [&mut anim.anim_times, &mut anim.anim_xyzs, &mut core.brushes],
             |time, xyz, brush| {
-                solve_xyz(time, xyz, brush);
+                solve_xyz(*time, xyz, brush);
             }
         );
 
         query!(
             [&mut anim.anim_times, &mut anim.anim_scales, &mut core.brushes],
             |time, scale, brush| {
-                solve_scale(time, scale, brush);
+                solve_scale(*time, scale, brush);
             }
         );
 
         query!(
             [&mut anim.anim_times, &mut anim.anim_sheers, &mut core.brushes],
             |time, sheer, brush| {
-                solve_sheer(time, sheer, brush);
+                solve_sheer(*time, sheer, brush);
             }
         );
 
