@@ -63,12 +63,8 @@ impl AppState {
         game: Option<Box<Game>>,
     ) -> Result<Self, (Self, Option<Box<Game>>)> {
         match (self, game) {
-            (AppState::AwaitingGpu { windowing }, Some(game)) => Ok(AppState::Ready {
-                windowing,
-                gpu: Box::new(gpu),
-                game,
-            }),
-            (AppState::Lost { windowing, game }, None) => Ok(AppState::Ready {
+            (AppState::AwaitingGpu { windowing }, Some(game))
+            | (AppState::Lost { windowing, game }, None) => Ok(AppState::Ready {
                 windowing,
                 gpu: Box::new(gpu),
                 game,
@@ -220,10 +216,7 @@ impl App {
         }
 
         match &mut self.state {
-            AppState::AwaitingGpu { windowing } => {
-                windowing.set_size(width, height);
-            }
-            AppState::Lost { windowing, .. } => {
+            AppState::AwaitingGpu { windowing } | AppState::Lost { windowing, .. } => {
                 windowing.set_size(width, height);
             }
             AppState::Ready { windowing, gpu, .. } => {
@@ -244,7 +237,7 @@ impl App {
                 self.state = AppState::AwaitingGpu { windowing };
                 self.refresh_target_fps();
             }
-            _ => {}
+            AppState::Boot => {}
         }
     }
 }
@@ -386,9 +379,7 @@ impl ApplicationHandler<GpuReady> for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let windowing = if let AppState::Ready { windowing, .. } = &self.state {
-            windowing
-        } else {
+        let AppState::Ready { windowing, .. } = &self.state else {
             event_loop.set_control_flow(ControlFlow::Poll);
             return;
         };

@@ -178,7 +178,7 @@ pub fn solve_spin(time: &mut AnimTime, spin: &AnimSpin, transform: &mut Transfor
     }
 }
 
-pub fn solve_xyz(time: &AnimTime, xyz: &AnimXyz, brush: &mut Brush) {
+pub fn solve_xyz(time: AnimTime, xyz: &AnimXyz, brush: &mut Brush) {
     let t = time.get_or_zero();
     if let Some(f) = &xyz.0.x {
         brush.offset.x = f.solve(t);
@@ -188,7 +188,7 @@ pub fn solve_xyz(time: &AnimTime, xyz: &AnimXyz, brush: &mut Brush) {
     }
 }
 
-pub fn solve_scale(time: &AnimTime, scale: &AnimScale, brush: &mut Brush) {
+pub fn solve_scale(time: AnimTime, scale: &AnimScale, brush: &mut Brush) {
     let t = time.get_or_zero();
     if let Some(f) = &scale.0.x {
         brush.scale.x *= f.solve(t);
@@ -198,7 +198,7 @@ pub fn solve_scale(time: &AnimTime, scale: &AnimScale, brush: &mut Brush) {
     }
 }
 
-pub fn solve_sheer(time: &AnimTime, sheer: &AnimSheer, brush: &mut Brush) {
+pub fn solve_sheer(time: AnimTime, sheer: &AnimSheer, brush: &mut Brush) {
     let t = time.get_or_zero();
     if let Some(f) = &sheer.0.x {
         brush.sheer.x = f.solve(t);
@@ -241,7 +241,7 @@ pub fn refresh(anim_time: &mut AnimTime, keyframe: &AnimKeyframe, lib: &Animatio
 
 crate::addition! {
     #[derive(Debug)]
-    pub struct anim_world : AnimWorld {
+    pub struct anim_world : AnimAdd {
         tables: {
             anim_times: Class<AnimTime> = Class::new(GrowthStrategy::quart_kib::<AnimTime>()),
             anim_keyframes: Class<AnimKeyframe> = Class::new(GrowthStrategy::quart_kib::<AnimKeyframe>()),

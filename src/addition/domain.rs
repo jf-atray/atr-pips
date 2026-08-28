@@ -4,7 +4,7 @@ use slotmap::SlotMap;
 
 use crate::anims::{AnimLibId, AnimationLibrary};
 use crate::assets::SpriteEntry;
-use crate::ecs::core::CoreWorld;
+use crate::ecs::core::CoreAdd;
 use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}};
 use crate::ecs::partition::Partition;
 use crate::input::Input;
@@ -97,14 +97,14 @@ impl Pips {
             .filter(|(_, v)| **v == width)
             .map(|(k, _)| k)
         {
-            if scope.matches::<CoreWorld>(id, &self.tables) {
+            if scope.matches::<CoreAdd>(id, &self.tables) {
                 class_id = Some(id);
                 break;
             }
         }
 
         let class_id = class_id.unwrap_or_else(|| self.heading.insert(width));
-        let row_idx = scope.commit::<CoreWorld>(class_id, &mut self.tables).unwrap();
+        let row_idx = scope.commit::<CoreAdd>(class_id, &mut self.tables).unwrap();
         self.pip_ids.get_col_or_insert(class_id).push(pip);
         ClassRowPtr::new(class_id, row_idx)
     }
@@ -118,10 +118,10 @@ pub struct ExampleDomain {
     pub signals: SignalsMap,
 }
 
-pub type TablesMap = Polysystem<dyn Tables, <CoreWorld as Addition>::Tables>;
-pub type SolversMap = Polysystem<dyn Solvers, <CoreWorld as Addition>::Solvers>;
-pub type ScriptsMap = Polysystem<dyn Scripts, <CoreWorld as Addition>::Scripts>;
-pub type SignalsMap = Polysystem<dyn Signals, <CoreWorld as Addition>::Signals>;
+pub type TablesMap = Polysystem<dyn Tables, <CoreAdd as Addition>::Tables>;
+pub type SolversMap = Polysystem<dyn Solvers, <CoreAdd as Addition>::Solvers>;
+pub type ScriptsMap = Polysystem<dyn Scripts, <CoreAdd as Addition>::Scripts>;
+pub type SignalsMap = Polysystem<dyn Signals, <CoreAdd as Addition>::Signals>;
 pub type Ids = SlotMap<PipId, ClassRowPtr>;
 pub type AnimLibs = SlotMap<AnimLibId, AnimationLibrary>;
 
@@ -129,7 +129,7 @@ impl Default for ExampleDomain {
     fn default() -> Self {
         Self {
             pips: Pips {
-                tables: TablesMap::new(CoreWorld::make_tables()),
+                tables: TablesMap::new(CoreAdd::make_tables()),
                 pip_ids: crate::ecs::class::Class::new(
                     crate::ecs::class_strategy::GrowthStrategy::quart_kib::<PipId>(),
                 ),
@@ -137,9 +137,9 @@ impl Default for ExampleDomain {
                 anim_libs: AnimLibs::default(),
                 heading: SlotMap::default(),
             },
-            solvers: SolversMap::new(CoreWorld::make_solvers()),
-            scripts: ScriptsMap::new(CoreWorld::make_scripts()),
-            signals: SignalsMap::new(CoreWorld::make_signals()),
+            solvers: SolversMap::new(CoreAdd::make_solvers()),
+            scripts: ScriptsMap::new(CoreAdd::make_scripts()),
+            signals: SignalsMap::new(CoreAdd::make_signals()),
         }
     }
 }

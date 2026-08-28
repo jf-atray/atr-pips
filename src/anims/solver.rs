@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::addition::{Addition, Pips, ScriptsMap, SignalsMap, Solver};
 use crate::anims::{
     advance, refresh, solve_scale, solve_sheer, solve_spin, solve_sprite, solve_xyz,
-    AnimWorld,
+    AnimAdd,
 };
 use crate::assets::SpriteEntry;
 use crate::input::Input;
@@ -32,7 +32,7 @@ impl AnimSolver {
         let libs = &pips.anim_libs;
         let core = &mut pips.tables.core;
 
-        let Some(anim) = AnimWorld::tables(&mut pips.tables.pile) else {
+        let Some(anim) = AnimAdd::tables(&mut pips.tables.pile) else {
             return;
         };
 

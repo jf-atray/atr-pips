@@ -79,11 +79,11 @@ impl VirtualAxes {
         self.states.get(name).and_then(|(_, d)| *d)
     }
 
-    fn update(&mut self, key: &KeyCode, down: bool) {
+    fn update(&mut self, key: KeyCode, down: bool) {
         let delta = if down { 1 } else { -1 };
         for (name, config) in &self.configs {
-            let in_pos = config.positive.contains(key);
-            let in_neg = config.negative.contains(key);
+            let in_pos = config.positive.contains(&key);
+            let in_neg = config.negative.contains(&key);
             if !in_pos && !in_neg {
                 continue;
             }
@@ -98,11 +98,11 @@ impl VirtualAxes {
         }
     }
 
-    fn update_mouse(&mut self, button: &MouseButton, down: bool) {
+    fn update_mouse(&mut self, button: MouseButton, down: bool) {
         let delta = if down { 1 } else { -1 };
         for (name, config) in &self.configs {
-            let in_pos = config.positive_mouse.contains(button);
-            let in_neg = config.negative_mouse.contains(button);
+            let in_pos = config.positive_mouse.contains(&button);
+            let in_neg = config.negative_mouse.contains(&button);
             if !in_pos && !in_neg {
                 continue;
             }
@@ -149,7 +149,7 @@ impl Input {
             } => {
                 if !repeat {
                     let down = state == ElementState::Pressed;
-                    self.axes.update(&code, down);
+                    self.axes.update(code, down);
                 }
             }
             InputEvent::Char(c) => self.text.committed.push(c),
@@ -160,7 +160,7 @@ impl Input {
             }
             InputEvent::MouseButton { button, state } => {
                 let down = state == ElementState::Pressed;
-                self.axes.update_mouse(&button, down);
+                self.axes.update_mouse(button, down);
             }
             InputEvent::MouseScroll(delta) => self.mouse.scroll += delta,
         }

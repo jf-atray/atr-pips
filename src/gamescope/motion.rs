@@ -14,6 +14,7 @@ impl MotionSolver {
         Self
     }
 
+    #[allow(clippy::unused_self, reason = "called via solver dispatch")]
     pub fn update(
         &mut self,
         dt: f32,

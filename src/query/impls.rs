@@ -46,12 +46,12 @@ where
     TKey: 'a + PartialEq,
     KKey: 'a + PartialEq,
 {
-    let (t_data, t_class) = (&t.data, &t.class);
-    let (k_data, k_class) = (&k.data, &k.class);
-    let smallest = if t_class.len() <= k_class.len() {
-        t_class
+    let (t_data, t_keys) = (&t.data, &t.keys);
+    let (k_data, k_keys) = (&k.data, &k.keys);
+    let smallest = if t_keys.len() <= k_keys.len() {
+        t_keys
     } else {
-        k_class
+        k_keys
     };
 
     let coroutine = std::iter::iter!(move || {
@@ -80,12 +80,12 @@ where
     TKey: 'a + PartialEq,
     KKey: 'a + PartialEq,
 {
-    let (t_data, t_class) = (&mut t.data, &t.class);
-    let (k_data, k_class) = (&mut k.data, &k.class);
-    let smallest = if t_class.len() <= k_class.len() {
-        t_class
+    let (t_data, t_keys) = (&mut t.data, &t.keys);
+    let (k_data, k_keys) = (&mut k.data, &k.keys);
+    let smallest = if t_keys.len() <= k_keys.len() {
+        t_keys
     } else {
-        k_class
+        k_keys
     };
 
     let coroutine = std::iter::iter!(move || {
@@ -116,12 +116,12 @@ where
     TKey: 'a + PartialEq,
     KKey: 'a + PartialEq,
 {
-    let (t_data, t_class) = (&mut t.data, &t.class);
-    let (k_data, k_class) = (&k.data, &k.class);
-    let smallest = if t_class.len() <= k_class.len() {
-        t_class
+    let (t_data, t_keys) = (&mut t.data, &t.keys);
+    let (k_data, k_keys) = (&k.data, &k.keys);
+    let smallest = if t_keys.len() <= k_keys.len() {
+        t_keys
     } else {
-        k_class
+        k_keys
     };
 
     let coroutine = std::iter::iter!(move || {
@@ -161,15 +161,15 @@ where
     KKey: 'a + PartialEq,
     LKey: 'a + PartialEq,
 {
-    let (t_data, t_class) = (&mut t.data, &t.class);
-    let (k_data, k_class) = (&mut k.data, &k.class);
-    let (l_data, l_class) = (&mut l.data, &l.class);
-    let smallest = if t_class.len() <= k_class.len() && t_class.len() <= l_class.len() {
-        t_class
-    } else if k_class.len() <= t_class.len() && k_class.len() <= l_class.len() {
-        k_class
+    let (t_data, t_keys) = (&mut t.data, &t.keys);
+    let (k_data, k_keys) = (&mut k.data, &k.keys);
+    let (l_data, l_keys) = (&mut l.data, &l.keys);
+    let smallest = if t_keys.len() <= k_keys.len() && t_keys.len() <= l_keys.len() {
+        t_keys
+    } else if k_keys.len() <= t_keys.len() && k_keys.len() <= l_keys.len() {
+        k_keys
     } else {
-        l_class
+        l_keys
     };
 
     let coroutine = std::iter::iter!(move || {

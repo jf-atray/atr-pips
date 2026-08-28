@@ -13,22 +13,22 @@ pub struct Class<T, K = ()> {
     pub(crate) growth: GrowthStrategy,
     //todo, worry about excessive vec ptr memory bloat later
     pub(crate) data: SecondaryMap<ClassId, Columnar<T, K>>,
-    pub(crate) class: BTreeSet<ClassId>,
+    pub(crate) keys: BTreeSet<ClassId>,
 
 }
 impl<T, K> Class<T, K> {
     pub(crate) fn new(growth: GrowthStrategy) -> Self {
         let data = SecondaryMap::new();
-        Self { growth, data, class: BTreeSet::new() }
+        Self { growth, data, keys: BTreeSet::new() }
     }
     pub(crate) fn stake(&mut self, class_id: ClassId, k: K) -> &mut Self{
         self.data.insert(class_id, Columnar::new(k));
-        let _notdupe = self.class.insert(class_id);
+        let _notdupe = self.keys.insert(class_id);
         self
     }
     pub(crate) fn with_capacity(capacity: usize, _rarity: duplex::Thin, growth: GrowthStrategy) -> Self {
         let data = SecondaryMap::with_capacity(capacity);
-        Self { growth, data, class: BTreeSet::new() }
+        Self { growth, data, keys: BTreeSet::new() }
     }
 
     pub(super) fn get_row(&self, id: &ClassRowPtr) -> Option<&T> {
