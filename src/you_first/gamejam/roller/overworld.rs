@@ -20,7 +20,7 @@ use crate::input::AxisConfig;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::ecs::scope::Scope;
-use crate::ecs::core::CoreView;
+use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId, PipId};
 use crate::you_first::gamejam::roller::brush_flip::BrushFlipSolver;
 use crate::you_first::gamejam::duel::bundle::build_living_anim_library;
@@ -131,12 +131,11 @@ impl OverworldScene {
 
         self.make_canvas(ctx, solver_id);
         ctx.solvers.register(RollerProjectionSolver);
-        ctx.solvers.register(BrushFlipSolver);
         ctx.solvers.register(MotionSolver);
         ctx.solvers.register(AnimSolver);
 
         let (living_lib, living_root) = build_living_anim_library();
-        let living_lib_id = ctx.domain.anim_libs.insert(living_lib);
+        let living_lib_id = ctx.domain.pips.anim_libs.insert(living_lib);
         let living_anim = LivingAnimLib {
             lib: living_lib_id,
             root_anim: living_root,
@@ -164,7 +163,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
-            scope.view::<CoreView>().unwrap().with(
+            scope.view::<CoreWorld>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(0.0, WALK_HORIZON_Y - GROUND_STRIP_HEIGHT * 0.5, ground_z),
                     rot: Quat::IDENTITY,
@@ -192,7 +191,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(0.25, 0.2, 0.15, 1.0);
-            scope.view::<CoreView>().unwrap().with(
+            scope.view::<CoreWorld>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(0.0, tilted_y, tilted_z),
                     rot: Quat::from_rotation_x(tilt_rad),
@@ -216,7 +215,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(0.6, 0.75, 0.9, 1.0);
-            scope.view::<CoreView>().unwrap().with(
+            scope.view::<CoreWorld>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(0.0, WALK_HORIZON_Y + 5.0, 0.95),
                     rot: Quat::IDENTITY,
@@ -240,7 +239,7 @@ impl OverworldScene {
                 1.0,
             );
             brush.color = Vec4::new(1.0, 1.0, 0.6, 1.0);
-            scope.view::<CoreView>().unwrap().with(
+            scope.view::<CoreWorld>().unwrap().with(
                 Transform {
                     xyz: Vec3::new(-0.3, 0.9, 0.93),
                     rot: Quat::IDENTITY,
@@ -270,7 +269,6 @@ impl OverworldScene {
         ctx.solvers
             .register(PlayerLateralController::new(player_id));
         ctx.solvers.register(RollerSpawner::new(player_id));
-        ctx.solvers.register(CloudDriftSystem::new());
 
         ctx.solvers
             .register(DungeonMaster::new(player_id, living_anim.clone(), None));
@@ -453,7 +451,7 @@ impl OverworldScene {
 
         let current_x = ctx.camera.pos.x;
         let target_x = if let Some(player) = self.player
-            && let Some(xform) = gather_ref(&ctx.domain.ids, &ctx.domain.tables.core.xforms, player)
+            && let Some(xform) = gather_ref(&ctx.domain.pips.ids, &ctx.domain.pips.tables.core.xforms, player)
         {
             let player_x = xform.xyz.x;
             let delta = player_x - current_x;
