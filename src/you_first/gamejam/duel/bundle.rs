@@ -6,13 +6,13 @@ use glam::{Quat, Vec2, Vec3, Vec4};
 
 use crate::anims::*;
 use crate::brushes::Brush;
+use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, MaterialId};
 use crate::ecs::scope::Scope;
-use crate::ecs::core::CoreView;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 use crate::you_first::gamejam::duel::components::{
-    DuelCursor, DuelEnemy, DuelReticle, DuelView,
+    DuelCursor, DuelEnemy, DuelReticle, DuelWorld,
 };
 
 
@@ -28,7 +28,7 @@ pub fn duel_cursor_bundle(
     let name = name.into();
     move |scope: &mut Scope| {
         //todo the point of core is not needing an unwrap
-        scope.view::<CoreView>().unwrap().with(
+        scope.view::<CoreWorld>().unwrap().with(
             Transform {
                 xyz: Vec3::new(lateral, y, 0.2),
                 rot: Quat::IDENTITY,
@@ -41,7 +41,7 @@ pub fn duel_cursor_bundle(
             name,
             Motion::default(),
         );
-        let dv = scope.view::<DuelView>().unwrap();
+        let dv = scope.view::<DuelWorld>().unwrap();
         dv.duel_cursors = Some(DuelCursor { lateral });
     }
 }
@@ -59,7 +59,7 @@ pub fn duel_enemy_bundle(
 ) -> impl FnOnce(&mut Scope) {
     let name = name.into();
     move |scope: &mut Scope| {
-        scope.view::<CoreView>().unwrap().with(
+        scope.view::<CoreWorld>().unwrap().with(
             Transform {
                 xyz: Vec3::new(x, y, 0.2),
                 rot: Quat::IDENTITY,
@@ -72,7 +72,7 @@ pub fn duel_enemy_bundle(
             name,
             Motion::default(),
         );
-        let dv = scope.view::<DuelView>().unwrap();
+        let dv = scope.view::<DuelWorld>().unwrap();
         dv.duel_enemies = Some(DuelEnemy {
             wave,
             active: true,
