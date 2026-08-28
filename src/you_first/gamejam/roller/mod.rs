@@ -7,6 +7,7 @@ pub mod components;
 pub mod controller;
 pub mod overworld;
 pub mod projection;
+pub mod signal_solver;
 pub mod solver;
 pub mod spawner;
 pub mod state;

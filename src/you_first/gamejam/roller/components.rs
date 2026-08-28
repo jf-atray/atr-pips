@@ -3,12 +3,14 @@ use glam::Vec2;
 pub use super::brush_flip;
 pub use super::clouds;
 pub use super::controller;
+pub use super::signal_solver;
 pub use super::spawner;
 
 use crate::addition;
 use crate::brushes::Brush;
 use crate::ecs::class::Class;
 use crate::ecs::class_strategy::GrowthStrategy;
+use super::projection::WALK_SPEED;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RollerDepth {
@@ -37,6 +39,7 @@ addition! {
             brush_flips: Class<BrushFlip> = Class::new(GrowthStrategy::quart_kib::<BrushFlip>()),
         },
         solvers: {
+            signal_solver: super::signal_solver::RollerStateSolver = super::signal_solver::RollerStateSolver,
             player_lateral: super::controller::PlayerLateralController = super::controller::PlayerLateralController::new(None),
             roller_spawner: super::spawner::RollerSpawner = super::spawner::RollerSpawner::new(None),
             brush_flip: super::brush_flip::BrushFlipSolver = super::brush_flip::BrushFlipSolver,
@@ -44,7 +47,10 @@ addition! {
             roller_projection: crate::you_first::gamejam::roller::solver::RollerProjectionSolver = crate::you_first::gamejam::roller::solver::RollerProjectionSolver::new(None),
         },
         scripts: {},
-        signals: {},
+        signals: {
+            walk_speed: f32 = WALK_SPEED,
+            duel_active: bool = false,
+        },
     }
 }
 

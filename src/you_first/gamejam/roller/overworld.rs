@@ -24,6 +24,7 @@ use crate::ecs::core::CoreWorld;
 use crate::ecs::{CanvasId, CanvasSolverId, MaterialId, PipId};
 
 use crate::you_first::gamejam::duel::bundle::build_living_anim_library;
+use crate::you_first::gamejam::duel::components::DuelWorld;
 
 use crate::you_first::gamejam::duel::state::LivingAnimLib;
 use crate::you_first::gamejam::roller::bundles::player_roller_bundle;
@@ -118,6 +119,7 @@ impl OverworldScene {
     fn boot(&mut self, ctx: &mut SceneContext) {
         let _ = ctx.domain.add::<RollerWorld>();
         let _ = ctx.domain.add::<AnimWorld>();
+        let _ = ctx.domain.add::<DuelWorld>();
 
         let solver_id = ctx.gpu
             .canvas_renderer_mut()
@@ -270,6 +272,11 @@ impl OverworldScene {
             view.solvers.player_lateral.player = Some(player_id);
             view.solvers.roller_spawner.player = Some(player_id);
             view.solvers.roller_projection.player = Some(player_id);
+        }
+
+        if let Some(view) = ctx.domain.get::<DuelWorld>() {
+            view.solvers.dungeon_master.player = Some(player_id);
+            view.solvers.dungeon_master.living_anim = Some(living_anim);
         }
     }
 

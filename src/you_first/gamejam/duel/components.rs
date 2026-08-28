@@ -1,6 +1,8 @@
 use crate::addition;
 use crate::ecs::class::Class;
 use crate::ecs::class_strategy::GrowthStrategy;
+use super::dm::DungeonMaster;
+use super::state::DuelState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct DuelEnemy {
@@ -32,8 +34,12 @@ addition! {
             duel_reticles: Class<DuelReticle> = Class::new(GrowthStrategy::quart_kib::<DuelReticle>()),
             duel_cursors: Class<DuelCursor> = Class::new(GrowthStrategy::quart_kib::<DuelCursor>()),
         },
-        solvers: {},
+        solvers: {
+            dungeon_master: DungeonMaster = DungeonMaster::new(None, None, None),
+        },
         scripts: {},
-        signals: {},
+        signals: {
+            duel_state: DuelState = DuelState::Inactive,
+        },
     }
 }

@@ -30,11 +30,18 @@ impl PlayerLateralController {
         dt: f32,
         pips: &mut Pips,
         _scripts: &mut ScriptsMap,
-        _signals: &mut SignalsMap,
+        signals: &mut SignalsMap,
         input: &Input,
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
-        let lateral = input.axes.value("Horizontal");
+        let (duel_active, walk_speed) = RollerWorld::signals(signals)
+            .map(|s| (s.duel_active, s.walk_speed))
+            .unwrap_or((false, WALK_SPEED));
+        let lateral = if duel_active {
+            0.0
+        } else {
+            input.axes.value("Horizontal")
+        };
 
         let Some(player) = self.player else {
             return;
@@ -60,7 +67,7 @@ impl PlayerLateralController {
 
         player.lateral = (player.lateral + lateral * LATERAL_SPEED * speed_scale * dt)
             .clamp(PLAYER_X_MIN, PLAYER_X_MAX);
-        player.walk_distance += WALK_SPEED * dt;
+        player.walk_distance += walk_speed * dt;
         depth.lateral = player.lateral;
     }
 }
