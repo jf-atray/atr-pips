@@ -181,3 +181,26 @@ impl<T, K> IndexMut<&ClassRowPtr> for Class<T, K> {
         &mut self[index.class_id][index.row_idx]
     }
 }
+
+impl<T, K> Class<T, K> {
+    pub fn get_both_mut(
+        &mut self,
+        a: &ClassRowPtr,
+        b: &ClassRowPtr,
+    ) -> Option<(&mut T, &mut T)> {
+        assert!(a != b, "get_both_mut called with the same row");
+        if a.class_id == b.class_id {
+            let col = self.data.get_mut(a.class_id)?;
+            let (i, j) = if a.row_idx < b.row_idx {
+                (a.row_idx, b.row_idx)
+            } else {
+                (b.row_idx, a.row_idx)
+            };
+            let (left, right) = col.vec.split_at_mut(j);
+            Some((&mut left[i], &mut right[0]))
+        } else {
+            let [col_a, col_b] = self.data.get_disjoint_mut([a.class_id, b.class_id])?;
+            Some((&mut col_a[a.row_idx], &mut col_b[b.row_idx]))
+        }
+    }
+}
