@@ -16,7 +16,7 @@ use wgpu::{
     PipelineLayoutDescriptor, PrimitiveState, Queue, RenderPass, RenderPipelineDescriptor, Sampler,
     SamplerDescriptor, ShaderModuleDescriptor, ShaderStages, TextureFormat, TextureView,
     TextureViewDescriptor, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState,
-    VertexStepMode,
+    VertexStepMode, WriteOnly,
 };
 
 use crate::brushes::Brush;
@@ -407,6 +407,27 @@ impl CanvasTrait for BasicSpriteCanvas {
         pass.draw(0..6, instances);
     }
 
+}
+
+pub struct BasicSpriteCanvasUnderstander;
+
+impl CanvasUnderstander<(Transform, Brush)> for BasicSpriteCanvasUnderstander {
+    fn understand<'a>(
+        &mut self,
+        _id: CanvasId,
+        t: &'a [((Transform, Brush), MaterialId, CanvasId)],
+        mut out: WriteOnly<'a, [u8]>,
+        _canvas: &'a dyn CanvasTrait,
+    ) -> usize {
+        let instance_size = size_of::<SpriteInstance>();
+        for (i, ((xform, brush), _, _)) in t.iter().enumerate() {
+            let instance = SpriteInstance::new(xform, brush);
+            let bytes = instance.as_bytes();
+            out.slice(i * instance_size..(i + 1) * instance_size)
+                .copy_from_slice(bytes);
+        }
+        t.len() * instance_size
+    }
 }
 
 pub struct SpriteCanvasSolver {

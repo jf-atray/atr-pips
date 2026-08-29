@@ -10,7 +10,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::WindowAttributes;
 
 use crate::gamescope::game::Game;
-use crate::gamescope::scene::NoopScene;
+use crate::gamescope::scene::TestScene;
 use crate::gpuscope::{Gpu, GpuReady, GpuSettings};
 use crate::libscope::Lib;
 use crate::windowing::Windowing;
@@ -354,7 +354,7 @@ impl ApplicationHandler<GpuReady> for App {
 
         let game = if let AppState::AwaitingGpu { .. } = &state {
             let mut game = Game::new(HashMap::new());
-            game.set_scene(Box::new(NoopScene));
+            game.set_scene(Box::new(TestScene::new()));
 
             Some(Box::new(game))
         } else if let AppState::Lost { .. } = &state {

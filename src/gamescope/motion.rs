@@ -20,18 +20,22 @@ impl MotionSolver {
         dt: f32,
         pips: &mut Pips,
         _scripts: &mut ScriptsMap,
-        _signals: &mut SignalsMap,
+        signals: &mut SignalsMap,
         _input: &Input,
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
         let core = &mut pips.tables.core;
+        let boundary = &signals.core.boundary;
+
         crate::query!(
             [
                 &mut core.motions,
                 &mut core.xforms
             ],
             |motion, xform| {
-                xform.xyz += motion.vel * dt;
+                let mut next = xform.xyz + motion.vel * dt;
+                boundary.reflect(&mut next, &mut motion.vel);
+                xform.xyz = next;
             }
         );
     }

@@ -7,6 +7,10 @@ use crate::input::Input;
 use crate::spacial::camera::Camera;
 use crate::addition::ExampleDomain;
 
+
+pub mod test_scene;
+pub use test_scene::TestScene;
+
 //todo, for more complex cases this needs an view struct with some mut some ref borrows
 #[derive(Default)]
 pub struct SceneAction {

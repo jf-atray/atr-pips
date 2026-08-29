@@ -2,6 +2,7 @@ use crate::addition;
 use crate::brushes::Brush;
 use crate::ecs::class::Class;
 use crate::ecs::class_strategy::GrowthStrategy;
+use crate::spacial::boundary::Boundary;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 
@@ -16,6 +17,8 @@ addition! {
         },
         solvers: { motion: crate::gamescope::motion::MotionSolver = crate::gamescope::motion::MotionSolver::new() },
         scripts: {},
-        signals: {},
+        signals: {
+            boundary: Boundary = Boundary::default()
+        },
     }
 }
