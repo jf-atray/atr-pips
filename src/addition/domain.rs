@@ -77,10 +77,6 @@ impl Pips {
     fn commit_with<F: FnOnce(&mut Scope)>(&mut self, pip: PipId, f: F) -> ClassRowPtr {
         let mut scope = Scope::default();
 
-        {
-            let view = self.tables.core.view_default();
-            scope.additions.insert(view.addition_id(), view);
-        }
         for tables in self.tables.iter_mut() {
             let view = tables.view_default();
             scope.additions.insert(view.addition_id(), view);
