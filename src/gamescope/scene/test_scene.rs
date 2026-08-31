@@ -1,23 +1,61 @@
+use std::collections::HashMap;
+
 use glam::{Vec2, Vec3, Vec4};
 use wgpu::TextureFormat;
 use winit::keyboard::KeyCode;
 
-use crate::addition::Addition;
+use crate::addition::{Addition, Pips, ScriptsMap, SignalsMap, Solver};
+use crate::assets::SpriteEntry;
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{
     BasicSpriteCanvas, BasicSpriteCanvasUnderstander, SpriteCanvasSolver,
 };
 use crate::diagnostics::DiagnosticsAdd;
+use crate::ecs::class::Class;
+use crate::ecs::class_strategy::GrowthStrategy;
 use crate::ecs::scope::Scope;
 use crate::ecs::{CanvasId, MaterialId, PipId};
 use crate::gamescope::camera::{CameraMode, PanSource, ZoomSource};
-use crate::input::AxisConfig;
+use crate::input::{AxisConfig, Input};
 use crate::physics::PhysicsAdd;
+use crate::query;
 use crate::spacial::boundary::Boundary;
 use crate::spacial::motion::Motion;
 use crate::spacial::transform::Transform;
 
 use super::{Scene, SceneContext};
+
+#[derive(Debug)]
+pub struct ColorSolver;
+
+impl Solver for ColorSolver {}
+
+impl ColorSolver {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn update(
+        &mut self,
+        _dt: f32,
+        pips: &mut Pips,
+        _scripts: &mut ScriptsMap,
+        _signals: &mut SignalsMap,
+        _input: &mut Input,
+        _asset_registry: &HashMap<String, SpriteEntry>,
+    ) {
+        let core = &mut pips.tables.core;
+        query!([&mut core.brushes, &core.motions], |brush, motion| {
+            let v = motion.vel;
+            brush.color = Vec4::new(
+                (v.x + 1.0) * 0.5,
+                (v.y + 1.0) * 0.5,
+                0.0,
+                1.0,
+            );
+        });
+    }
+}
 
 const COLUMNS: usize = 32;
 const ROWS: usize = 64;
@@ -75,6 +113,9 @@ fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
     ctx.domain
         .add::<PhysicsAdd>()
         .expect("PhysicsAdd must be available");
+    ctx.domain
+        .add::<TestAdd>()
+        .expect("TestAdd must be available");
     ctx.camera.zoom = ZOOM;
     *ctx.camera_mode = CameraMode {
         pan: PanSource::Fixed { value: Vec2::ZERO },
@@ -172,4 +213,16 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
         }
     }
     first
+}
+
+crate::addition! {
+    #[derive(Debug)]
+    pub struct test_world : TestAdd {
+        tables: {
+            test_tag: Class<u8> = Class::new(GrowthStrategy::quart_kib::<u8>()),
+        },
+        solvers: { color: ColorSolver = ColorSolver::new() },
+        scripts: {},
+        signals: {},
+    }
 }
