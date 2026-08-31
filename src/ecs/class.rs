@@ -182,3 +182,35 @@ impl<T, K> IndexMut<&ClassRowPtr> for Class<T, K> {
     }
 }
 
+pub trait Table {
+    fn class_count(&self) -> usize;
+    fn row_count(&self) -> usize;
+    fn capacity(&self) -> usize;
+    fn byte_size(&self) -> usize;
+    fn for_each_class(&self, f: &mut dyn FnMut(ClassId, usize, usize));
+}
+
+impl<T, K> Table for Class<T, K> {
+    fn class_count(&self) -> usize {
+        self.keys.len()
+    }
+
+    fn row_count(&self) -> usize {
+        self.data.values().map(|c| c.len()).sum()
+    }
+
+    fn capacity(&self) -> usize {
+        self.data.values().map(|c| c.capacity()).sum()
+    }
+
+    fn byte_size(&self) -> usize {
+        std::mem::size_of::<T>() * self.capacity()
+    }
+
+    fn for_each_class(&self, f: &mut dyn FnMut(ClassId, usize, usize)) {
+        for (class_id, col) in &self.data {
+            f(class_id, col.len(), col.capacity());
+        }
+    }
+}
+

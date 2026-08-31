@@ -12,7 +12,6 @@ addition! {
         tables: {
             xforms: Class<Transform, ()> = Class::new(GrowthStrategy::quart_kib::<Transform>()),
             brushes: Class<Brush> = Class::new(GrowthStrategy::quart_kib::<Brush>()),
-            names: Class<String> = Class::new(GrowthStrategy::quart_kib::<String>()),
             motions: Class<Motion> = Class::new(GrowthStrategy::quart_kib::<Motion>()),
         },
         solvers: { motion: crate::gamescope::motion::MotionSolver = crate::gamescope::motion::MotionSolver::new() },

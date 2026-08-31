@@ -5,6 +5,8 @@ pub mod gather;
 pub mod partition;
 pub mod scope;
 
+pub use class::Table;
+
 slotmap::new_key_type! {
     pub struct ClassId;
     pub struct PipId;

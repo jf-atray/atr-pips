@@ -3,12 +3,15 @@ use std::collections::HashMap;
 use downcast_rs::{Downcast, impl_downcast};
 
 use crate::assets::SpriteEntry;
+use crate::ecs::Table;
 use crate::ecs::partition::Partition;
 use crate::input::Input;
 
 use super::domain::{Pips, ScriptsMap, SignalsMap};
 
-pub trait Tables: Downcast + Partition + std::fmt::Debug {}
+pub trait Tables: Downcast + Partition + std::fmt::Debug {
+    fn for_each_table(&self, f: &mut dyn FnMut(&'static str, &dyn Table));
+}
 pub trait Solver: Downcast + std::fmt::Debug {}
 
 pub trait Solvers: Downcast + std::fmt::Debug {
@@ -18,7 +21,7 @@ pub trait Solvers: Downcast + std::fmt::Debug {
         pips: &mut Pips,
         scripts: &mut ScriptsMap,
         signals: &mut SignalsMap,
-        input: &Input,
+        input: &mut Input,
         asset_registry: &HashMap<String, SpriteEntry>,
     );
 

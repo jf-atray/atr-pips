@@ -26,7 +26,7 @@ impl AnimSolver {
         pips: &mut Pips,
         _scripts: &mut ScriptsMap,
         _signals: &mut SignalsMap,
-        _input: &Input,
+        _input: &mut Input,
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
         let libs = &pips.anim_libs;

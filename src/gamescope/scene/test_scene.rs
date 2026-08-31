@@ -1,10 +1,12 @@
 use glam::{Vec2, Vec3, Vec4};
 use wgpu::TextureFormat;
 
+use crate::addition::Addition;
 use crate::brushes::Brush;
 use crate::demo::canvasing::spritecanvas::{
     BasicSpriteCanvas, BasicSpriteCanvasUnderstander, SpriteCanvasSolver,
 };
+use crate::diagnostics::DiagnosticsAdd;
 use crate::ecs::scope::Scope;
 use crate::ecs::{CanvasId, MaterialId};
 use crate::physics::PhysicsAdd;
@@ -50,6 +52,10 @@ fn setup(ctx: &mut SceneContext) {
         .expect("PhysicsAdd must be available");
     ctx.camera.zoom = ZOOM;
     ctx.camera.pos = Vec2::ZERO;
+
+    if let Some(signals) = DiagnosticsAdd::signals(&mut ctx.domain.signals) {
+        signals.enabled = true;
+    }
 
     ctx.domain.signals.core.boundary = Boundary {
         min: Vec3::new(-BOUNDARY_HALF, -BOUNDARY_HALF, -BOUNDARY_Z),
@@ -112,7 +118,7 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
         ctx.domain.make(|scope: &mut Scope| {
             scope
                 .core
-                .with(transform, brush, String::new(), motion);
+                .with(transform, brush, motion);
             scope
                 .view::<PhysicsAdd>()
                 .expect("PhysicsAdd must be present")

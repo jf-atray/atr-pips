@@ -23,7 +23,16 @@ macro_rules! addition {
                 }
             }
 
-            impl $crate::addition::Tables for Tables {}
+            impl $crate::addition::Tables for Tables {
+                fn for_each_table(
+                    &self,
+                    f: &mut dyn FnMut(&'static str, &dyn $crate::ecs::Table),
+                ) {
+                    $(
+                        f(stringify!($tfield), &self.$tfield as &dyn $crate::ecs::Table);
+                    )*
+                }
+            }
 
             #[derive(Debug)]
             pub struct Solvers {
@@ -38,7 +47,7 @@ macro_rules! addition {
                     pips: &mut $crate::addition::Pips,
                     scripts: &mut $crate::addition::ScriptsMap,
                     signals: &mut $crate::addition::SignalsMap,
-                    input: &$crate::input::Input,
+                    input: &mut $crate::input::Input,
                     asset_registry: &std::collections::HashMap<String, $crate::assets::SpriteEntry>,
                 ) {
                     $(self.$sfield.update(dt, pips, scripts, signals, input, asset_registry);)*

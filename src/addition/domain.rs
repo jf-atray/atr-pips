@@ -170,7 +170,7 @@ impl ExampleDomain {
     pub fn update_solvers(
         &mut self,
         dt: f32,
-        input: &Input,
+        input: &mut Input,
         asset_registry: &HashMap<String, SpriteEntry>,
     ) {
         self.solvers.core.update(

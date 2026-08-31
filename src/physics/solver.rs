@@ -25,7 +25,7 @@ impl PhysicsSolver {
         pips: &mut Pips,
         _scripts: &mut ScriptsMap,
         signals: &mut SignalsMap,
-        _input: &Input,
+        _input: &mut Input,
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
         let core = &mut pips.tables.core;

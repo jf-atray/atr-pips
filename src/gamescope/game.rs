@@ -47,7 +47,8 @@ impl Game {
         };
         self.scene.update(&mut ctx);
 
-        self.domain.update_solvers(dt, &self.input, &self.asset_registry);
+        self.domain
+            .update_solvers(dt, &mut self.input, &self.asset_registry);
 
         if let Some(next) = game_action.next_scene.take() {
             self.set_scene(next);
