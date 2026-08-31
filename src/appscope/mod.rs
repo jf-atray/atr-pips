@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use bumpalo::Bump;
+
 use wgpu::Surface;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -19,6 +21,7 @@ pub struct App {
     lib: Arc<Lib>,
     proxy: EventLoopProxy<GpuReady>,
     state: AppState,
+    bump: Bump,
     target_fps: Option<u32>,
     target_dt: Option<f64>,
     last_render: Option<Instant>,
@@ -114,6 +117,7 @@ impl App {
             lib,
             proxy,
             state: AppState::Boot,
+            bump: Bump::with_capacity(1 << 20),
             target_fps: None,
             target_dt: None,
             last_render: None,
@@ -165,13 +169,14 @@ impl App {
 
         #[allow(clippy::cast_precision_loss)]
         let aspect = windowing.width as f32 / windowing.height as f32;
-        game.update(elapsed, aspect, gpu);
+        game.update(elapsed, aspect, gpu, &mut self.bump);
 
         if let Some(mut frame) = gpu.begin_frame() {
             gpu.device.canvas_renderer.prepare(
                 &mut game.domain.pips.tables,
                 &game.camera,
                 &mut frame.encoder,
+                &mut self.bump,
             );
             frame.with_render_pass(wgpu::Color::BLACK, |pass| {
                 gpu.device.canvas_renderer.render(pass);

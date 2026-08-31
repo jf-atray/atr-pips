@@ -1,12 +1,15 @@
 use std::any::Any;
 use std::fmt::Debug;
+use std::mem::size_of;
 use std::num::NonZero;
 
-use slotmap::{SecondaryMap, SlotMap};
+use bumpalo::Bump;
+use slotmap::{Key, SecondaryMap, SlotMap};
 use wgpu::{
-    BindGroupLayout, Buffer, BufferDescriptor, BufferUsages, BufferViewMut, CommandEncoder, Device,
-    RenderPass, RenderPipeline, WriteOnly,
+    BindGroupLayout, Buffer, BufferDescriptor, BufferSize, BufferUsages, BufferViewMut,
+    CommandEncoder, Device, RenderPass, RenderPipeline, WriteOnly,
 };
+use zerocopy::IntoBytes as _;
 
 use crate::spacial::camera::Camera;
 use crate::addition::TablesMap;
@@ -18,6 +21,7 @@ pub trait CanvasSolver: Any + std::fmt::Debug {
         tables: &mut TablesMap,
         view: &mut BufferViewMut,
         sink: &mut DrawWriter,
+        arena: &mut Bump,
     ) -> usize;
 }
 pub trait CanvasUnderstander<T> {
@@ -30,10 +34,19 @@ pub trait CanvasUnderstander<T> {
     ) -> usize;
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Draw {
     pub adr: u32,
     pub count: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, zerocopy::IntoBytes, zerocopy::Immutable)]
+pub(crate) struct DrawIndirect {
+    pub vertex_count: u32,
+    pub instance_count: u32,
+    pub first_vertex: u32,
+    pub first_instance: u32,
 }
 
 #[derive(Debug)]
@@ -42,15 +55,36 @@ pub struct EveryCanvas {
     pub pipeline: RenderPipeline,
     pub material_ids: SlotMap<MaterialId, ()>,
     pub draws: SecondaryMap<MaterialId, Draw>,
+    pub draw_buffer: Buffer,
+    draw_buffer_size: u64,
+    draw_buffer_zeros: Vec<u8>,
+    last_draws: SecondaryMap<MaterialId, Draw>,
 }
 
 impl EveryCanvas {
-    pub fn new(bind_group_layout: BindGroupLayout, pipeline: RenderPipeline) -> Self {
+    pub fn new(
+        device: &Device,
+        bind_group_layout: BindGroupLayout,
+        pipeline: RenderPipeline,
+        max_materials: u64,
+    ) -> Self {
+        let draw_buffer_size = max_materials * u64::try_from(size_of::<DrawIndirect>()).unwrap();
+        let draw_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("canvas draw commands"),
+            size: draw_buffer_size,
+            usage: BufferUsages::INDIRECT | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         Self {
             bind_group_layout,
             pipeline,
             material_ids: SlotMap::with_key(),
             draws: SecondaryMap::new(),
+            draw_buffer,
+            draw_buffer_size,
+            draw_buffer_zeros: vec![0u8; usize::try_from(draw_buffer_size).unwrap()],
+            last_draws: SecondaryMap::new(),
         }
     }
 }
@@ -66,7 +100,7 @@ pub trait CanvasTrait: Any + std::fmt::Debug {
     fn render(
         &self,
         pass: &mut RenderPass<'_>,
-        material: MaterialId,
+        material: &MaterialId,
         instances: std::ops::Range<u32>,
         every: &EveryCanvas,
     );
@@ -140,7 +174,13 @@ impl CanvasRenderer {
         }
     }
 
-    pub fn prepare(&mut self, tables: &mut TablesMap, camera: &Camera, encoder: &mut CommandEncoder) {
+    pub fn prepare(
+        &mut self,
+        tables: &mut TablesMap,
+        camera: &Camera,
+        encoder: &mut CommandEncoder,
+        arena: &mut Bump,
+    ) {
         for (every, canvas) in self.canvases.values_mut() {
             every.draws.clear();
             canvas.prepare(camera, encoder, &mut self.staging_belt);
@@ -150,24 +190,65 @@ impl CanvasRenderer {
         let total_bytes = NonZero::new(instance_buffer.size()).unwrap();
         let mut view = self
             .staging_belt
-            .write_buffer(encoder, instance_buffer, 0, total_bytes);
+            .write_buffer(encoder, instance_buffer, 0, BufferSize::new(total_bytes.get()).unwrap());
 
-        let canvases = &mut self.canvases;
-        let solvers = &mut self.solvers;
-        let mut writer = DrawWriter {
-            canvases,
-            next_byte: 0,
-        };
-        for (_id, solver) in solvers.iter_mut() {
-            solver.as_mut().solve(tables, &mut view, &mut writer);
+        {
+            let canvases = &mut self.canvases;
+            let solvers = &mut self.solvers;
+            let mut writer = DrawWriter {
+                canvases,
+                next_byte: 0,
+            };
+            for (_id, solver) in solvers.iter_mut() {
+                arena.reset();
+                solver.as_mut().solve(tables, &mut view, &mut writer, arena);
+                arena.reset();
+            }
+
+            assert!(
+                writer.bytes_used() <= instance_buffer.size(),
+                "CanvasRenderer overran the instance buffer"
+            );
         }
 
-        assert!(
-            writer.bytes_used() <= instance_buffer.size(),
-            "CanvasRenderer overran the instance buffer"
-        );
-
         drop(view);
+
+        for (canvas_id, (every, _canvas)) in self.canvases.iter_mut() {
+            if every.draws == every.last_draws {
+                continue;
+            }
+
+            log::info!("re-recording draw commands for canvas {canvas_id:?}");
+
+            let mut draw_view = self
+                .staging_belt
+                .write_buffer(
+                    encoder,
+                    &every.draw_buffer,
+                    0,
+                    BufferSize::new(every.draw_buffer_size).unwrap(),
+                );
+            draw_view.copy_from_slice(&every.draw_buffer_zeros);
+
+            for (material, draw) in every.draws.iter() {
+                let cmd = DrawIndirect {
+                    vertex_count: 6,
+                    instance_count: draw.count,
+                    first_vertex: 0,
+                    first_instance: draw.adr,
+                };
+                let offset =
+                    u64::from(material.data().as_ffi() as u32) * u64::try_from(size_of::<DrawIndirect>()).unwrap();
+                let bytes = cmd.as_bytes();
+                let offset_usize = usize::try_from(offset).unwrap();
+                draw_view
+                    .slice(offset_usize..offset_usize + bytes.len())
+                    .copy_from_slice(bytes);
+            }
+
+            every.last_draws = every.draws.clone();
+        }
+
         self.staging_belt.finish();
     }
 
@@ -175,8 +256,8 @@ impl CanvasRenderer {
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         for (_canvas_id, (every, canvas)) in &self.canvases {
             canvas.begin_render_pass(pass, every);
-            for (material, draw) in &every.draws {
-                canvas.render(pass, material, draw.adr..draw.adr + draw.count, every);
+            for (material, draw) in every.draws.iter() {
+                canvas.render(pass, &material, draw.adr..draw.adr + draw.count, every);
             }
         }
     }

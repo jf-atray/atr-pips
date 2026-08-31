@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use bumpalo::Bump;
+
 use crate::assets::SpriteEntry;
 use crate::gamescope::scene::{NoopScene, Scene, SceneAction, SceneContext};
 use crate::gpuscope::Gpu;
@@ -31,7 +33,7 @@ impl Game {
         self.scene = scene;
     }
 
-    pub fn update(&mut self, dt: f32, aspect: f32, gpu: &mut Gpu) {
+    pub fn update(&mut self, dt: f32, aspect: f32, gpu: &mut Gpu, _arena: &mut Bump) {
         let mut game_action = SceneAction::new();
         let mut ctx = SceneContext {
             dt,

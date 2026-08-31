@@ -3,9 +3,8 @@ use std::mem::size_of;
 
 use zerocopy::IntoBytes as _;
 
-use bumpalo::collections::Vec as BumpVec;
-use bumpalo::Bump;
-use glam::{Vec2, Vec3};
+use bumpalo::{collections::Vec as BumpVec, Bump};
+use glam::{Mat3, Vec2, Vec3};
 use slotmap::SecondaryMap;
 use wgpu::util::{BufferInitDescriptor, DeviceExt, StagingBelt};
 use wgpu::{
@@ -19,8 +18,10 @@ use wgpu::{
     VertexStepMode, WriteOnly,
 };
 
+use slotmap::Key;
+
 use crate::brushes::Brush;
-use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, CanvasUnderstander, DrawWriter, EveryCanvas};
+use crate::gpuscope::canvasing::{CanvasSolver, CanvasTrait, CanvasUnderstander, DrawIndirect, DrawWriter, EveryCanvas};
 use crate::gpuscope::texture_cache::{ImgId, TextureScope};
 use crate::spacial::camera::Camera;
 use crate::spacial::transform::Transform;
@@ -226,7 +227,7 @@ impl BasicSpriteCanvas {
             multiview_mask: None,
             cache: None,
         });
-        let every = EveryCanvas::new(bind_group_layout, pipeline);
+        let every = EveryCanvas::new(device, bind_group_layout, pipeline, MAX_MATERIALS);
 
         let camera_slice = Range::from(0..64u64);
 
@@ -398,13 +399,15 @@ impl CanvasTrait for BasicSpriteCanvas {
     fn render(
         &self,
         pass: &mut RenderPass<'_>,
-        material: MaterialId,
-        instances: std::ops::Range<u32>,
-        _every: &EveryCanvas,
+        material: &MaterialId,
+        _instances: std::ops::Range<u32>,
+        every: &EveryCanvas,
     ) {
-        let material = self.materials.get(material).expect("missing material");
-        pass.set_bind_group(1, &material.binding, &[]);
-        pass.draw(0..6, instances);
+        let material_ref = self.materials.get(*material).expect("missing material");
+        pass.set_bind_group(1, &material_ref.binding, &[]);
+        let offset = u64::from(material.data().as_ffi() as u32) * u64::try_from(size_of::<DrawIndirect>())
+            .expect("DrawIndirect fits in u64");
+        pass.draw_indirect(&every.draw_buffer, offset);
     }
 
 }
@@ -431,7 +434,6 @@ impl CanvasUnderstander<(Transform, Brush)> for BasicSpriteCanvasUnderstander {
 }
 
 pub struct SpriteCanvasSolver {
-    bump: Bump,
     pub understanders: SecondaryMap<CanvasId, Box<dyn CanvasUnderstander<(Transform, Brush)>>>,
 }
 
@@ -446,16 +448,16 @@ impl std::fmt::Debug for SpriteCanvasSolver {
 impl SpriteCanvasSolver {
     pub fn new() -> Self {
         Self {
-            bump: Bump::with_capacity(1 << 20),
             understanders: SecondaryMap::new(),
         }
     }
 
     fn collect_sorted<'b>(
         core: &mut <CoreAdd as Addition>::Tables,
-        bump: &'b Bump,
+        arena: &'b Bump,
     ) -> BumpVec<'b, ((Transform, Brush), MaterialId, CanvasId)> {
-        let mut sorted = BumpVec::new_in(bump);
+        let capacity = (arena.chunk_capacity() / size_of::<((Transform, Brush), MaterialId, CanvasId)>()).max(1);
+        let mut sorted = BumpVec::with_capacity_in(capacity, arena);
         crate::query!(
             [&core.xforms, &core.brushes],
             |xform, brush| {
@@ -555,19 +557,15 @@ impl CanvasSolver for SpriteCanvasSolver {
         tables: &mut TablesMap,
         view: &mut BufferViewMut,
         sink: &mut DrawWriter,
+        arena: &mut Bump,
     ) -> usize {
-        self.bump.reset();
-
-        let mut sorted = Self::collect_sorted(&mut tables.core, &self.bump);
+        let mut sorted = Self::collect_sorted(&mut tables.core, arena);
         if sorted.is_empty() {
             return 0;
         }
 
-        sorted
-            .as_mut_slice()
-            .sort_unstable_by_key(|(_, material, canvas)| (*canvas, *material));
+        sorted.sort_by_key(|(_, material, canvas)| (*canvas, *material));
 
-            
         let instance_size = u64::try_from(size_of::<SpriteInstance>())
             .expect("Instance must fit into RAM somewhere");
         let idx = u32::try_from(sorted.len())
@@ -598,22 +596,20 @@ impl SpriteInstance {
     pub(crate) fn new(xform: &Transform, brush: &Brush) -> Self {
         let s = brush.scale;
         let sh = brush.sheer;
-        let q = xform.rot;
 
-        let hsc0 = Vec3::new(s.x, s.x * sh.y, 0.0);
-        let hsc1 = Vec3::new(s.y * sh.x, s.y, 0.0);
-        let hsc2 = Vec3::new(0.0, 0.0, s.z);
-
-        let c0 = q.mul_vec3(hsc0);
-        let c1 = q.mul_vec3(hsc1);
-        let c2 = q.mul_vec3(hsc2);
+        let scale_sheer = Mat3::from_cols(
+            Vec3::new(s.x, s.x * sh.y, 0.0),
+            Vec3::new(s.y * sh.x, s.y, 0.0),
+            Vec3::new(0.0, 0.0, s.z),
+        );
+        let mat = Mat3::from_quat(xform.rot) * scale_sheer;
         let c3 = xform.xyz + brush.offset;
 
         Self {
             m: [
-                [c0.x as f16, c0.y as f16, c0.z as f16, c1.x as f16],
-                [c1.y as f16, c1.z as f16, c2.x as f16, c2.y as f16],
-                [c2.z as f16, c3.x as f16, c3.y as f16, c3.z as f16],
+                [mat.x_axis.x as f16, mat.x_axis.y as f16, mat.x_axis.z as f16, mat.y_axis.x as f16],
+                [mat.y_axis.y as f16, mat.y_axis.z as f16, mat.z_axis.x as f16, mat.z_axis.y as f16],
+                [mat.z_axis.z as f16, c3.x as f16, c3.y as f16, c3.z as f16],
             ],
             color: [
                 brush.color.x as f16,
