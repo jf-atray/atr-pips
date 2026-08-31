@@ -11,8 +11,6 @@ use crate::demo::canvasing::spritecanvas::{
     BasicSpriteCanvas, BasicSpriteCanvasUnderstander, SpriteCanvasSolver,
 };
 use crate::diagnostics::DiagnosticsAdd;
-use crate::ecs::class::Class;
-use crate::ecs::class_strategy::GrowthStrategy;
 use crate::ecs::scope::Scope;
 use crate::ecs::{CanvasId, MaterialId, PipId};
 use crate::gamescope::camera::{CameraMode, PanSource, ZoomSource};
@@ -215,14 +213,41 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
     first
 }
 
-crate::addition! {
+#[derive(Debug)]
+pub struct TestAdd {}
+mod test_world {
+    use super::*;
     #[derive(Debug)]
-    pub struct test_world : TestAdd {
-        tables: {
-            test_tag: Class<u8> = Class::new(GrowthStrategy::quart_kib::<u8>()),
-        },
-        solvers: { color: ColorSolver = ColorSolver::new() },
-        scripts: {},
-        signals: {},
+    pub struct Solvers {
+        pub color: ColorSolver
     }
+    impl crate::addition::Solvers for Solvers {
+        #[allow(unused_variables)]
+        fn update(&mut self,dt: f32,pips: &mut crate::addition::Pips,scripts: &mut crate::addition::ScriptsMap,signals: &mut crate::addition::SignalsMap,input: &mut crate::input::Input,asset_registry: &std::collections::HashMap<String,crate::assets::SpriteEntry>,){
+            self.color.update(dt,pips,scripts,signals,input,asset_registry);
+        }
+        fn for_each_solver(&mut self,f: &mut dyn FnMut(&'static str, &mut dyn crate::addition::Solver),){
+            f(stringify!(color), &mut self.color as &mut dyn crate::addition::Solver);
+        }
+    }
+    #[derive(Debug)]
+    pub struct Scripts {}
+    impl crate::addition::Scripts for Scripts {}
+}
+impl crate::addition::Addition for TestAdd {
+    type Tables = ();
+    type Solvers = test_world::Solvers;
+    type Scripts = test_world::Scripts;
+    type Signals = ();
+    type View = ();
+    fn make_tables() -> Self::Tables {}
+    fn make_solvers() -> Self::Solvers {
+        test_world::Solvers {
+            color: (ColorSolver::new())
+        }
+    }
+    fn make_scripts() -> Self::Scripts {
+        test_world::Scripts {}
+    }
+    fn make_signals() -> Self::Signals {}
 }

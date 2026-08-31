@@ -31,6 +31,12 @@ pub trait Solvers: Downcast + std::fmt::Debug {
 pub trait Scripts: Downcast + std::fmt::Debug {}
 pub trait Signals: Downcast + std::fmt::Debug {}
 
+impl Tables for () {
+    fn for_each_table(&self, _f: &mut dyn FnMut(&'static str, &dyn crate::ecs::Table)) {}
+}
+
+impl Signals for () {}
+
 impl_downcast!(Tables);
 impl_downcast!(Solvers);
 impl_downcast!(Scripts);

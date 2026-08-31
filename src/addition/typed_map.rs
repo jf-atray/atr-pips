@@ -56,7 +56,10 @@ impl<T: ?Sized + Downcast, K> Polysystem<T, K> {
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        self.pile.0.values_mut().map(std::convert::AsMut::as_mut)
+        self.pile.0.values_mut().map(AsMut::as_mut)
+    }
+    pub fn kvp_iter_mut(&mut self) -> impl Iterator<Item = (&TypeId, &mut T)> {
+        self.pile.0.iter_mut().map(|i| (i.0, i.1.as_mut()))
     }
 }
 impl<T: ?Sized + Downcast> Polypile<T> {

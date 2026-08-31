@@ -1,4 +1,4 @@
-use std::any::{Any, TypeId};
+use std::any::Any;
 
 use crate::ecs::ClassId;
 
@@ -6,7 +6,6 @@ pub trait View: Any {
     fn width(&self) -> usize;
     fn matches(&self, class_id: ClassId, into: &dyn Partition) -> bool;
     fn commit(&mut self, class_id: ClassId, into: &mut dyn Partition) -> Option<usize>;
-    fn addition_id(&self) -> TypeId;
     fn as_any_ref(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -89,10 +88,6 @@ macro_rules! partition {
                 row
             }
 
-            fn addition_id(&self) -> ::std::any::TypeId {
-                ::std::any::TypeId::of::<$world>()
-            }
-
             fn as_any_ref(&self) -> &dyn ::std::any::Any {
                 self
             }
@@ -121,3 +116,37 @@ macro_rules! partition {
         }
     };
 }
+
+impl crate::ecs::partition::View for () {
+    fn width(&self) -> usize {
+        0
+    }
+
+    fn matches(&self, _class_id: crate::ecs::ClassId, _into: &dyn crate::ecs::partition::Partition) -> bool {
+        true
+    }
+
+    fn commit(&mut self, _class_id: crate::ecs::ClassId, _into: &mut dyn crate::ecs::partition::Partition) -> Option<usize> {
+        None
+    }
+
+    fn as_any_ref(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl crate::ecs::partition::Partition for () {
+    fn view_default(&self) -> Box<dyn crate::ecs::partition::View> {
+        Box::new(())
+    }
+
+    fn destroy(&mut self, _class_id: crate::ecs::ClassId, _row_idx: usize) {}
+
+    fn clear(&mut self) {}
+}
+
+
