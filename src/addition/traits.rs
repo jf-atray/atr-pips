@@ -21,6 +21,8 @@ pub trait Solvers: Downcast + std::fmt::Debug {
         input: &Input,
         asset_registry: &HashMap<String, SpriteEntry>,
     );
+
+    fn for_each_solver(&mut self, f: &mut dyn FnMut(&'static str, &mut dyn Solver));
 }
 
 pub trait Scripts: Downcast + std::fmt::Debug {}

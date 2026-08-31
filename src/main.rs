@@ -19,6 +19,7 @@ mod brushes;
 mod canvases;
 mod clip;
 mod demo;
+mod diagnostics;
 mod gamescope;
 mod gpuscope;
 mod input;

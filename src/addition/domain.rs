@@ -4,6 +4,7 @@ use slotmap::SlotMap;
 
 use crate::anims::{AnimLibId, AnimationLibrary};
 use crate::assets::SpriteEntry;
+use crate::diagnostics::DiagnosticsAdd;
 use crate::ecs::core::CoreAdd;
 use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}};
 use crate::ecs::partition::Partition;
@@ -123,7 +124,7 @@ pub type AnimLibs = SlotMap<AnimLibId, AnimationLibrary>;
 
 impl Default for ExampleDomain {
     fn default() -> Self {
-        Self {
+        let mut domain = Self {
             pips: Pips {
                 tables: TablesMap::new(CoreAdd::make_tables()),
                 pip_ids: crate::ecs::class::Class::new(
@@ -136,7 +137,13 @@ impl Default for ExampleDomain {
             solvers: SolversMap::new(CoreAdd::make_solvers()),
             scripts: ScriptsMap::new(CoreAdd::make_scripts()),
             signals: SignalsMap::new(CoreAdd::make_signals()),
-        }
+        };
+
+        domain
+            .add::<DiagnosticsAdd>()
+            .expect("DiagnosticsAdd must be available");
+
+        domain
     }
 }
 

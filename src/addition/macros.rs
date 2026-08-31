@@ -43,6 +43,15 @@ macro_rules! addition {
                 ) {
                     $(self.$sfield.update(dt, pips, scripts, signals, input, asset_registry);)*
                 }
+
+                fn for_each_solver(
+                    &mut self,
+                    f: &mut dyn FnMut(&'static str, &mut dyn $crate::addition::Solver),
+                ) {
+                    $(
+                        f(stringify!($sfield), &mut self.$sfield as &mut dyn $crate::addition::Solver);
+                    )*
+                }
             }
 
             #[derive(Debug)]
