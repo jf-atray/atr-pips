@@ -1,5 +1,6 @@
 use glam::{Vec2, Vec3, Vec4};
 use wgpu::TextureFormat;
+use winit::keyboard::KeyCode;
 
 use crate::addition::Addition;
 use crate::brushes::Brush;
@@ -8,7 +9,9 @@ use crate::demo::canvasing::spritecanvas::{
 };
 use crate::diagnostics::DiagnosticsAdd;
 use crate::ecs::scope::Scope;
-use crate::ecs::{CanvasId, MaterialId};
+use crate::ecs::{CanvasId, MaterialId, PipId};
+use crate::gamescope::camera::{CameraMode, PanSource, ZoomSource};
+use crate::input::AxisConfig;
 use crate::physics::PhysicsAdd;
 use crate::spacial::boundary::Boundary;
 use crate::spacial::motion::Motion;
@@ -20,7 +23,7 @@ const COLUMNS: usize = 32;
 const ROWS: usize = 64;
 const SQUARE_COUNT: usize = COLUMNS * ROWS;
 const PIXELS_PER_UNIT: f32 = 1.0;
-const ZOOM: f32 = 0.08;
+const ZOOM: f32 = 125.0;
 const RESTITUTION: f32 = 0.95;
 const BOUNDARY_HALF: f32 = 35.0;
 const BOUNDARY_Z: f32 = 1.0;
@@ -28,30 +31,68 @@ const BOUNDARY_Z: f32 = 1.0;
 #[derive(Debug)]
 pub struct TestScene {
     content: bool,
+    track_target: Option<PipId>,
 }
 
 impl TestScene {
     pub fn new() -> Self {
-        Self { content: false }
+        Self {
+            content: false,
+            track_target: None,
+        }
     }
 }
 
 impl Scene for TestScene {
     fn update(&mut self, ctx: &mut SceneContext) {
-        if self.content {
-            return;
+        if !self.content {
+            self.content = true;
+            setup(ctx, self);
         }
-        self.content = true;
-        setup(ctx);
+
+        if ctx.input.axes.delta("camera_mode_fixed") == Some(1) {
+            *ctx.camera_mode = CameraMode {
+                pan: PanSource::Fixed { value: ctx.camera.pos },
+                zoom: ZoomSource::Fixed { value: ctx.camera.zoom },
+            };
+        } else if ctx.input.axes.delta("camera_mode_manual") == Some(1) {
+            *ctx.camera_mode = CameraMode {
+                pan: PanSource::Manual { look: 5.0 },
+                zoom: ZoomSource::Manual { look: 5.0 },
+            };
+        } else if let Some(target) = self.track_target
+            && ctx.input.axes.delta("camera_mode_track") == Some(1)
+        {
+            *ctx.camera_mode = CameraMode {
+                pan: PanSource::Track { target },
+                zoom: ZoomSource::Fixed { value: ZOOM },
+            };
+        }
     }
 }
 
-fn setup(ctx: &mut SceneContext) {
+fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
     ctx.domain
         .add::<PhysicsAdd>()
         .expect("PhysicsAdd must be available");
     ctx.camera.zoom = ZOOM;
-    ctx.camera.pos = Vec2::ZERO;
+    *ctx.camera_mode = CameraMode {
+        pan: PanSource::Fixed { value: Vec2::ZERO },
+        zoom: ZoomSource::Fixed { value: ZOOM },
+    };
+
+    ctx.input.add_axis(
+        "camera_mode_fixed",
+        AxisConfig::new(vec![KeyCode::KeyF], vec![]),
+    );
+    ctx.input.add_axis(
+        "camera_mode_manual",
+        AxisConfig::new(vec![KeyCode::KeyM], vec![]),
+    );
+    ctx.input.add_axis(
+        "camera_mode_track",
+        AxisConfig::new(vec![KeyCode::KeyT], vec![]),
+    );
 
     if let Some(signals) = DiagnosticsAdd::signals(&mut ctx.domain.signals) {
         signals.enabled = true;
@@ -64,7 +105,7 @@ fn setup(ctx: &mut SceneContext) {
     };
 
     let (canvas_id, material) = make_canvas(ctx);
-    spawn_squares(ctx, canvas_id, material);
+    test.track_target = spawn_squares(ctx, canvas_id, material);
 }
 
 fn make_canvas(ctx: &mut SceneContext) -> (CanvasId, MaterialId) {
@@ -102,7 +143,8 @@ fn make_canvas(ctx: &mut SceneContext) -> (CanvasId, MaterialId) {
     (canvas_id, material)
 }
 
-fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: MaterialId) {
+fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: MaterialId) -> Option<PipId> {
+    let mut first = None;
     for i in 0..SQUARE_COUNT {
         let x = (i % COLUMNS) as f32 - (COLUMNS / 2) as f32;
         let y = (i / COLUMNS) as f32 - (ROWS / 2) as f32;
@@ -115,7 +157,7 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
         brush.color = Vec4::ONE;
         let motion = Motion::random_unit();
 
-        ctx.domain.make(|scope: &mut Scope| {
+        let pip = ctx.domain.make(|scope: &mut Scope| {
             scope
                 .core
                 .with(transform, brush, motion);
@@ -124,5 +166,10 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
                 .expect("PhysicsAdd must be present")
                 .with(1.0, Vec3::ZERO);
         });
+
+        if i == 0 {
+            first = Some(pip);
+        }
     }
+    first
 }

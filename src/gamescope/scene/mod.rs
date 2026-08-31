@@ -2,6 +2,7 @@ use std::cell::OnceCell;
 use std::collections::HashMap;
 
 use crate::assets::SpriteEntry;
+use crate::gamescope::camera::CameraMode;
 use crate::gpuscope::Gpu;
 use crate::input::Input;
 use crate::spacial::camera::Camera;
@@ -32,6 +33,7 @@ pub struct SceneContext<'a> {
     pub asset_registry: &'a mut HashMap<String, SpriteEntry>,
     pub input: &'a mut Input,
     pub camera: &'a mut Camera,
+    pub camera_mode: &'a mut CameraMode,
     pub gpu: &'a mut Gpu,
     pub game_action: &'a SceneAction,
 }

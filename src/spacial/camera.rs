@@ -19,14 +19,15 @@ impl Camera {
     }
 
     pub fn update(&mut self, aspect: f32) {
-        //the bigger dim is 10 and the smaller scales w/ aspect.
+        // `self.zoom` is the world-unit width of the larger screen axis;
+        // the smaller axis scales by the inverse aspect.
         let (w, h) = if aspect >= 1.0 {
-            (10.0, 10.0 / aspect)
+            (self.zoom, self.zoom / aspect)
         } else {
-            (10.0 * aspect, 10.0)
+            (self.zoom * aspect, self.zoom)
         };
-        let half_w = (w * 0.5) / self.zoom;
-        let half_h = (h * 0.5) / self.zoom;
+        let half_w = w * 0.5;
+        let half_h = h * 0.5;
 
         //todo, make sure im rows columning correct
         let projection = glam::camera::lh::proj::directx::orthographic(

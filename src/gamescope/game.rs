@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use bumpalo::Bump;
+use winit::keyboard::KeyCode;
 
 use crate::assets::SpriteEntry;
+use crate::gamescope::camera::{CameraDirector, CameraMode};
 use crate::gamescope::scene::{NoopScene, Scene, SceneAction, SceneContext};
 use crate::gpuscope::Gpu;
-use crate::input::Input;
+use crate::input::{AxisConfig, Input};
 use crate::spacial::camera::Camera;
 use crate::addition::ExampleDomain;
 
@@ -13,6 +15,8 @@ use crate::addition::ExampleDomain;
 pub struct Game {
     pub domain: ExampleDomain,
     pub camera: Camera,
+    pub camera_director: CameraDirector,
+    pub camera_mode: CameraMode,
     pub asset_registry: HashMap<String, SpriteEntry>,
     pub input: Input,
     pub scene: Box<dyn Scene>,
@@ -20,11 +24,32 @@ pub struct Game {
 
 impl Game {
     pub fn new(asset_registry: HashMap<String, SpriteEntry>) -> Self {
+        let camera = Camera::new();
+        let mut input = Input::new();
+
+        input.add_axis(
+            "camera_pan_x",
+            AxisConfig::new(vec![KeyCode::KeyD], vec![KeyCode::KeyA]),
+        );
+        input.add_axis(
+            "camera_pan_y",
+            AxisConfig::new(vec![KeyCode::KeyW], vec![KeyCode::KeyS]),
+        );
+        input.add_axis(
+            "camera_zoom",
+            AxisConfig::new(vec![KeyCode::KeyQ], vec![KeyCode::KeyE]),
+        );
+
         Self {
             domain: ExampleDomain::default(),
-            camera: Camera::new(),
+            camera,
+            camera_director: CameraDirector::new(camera.pos, camera.zoom, 20.0, 30.0),
+            camera_mode: CameraMode {
+                pan: crate::gamescope::camera::PanSource::Fixed { value: camera.pos },
+                zoom: crate::gamescope::camera::ZoomSource::Fixed { value: camera.zoom },
+            },
             asset_registry,
-            input: Input::new(),
+            input,
             scene: Box::new(NoopScene),
         }
     }
@@ -42,6 +67,7 @@ impl Game {
             asset_registry: &mut self.asset_registry,
             input: &mut self.input,
             camera: &mut self.camera,
+            camera_mode: &mut self.camera_mode,
             gpu,
             game_action: &mut game_action,
         };
@@ -49,6 +75,13 @@ impl Game {
 
         self.domain
             .update_solvers(dt, &mut self.input, &self.asset_registry);
+
+        let target = self
+            .camera_mode
+            .target(&self.input, &self.domain.pips, &self.camera);
+        self.camera_director.set_pan_target(target.pan);
+        self.camera_director.set_zoom_target(target.zoom);
+        self.camera_director.update(&mut self.camera, dt);
 
         if let Some(next) = game_action.next_scene.take() {
             self.set_scene(next);
