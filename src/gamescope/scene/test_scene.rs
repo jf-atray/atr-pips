@@ -213,41 +213,12 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
     first
 }
 
-#[derive(Debug)]
-pub struct TestAdd {}
-mod test_world {
-    use super::*;
+crate::addition! {
     #[derive(Debug)]
-    pub struct Solvers {
-        pub color: ColorSolver
+    pub struct test_world : TestAdd {
+        tables: (),
+        solvers: { color: ColorSolver = ColorSolver::new() },
+        scripts: {},
+        signals: (),
     }
-    impl crate::addition::Solvers for Solvers {
-        #[allow(unused_variables)]
-        fn update(&mut self,dt: f32,pips: &mut crate::addition::Pips,scripts: &mut crate::addition::ScriptsMap,signals: &mut crate::addition::SignalsMap,input: &mut crate::input::Input,asset_registry: &std::collections::HashMap<String,crate::assets::SpriteEntry>,){
-            self.color.update(dt,pips,scripts,signals,input,asset_registry);
-        }
-        fn for_each_solver(&mut self,f: &mut dyn FnMut(&'static str, &mut dyn crate::addition::Solver),){
-            f(stringify!(color), &mut self.color as &mut dyn crate::addition::Solver);
-        }
-    }
-    #[derive(Debug)]
-    pub struct Scripts {}
-    impl crate::addition::Scripts for Scripts {}
-}
-impl crate::addition::Addition for TestAdd {
-    type Tables = ();
-    type Solvers = test_world::Solvers;
-    type Scripts = test_world::Scripts;
-    type Signals = ();
-    type View = ();
-    fn make_tables() -> Self::Tables {}
-    fn make_solvers() -> Self::Solvers {
-        test_world::Solvers {
-            color: (ColorSolver::new())
-        }
-    }
-    fn make_scripts() -> Self::Scripts {
-        test_world::Scripts {}
-    }
-    fn make_signals() -> Self::Signals {}
 }
