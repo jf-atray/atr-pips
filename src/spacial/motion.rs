@@ -1,6 +1,13 @@
 use glam::Vec3;
 use rand::Rng;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum MotionKind {
+    Static,
+    Active,
+    Sleeping,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Motion {
     pub vel: Vec3,

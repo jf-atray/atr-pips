@@ -1,9 +1,9 @@
 use std::{any::TypeId, collections::HashMap};
 
 use crate::addition::{Addition, Polysystem, Tables as AdditionTables};
-use crate::ecs::{ClassId, core::CoreAdd, partition::View};
+use crate::ecs::{ClassId, core::CoreAdd, partition::{Partition, View}};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Scope {
     pub core: <CoreAdd as Addition>::View,
     pub additions: HashMap<TypeId, Box<dyn View>>,
@@ -50,6 +50,20 @@ impl Scope {
             }
         }
         row
+    }
+
+    pub(crate) fn extract<W: Addition>(
+        &mut self,
+        class_id: ClassId,
+        row_idx: usize,
+        tables: &mut Polysystem<dyn AdditionTables, W::Tables>,
+    ) {
+        tables.core.extract_into(class_id, row_idx, &mut self.core);
+        for (addition_id, view) in &mut self.additions {
+            if let Some(tables_any) = tables.get_t_mut(*addition_id) {
+                tables_any.extract_into(class_id, row_idx, view.as_mut());
+            }
+        }
     }
 }
 

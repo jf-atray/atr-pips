@@ -7,6 +7,7 @@ use crate::assets::SpriteEntry;
 use crate::input::Input;
 use crate::physics::PhysicsAdd;
 use crate::query;
+use crate::spacial::motion::MotionKind;
 
 #[derive(Debug)]
 pub struct PhysicsSolver;
@@ -38,9 +39,9 @@ impl PhysicsSolver {
         let gravity = signals.gravity.accel * dt;
 
         query!([
-            &mut physics.inv_masses,
-            &mut physics.impulses,
-            &mut core.motions,
+            (); &mut physics.inv_masses,
+            (); &mut physics.impulses,
+            MotionKind::Active; &mut core.motions,
         ], |inv_mass, impulse, motion| {
             if inv_mass.is_normal() {
                 let massed_impulse = *impulse * *inv_mass;

@@ -2,14 +2,22 @@ pub mod impls;
 
 #[macro_export]
 macro_rules! query {
-    ([& $x:expr $(,)?], $callback:expr) => {
-        $crate::query::impls::query_ref(&$x)
+    ([$k:expr; & $x:expr $(,)?], $callback:expr) => {
+        $crate::query::impls::query_ref(&$x, $k)
             .for_each(|col| col.iter().for_each(|a| $crate::query::impls::call1($callback, a)));
     };
 
-    ([&mut $x:expr $(,)?], $callback:expr) => {
-        $crate::query::impls::query_mut(&mut $x)
+    ([& $x:expr $(,)?], $callback:expr) => {
+        $crate::query!([(); & $x], $callback);
+    };
+
+    ([$k:expr; &mut $x:expr $(,)?], $callback:expr) => {
+        $crate::query::impls::query_mut(&mut $x, $k)
             .for_each(|col| col.iter_mut().for_each(|a| $crate::query::impls::call1($callback, a)));
+    };
+
+    ([&mut $x:expr $(,)?], $callback:expr) => {
+        $crate::query!([(); &mut $x], $callback);
     };
 
     ([$ak:expr; &mut $x:expr, $bk:expr; &mut $y:expr $(,)?], $callback:expr) => {

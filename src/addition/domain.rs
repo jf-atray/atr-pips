@@ -7,7 +7,7 @@ use crate::assets::SpriteEntry;
 use crate::diagnostics::DiagnosticsAdd;
 use crate::ecs::core::CoreAdd;
 use crate::ecs::{ClassId, ClassRowPtr, PipId, scope::{Maker, Scope}};
-use crate::ecs::partition::Partition;
+use crate::ecs::partition::{Partition, View};
 use crate::input::Input;
 
 use super::core::Addition;
@@ -22,6 +22,7 @@ pub struct Pips {
     pub ids: Ids,
     pub anim_libs: AnimLibs,
     pub heading: SlotMap<ClassId, usize>,
+    pub scratch: Scope,
 }
 
 impl Pips {
@@ -38,8 +39,11 @@ impl Pips {
 
     pub fn make<M: Maker>(&mut self, maker: M) -> PipId {
         let pip = self.ids.insert(ClassRowPtr::new(ClassId::default(), 0));
-        let ptr = self.commit_with(pip, |scope| maker.make_into(scope));
+        let mut scope = self.take_scratch();
+        maker.make_into(&mut scope);
+        let ptr = self.commit_scope(pip, &mut scope);
         self.ids[pip] = ptr;
+        self.scratch = scope;
         pip
     }
 
@@ -49,20 +53,43 @@ impl Pips {
         };
 
         self.destroy_ptr(&ptr);
-        let displaced = self
-            .pip_ids
-            .data
-            .get(ptr.class_id)
-            .and_then(|col| col.get(ptr.row_idx))
-            .copied();
-
-        if let Some(displaced) = displaced
-            && let Some(entry) = self.ids.get_mut(displaced)
-        {
-            *entry = ClassRowPtr::new(ptr.class_id, ptr.row_idx);
-        }
-
+        self.fix_displaced(&ptr);
         self.ids.remove(pip);
+    }
+
+    pub fn extract_pip(&mut self, pip: PipId) -> Option<Scope> {
+        let ptr = self.ids.get(pip).cloned()?;
+
+        let mut scope = self.fresh_scope();
+        scope.extract::<CoreAdd>(ptr.class_id, ptr.row_idx, &mut self.tables);
+
+        if let Some(col) = self.pip_ids.data.get_mut(ptr.class_id) {
+            col.swap_remove(ptr.row_idx);
+        }
+        self.fix_displaced(&ptr);
+        self.ids.remove(pip);
+
+        Some(scope)
+    }
+
+    pub fn move_pip<M: Maker>(&mut self, pip: PipId, maker: M) {
+        let Some(old_ptr) = self.ids.get(pip).cloned() else {
+            return;
+        };
+
+        let mut scope = self.take_scratch();
+        scope.extract::<CoreAdd>(old_ptr.class_id, old_ptr.row_idx, &mut self.tables);
+
+        if let Some(col) = self.pip_ids.data.get_mut(old_ptr.class_id) {
+            col.swap_remove(old_ptr.row_idx);
+        }
+        self.fix_displaced(&old_ptr);
+
+        maker.make_into(&mut scope);
+
+        let new_ptr = self.commit_scope(pip, &mut scope);
+        self.ids[pip] = new_ptr;
+        self.scratch = scope;
     }
 
     fn destroy_ptr(&mut self, ptr: &ClassRowPtr) {
@@ -75,16 +102,49 @@ impl Pips {
         }
     }
 
-    fn commit_with<F: FnOnce(&mut Scope)>(&mut self, pip: PipId, f: F) -> ClassRowPtr {
-        let mut scope = Scope::default();
+    fn fix_displaced(&mut self, ptr: &ClassRowPtr) {
+        let displaced = self
+            .pip_ids
+            .data
+            .get(ptr.class_id)
+            .and_then(|col| col.get(ptr.row_idx))
+            .copied();
 
+        if let Some(displaced) = displaced
+            && let Some(entry) = self.ids.get_mut(displaced)
+        {
+            *entry = ClassRowPtr::new(ptr.class_id, ptr.row_idx);
+        }
+    }
+
+    fn take_scratch(&mut self) -> Scope {
+        let mut scope = std::mem::take(&mut self.scratch);
+
+        for (id, tables) in self.tables.kvp_iter_mut() {
+            if !scope.additions.contains_key(id) {
+                let view = tables.view_default();
+                scope.additions.insert(*id, view);
+            }
+        }
+
+        scope.core.reset();
+        for view in scope.additions.values_mut() {
+            view.reset();
+        }
+
+        scope
+    }
+
+    fn fresh_scope(&mut self) -> Scope {
+        let mut scope = Scope::default();
         for (id, tables) in self.tables.kvp_iter_mut() {
             let view = tables.view_default();
             scope.additions.insert(*id, view);
         }
+        scope
+    }
 
-        f(&mut scope);
-
+    fn commit_scope(&mut self, pip: PipId, scope: &mut Scope) -> ClassRowPtr {
         let width = scope.width();
 
         let mut class_id = None;
@@ -133,6 +193,7 @@ impl Default for ExampleDomain {
                 ids: Ids::default(),
                 anim_libs: AnimLibs::default(),
                 heading: SlotMap::default(),
+                scratch: Scope::default(),
             },
             solvers: SolversMap::new(CoreAdd::make_solvers()),
             scripts: ScriptsMap::new(CoreAdd::make_scripts()),
@@ -203,5 +264,13 @@ impl ExampleDomain {
 
     pub fn destroy(&mut self, pip: PipId) {
         self.pips.destroy(pip);
+    }
+
+    pub fn extract_pip(&mut self, pip: PipId) -> Option<Scope> {
+        self.pips.extract_pip(pip)
+    }
+
+    pub fn move_pip<M: Maker>(&mut self, pip: PipId, maker: M) {
+        self.pips.move_pip(pip, maker);
     }
 }

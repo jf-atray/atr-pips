@@ -18,7 +18,7 @@ use crate::input::{AxisConfig, Input};
 use crate::physics::PhysicsAdd;
 use crate::query;
 use crate::spacial::boundary::Boundary;
-use crate::spacial::motion::Motion;
+use crate::spacial::motion::{Motion, MotionKind};
 use crate::spacial::transform::Transform;
 
 use super::{Scene, SceneContext};
@@ -43,7 +43,7 @@ impl ColorSolver {
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
         let core = &mut pips.tables.core;
-        query!([&mut core.brushes, &core.motions], |brush, motion| {
+        query!([(); &mut core.brushes, MotionKind::Active; &core.motions], |brush, motion| {
             let v = motion.vel;
             brush.color = Vec4::new(
                 (v.x + 1.0) * 0.5,
@@ -142,6 +142,7 @@ fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
         max: Vec3::new(BOUNDARY_HALF, BOUNDARY_HALF, BOUNDARY_Z),
         restitution: RESTITUTION,
     };
+    ctx.domain.signals.core.drag = 0.1;
 
     let (canvas_id, material) = make_canvas(ctx);
     test.track_target = spawn_squares(ctx, canvas_id, material);
@@ -199,7 +200,7 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
         let pip = ctx.domain.make(|scope: &mut Scope| {
             scope
                 .core
-                .with(transform, brush, motion);
+                .with(transform, brush, (motion, MotionKind::Active));
             scope
                 .view::<PhysicsAdd>()
                 .expect("PhysicsAdd must be present")

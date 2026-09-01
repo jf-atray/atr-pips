@@ -2,10 +2,27 @@ use std::any::Any;
 
 use crate::ecs::ClassId;
 
-pub trait View: Any {
+pub trait IntoComponent<T, K> {
+    fn into_component(self) -> (T, K);
+}
+
+impl<T> IntoComponent<T, ()> for T {
+    fn into_component(self) -> (T, ()) {
+        (self, ())
+    }
+}
+
+impl<T, K> IntoComponent<T, K> for (T, K) {
+    fn into_component(self) -> (T, K) {
+        self
+    }
+}
+
+pub trait View: Any + std::fmt::Debug {
     fn width(&self) -> usize;
     fn matches(&self, class_id: ClassId, into: &dyn Partition) -> bool;
     fn commit(&mut self, class_id: ClassId, into: &mut dyn Partition) -> Option<usize>;
+    fn reset(&mut self);
     fn as_any_ref(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -13,7 +30,14 @@ pub trait View: Any {
 pub trait Partition: Any + std::fmt::Debug {
     fn view_default(&self) -> Box<dyn View>;
     fn destroy(&mut self, class_id: ClassId, row_idx: usize);
+    fn extract_into(&mut self, class_id: ClassId, row_idx: usize, into: &mut dyn View);
     fn clear(&mut self);
+}
+
+#[macro_export]
+macro_rules! __class_k {
+    ($ftype:ty) => { () };
+    ($ftype:ty, $ktype:ty) => { $ktype };
 }
 
 #[macro_export]
@@ -25,12 +49,12 @@ macro_rules! partition {
     ) => {
         #[derive(Debug)]
         $vis struct $addition {
-            $($fvis $fname: $crate::ecs::class::Class<$ftype $(, $ktype)?>, )+
+            $($fvis $fname: $crate::ecs::class::Class<$ftype, $crate::__class_k!($ftype $(, $ktype)?)>, )+
         }
 
-        #[derive(Default)]
+        #[derive(Default, Debug)]
         $vis struct $view {
-            $($fvis $fname: Option<$ftype>, )+
+            $($fvis $fname: Option<($ftype, $crate::__class_k!($ftype $(, $ktype)?))>, )+
         }
 
         impl $addition {
@@ -54,8 +78,11 @@ macro_rules! partition {
 
         impl $view {
             #[allow(clippy::too_many_arguments)]
-            pub fn with(&mut self, $($fname:$ftype, )+) -> &mut Self {
-                $(self.$fname = Some($fname); )+
+            pub fn with(
+                &mut self,
+                $($fname: impl $crate::ecs::partition::IntoComponent<$ftype, $crate::__class_k!($ftype $(, $ktype)?)>, )+
+            ) -> &mut Self {
+                $(self.$fname = Some($fname.into_component()); )+
                 self
             }
         }
@@ -69,7 +96,11 @@ macro_rules! partition {
             fn matches(&self, class_id: $crate::ecs::ClassId, into: &dyn $crate::ecs::partition::Partition) -> bool {
                 let into: &dyn ::std::any::Any = into;
                 let into = into.downcast_ref::<$addition>().unwrap();
-                true $(&& self.$fname.is_some() == into.$fname.data.get(class_id).is_some())+
+                true $(&& match (&self.$fname, into.$fname.data.get(class_id)) {
+                    (None, None) => true,
+                    (Some((_, k)), Some(col)) => col.key == *k,
+                    _ => false,
+                })+
             }
 
             fn commit(&mut self, class_id: $crate::ecs::ClassId, into: &mut dyn $crate::ecs::partition::Partition) -> Option<usize> {
@@ -77,8 +108,8 @@ macro_rules! partition {
                 let into = into.downcast_mut::<$addition>().unwrap();
                 let mut row = None;
                 $(
-                    if let Some(v) = self.$fname.take() {
-                        let col = into.$fname.get_col_or_insert(class_id);
+                    if let Some((v, k)) = self.$fname.take() {
+                        let col = into.$fname.get_col_or_insert_with_key(class_id, k);
                         if row.is_none() {
                             row = Some(col.len());
                         }
@@ -95,6 +126,10 @@ macro_rules! partition {
             fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
                 self
             }
+
+            fn reset(&mut self) {
+                $(self.$fname = None; )+
+            }
         }
 
         impl $crate::ecs::partition::Partition for $addition {
@@ -106,6 +141,19 @@ macro_rules! partition {
                 $(
                     if let Some(col) = self.$fname.data.get_mut(class_id) {
                         col.swap_remove(row_idx);
+                    }
+                )+
+            }
+
+            fn extract_into(&mut self, class_id: $crate::ecs::ClassId, row_idx: usize, into: &mut dyn $crate::ecs::partition::View) {
+                let into = into.as_any_mut().downcast_mut::<$view>().unwrap();
+                $(
+                    if let Some(col) = self.$fname.data.get_mut(class_id) {
+                        if row_idx < col.len() {
+                            let k = col.key;
+                            let v = col.swap_remove(row_idx);
+                            into.$fname = Some((v, k));
+                        }
                     }
                 )+
             }
@@ -137,6 +185,8 @@ impl crate::ecs::partition::View for () {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn reset(&mut self) {}
 }
 
 impl crate::ecs::partition::Partition for () {
@@ -145,6 +195,8 @@ impl crate::ecs::partition::Partition for () {
     }
 
     fn destroy(&mut self, _class_id: crate::ecs::ClassId, _row_idx: usize) {}
+
+    fn extract_into(&mut self, _class_id: crate::ecs::ClassId, _row_idx: usize, _into: &mut dyn crate::ecs::partition::View) {}
 
     fn clear(&mut self) {}
 }

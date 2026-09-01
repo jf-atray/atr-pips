@@ -23,3 +23,6 @@ pub use {
     traits::{Signals, Solver, Solvers, Tables, Scripts},
     typed_map::Polysystem,
 };
+
+#[allow(unused_imports)]
+pub use crate::ecs::scope::Scope;
