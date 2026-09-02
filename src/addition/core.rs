@@ -17,6 +17,10 @@ pub trait Addition: Sized + 'static {
         let pile = map.as_mut();
         pile.get_mut::<Self, Self::Tables>()
     }
+    fn tables_ref<T: AsRef<Polypile<dyn Tables>>>(map: &T) -> Option<&Self::Tables> {
+        let pile = map.as_ref();
+        pile.get::<Self, Self::Tables>()
+    }
     fn solvers<T: AsMut<Polypile<dyn Solvers>>>(map: &mut T) -> Option<&mut Self::Solvers> {
         let pile = map.as_mut();
         pile.get_mut::<Self, Self::Solvers>()

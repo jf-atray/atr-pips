@@ -21,7 +21,7 @@ pub use {
         AnimLibs,
     },
     traits::{Signals, Solver, Solvers, Tables, Scripts},
-    typed_map::Polysystem,
+    typed_map::{Polypile, Polysystem},
 };
 
 #[allow(unused_imports)]

@@ -63,6 +63,13 @@ impl<T: ?Sized + Downcast, K> Polysystem<T, K> {
     }
 }
 impl<T: ?Sized + Downcast> Polypile<T> {
+    pub fn get<L: 'static, U: 'static>(&self) -> Option<&U> {
+        let id = TypeId::of::<L>();
+        let value = self.0.get(&id)?;
+        let inner = value.as_ref();
+        inner.as_any().downcast_ref::<U>()
+    }
+
     pub fn get_mut<L: 'static, U: 'static>(&mut self) -> Option<&mut U> {
         let id = TypeId::of::<L>();
         let value = self.0.get_mut(&id)?;

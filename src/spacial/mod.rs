@@ -1,3 +1,4 @@
+pub mod aabb;
 pub mod boundary;
 pub mod camera;
 pub mod motion;

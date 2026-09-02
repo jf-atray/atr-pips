@@ -15,7 +15,9 @@ use crate::ecs::scope::Scope;
 use crate::ecs::{CanvasId, MaterialId, PipId};
 use crate::gamescope::camera::{CameraMode, PanSource, ZoomSource};
 use crate::input::{AxisConfig, Input};
+use crate::broadphase::BroadPhaseAdd;
 use crate::physics::PhysicsAdd;
+use crate::spacial::aabb::Aabb;
 use crate::query;
 use crate::spacial::boundary::Boundary;
 use crate::spacial::motion::{Motion, MotionKind};
@@ -112,6 +114,9 @@ fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
         .add::<PhysicsAdd>()
         .expect("PhysicsAdd must be available");
     ctx.domain
+        .add::<BroadPhaseAdd>()
+        .expect("BroadPhaseAdd must be available");
+    ctx.domain
         .add::<TestAdd>()
         .expect("TestAdd must be available");
     ctx.camera.zoom = ZOOM;
@@ -197,6 +202,8 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
         brush.color = Vec4::ONE;
         let motion = Motion::random_unit();
 
+        let aabb = Aabb::from_center_extent(transform.xyz, brush.scale * 0.5);
+
         let pip = ctx.domain.make(|scope: &mut Scope| {
             scope
                 .core
@@ -205,6 +212,10 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
                 .view::<PhysicsAdd>()
                 .expect("PhysicsAdd must be present")
                 .with(1.0, Vec3::ZERO);
+            scope
+                .view::<BroadPhaseAdd>()
+                .expect("BroadPhaseAdd must be present")
+                .with(aabb);
         });
 
         if i == 0 {

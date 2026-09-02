@@ -16,6 +16,7 @@ mod anims;
 mod appscope;
 mod assets;
 mod brushes;
+mod broadphase;
 mod canvases;
 mod clip;
 mod demo;
