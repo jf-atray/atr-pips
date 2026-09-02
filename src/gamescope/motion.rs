@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use glam::Quat;
+
 use crate::addition::{Pips, ScriptsMap, SignalsMap, Solver};
 use crate::assets::SpriteEntry;
 use crate::ecs::scope::Scope;
@@ -42,10 +44,12 @@ impl MotionSolver {
                 if drag > 0.0 {
                     let decay = (1.0 - drag).powf(dt);
                     motion.vel *= decay;
+                    motion.ang_vel *= decay;
                 }
                 let mut next = xform.xyz + motion.vel * dt;
                 boundary.reflect(&mut next, &mut motion.vel);
                 xform.xyz = next;
+                xform.rot = Quat::from_rotation_z(motion.ang_vel * dt) * xform.rot;
             }
         );
 
@@ -65,7 +69,7 @@ impl MotionSolver {
                     continue;
                 };
                 for (row_idx, motion) in col.iter().enumerate() {
-                    if motion.vel.length() < SLEEP_THRESHOLD {
+                    if motion.vel.length() < SLEEP_THRESHOLD && motion.ang_vel.abs() < SLEEP_THRESHOLD {
                         if let Some(&pip) = pip_col.get(row_idx) {
                             to_sleep.push(pip);
                         }

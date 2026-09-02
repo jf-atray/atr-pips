@@ -11,6 +11,7 @@ pub enum MotionKind {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Motion {
     pub vel: Vec3,
+    pub ang_vel: f32,
 }
 
 impl Motion {
@@ -23,6 +24,7 @@ impl Motion {
                 0.0,
             )
             .normalize_or_zero(),
+            ang_vel: rng.random::<f32>() * 4.0 - 2.0,
         }
     }
 }

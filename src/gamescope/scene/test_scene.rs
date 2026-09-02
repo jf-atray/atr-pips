@@ -212,7 +212,7 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
             scope
                 .view::<PhysicsAdd>()
                 .expect("PhysicsAdd must be present")
-                .with(1.0, Vec3::ZERO, Material { friction: 0.5, restitution: 0.3 });
+                .with(1.0, 6.0, Vec3::ZERO, Material { friction: 0.5, restitution: 0.3 });
             scope
                 .view::<CollisionAdd>()
                 .expect("CollisionAdd must be present")
