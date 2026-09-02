@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use glam::Vec3;
 use slotmap::Key;
@@ -27,7 +27,7 @@ impl SpatialHash {
     pub fn new(cell_size: f32) -> Self {
         Self {
             cell_size,
-            cells: HashMap::new(),
+            cells: HashMap::with_capacity(1024),
         }
     }
 
@@ -48,7 +48,11 @@ impl SpatialHash {
             for cy in min_y..=max_y {
                 for cz in min_z..=max_z {
                     let key = hash_cell(cx, cy, cz);
-                    self.cells.entry(key).or_default().push(pip);
+                    let bucket = self.cells.entry(key).or_default();
+                    if bucket.is_empty() {
+                        bucket.reserve(32);
+                    }
+                    bucket.push(pip);
                 }
             }
         }
@@ -59,32 +63,38 @@ impl SpatialHash {
     }
 }
 
+type PairKey = (u64, u64);
+
+fn pair_key(a: PipId, b: PipId) -> PairKey {
+    let ai = a.data().as_ffi() as u64;
+    let bi = b.data().as_ffi() as u64;
+    if ai < bi { (ai, bi) } else { (bi, ai) }
+}
+
 #[derive(Debug, Default)]
 pub struct CandidatePairs {
     pub pairs: Vec<(PipId, PipId)>,
-    frame_stamp: Vec<u32>,
-    frame: u32,
+    seen: HashSet<PairKey>,
 }
 
 impl CandidatePairs {
     pub fn begin_frame(&mut self, pip_capacity: usize) {
         self.pairs.clear();
-        self.frame = self.frame.wrapping_add(1);
-        if self.frame_stamp.len() < pip_capacity {
-            self.frame_stamp.resize(pip_capacity, 0);
+        self.seen.clear();
+        if self.pairs.capacity() < pip_capacity * 4 {
+            self.pairs.reserve(pip_capacity * 4);
+        }
+        if self.seen.capacity() < pip_capacity * 4 {
+            self.seen.reserve(pip_capacity * 4);
         }
     }
 
     pub fn try_add(&mut self, a: PipId, b: PipId) {
-        let (lo, hi) = if a < b { (a, b) } else { (b, a) };
-        let idx = hi.data().as_ffi() as usize;
-        if idx < self.frame_stamp.len() && self.frame_stamp[idx] == self.frame {
-            return;
+        let key = pair_key(a, b);
+        if self.seen.insert(key) {
+            let (lo, hi) = if a < b { (a, b) } else { (b, a) };
+            self.pairs.push((lo, hi));
         }
-        if idx < self.frame_stamp.len() {
-            self.frame_stamp[idx] = self.frame;
-        }
-        self.pairs.push((lo, hi));
     }
 
     pub fn len(&self) -> usize {

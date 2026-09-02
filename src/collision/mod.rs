@@ -27,7 +27,7 @@ addition! {
         },
         scripts: {},
         signals: {
-            hash: SpatialHash = SpatialHash::new(2.0),
+            hash: SpatialHash = SpatialHash::new(5.0),
             pairs: CandidatePairs = CandidatePairs::default(),
         },
     }

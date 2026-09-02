@@ -24,7 +24,7 @@ impl Motion {
                 0.0,
             )
             .normalize_or_zero(),
-            ang_vel: rng.random::<f32>() * 4.0 - 2.0,
+            ang_vel: 0.0,
         }
     }
 }
