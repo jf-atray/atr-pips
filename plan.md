@@ -19,13 +19,14 @@ Produce candidate collision pairs from AABB overlaps using a spatial hash grid.
 
 For each candidate pair, generate a 2-point contact manifold (2D). Persist across frames for warm starting.
 
-- [ ] 2.1 Define `ManifoldPoint` (local_a, local_b, separation, contact_id, normal_impulse, tangent_impulse)
-- [ ] 2.2 Define `ContactPair` (body_a, body_b, normal, friction, restitution, point range, point count)
-- [ ] 2.3 Create `NarrowPhaseAdd` addition with `contacts: Class<ContactPair>` and `manifold_points: Class<ManifoldPoint>`
-- [ ] 2.4 Implement SAT + clipping for box-vs-box (the test scene shape)
-- [ ] 2.5 Implement manifold persistence: match by contact_id, copy impulses for warm start
-- [ ] 2.6 Implement `NarrowPhaseSolver`: consume candidate pairs, produce/update manifolds
-- [ ] 2.7 Verify: manifolds persist across frames, impulses carry over
+- [x] 2.1 Add `Material { friction, restitution }` to physics tables
+- [x] 2.2 Define `ManifoldPoint` + `ContactPair` + `ContactCache`
+- [x] 2.3 Create `NarrowPhaseAdd` addition with `ContactCache` signal
+- [x] 2.4 Implement OBB SAT + Sutherland-Hodgman clipping for box-vs-box
+- [x] 2.5 Implement manifold persistence (contact_id matching, impulse copying)
+- [x] 2.6 Implement `NarrowPhaseSolver` (reads CandidatePairs, writes ContactCache)
+- [x] 2.7 Wire into test scene (register addition, set materials at spawn)
+- [x] 2.8 Verify: manifolds generated (~7900 pairs, ~15800 points), persistence working
 
 ## Stage 3: Solver Subpasses (Constraint Solve)
 

@@ -79,4 +79,16 @@ macro_rules! query {
                     .for_each(|((a, b), c)| $crate::query::impls::call3($callback, a, b, c));
             });
     };
+
+    ([&mut $x:expr, &mut $y:expr, &mut $z:expr, &mut $w:expr $(,)?], $callback:expr) => {
+        $crate::query!([(); &mut $x, (); &mut $y, (); &mut $z, (); &mut $w], $callback);
+    };
+
+    ([$ak:expr; &mut $x:expr, $bk:expr; &mut $y:expr, $ck:expr; &mut $z:expr, $dk:expr; &mut $w:expr $(,)?], $callback:expr) => {
+        $crate::query::impls::query_mut_mut_mut_mut(&mut $x, &$ak, &mut $y, &$bk, &mut $z, &$ck, &mut $w, &$dk)
+            .for_each(|(cols_a, cols_b, cols_c, cols_d)| {
+                std::iter::zip(std::iter::zip(std::iter::zip(cols_a, cols_b), cols_c), cols_d)
+                    .for_each(|(((a, b), c), d)| $crate::query::impls::call4($callback, a, b, c, d));
+            });
+    };
 }
