@@ -1,4 +1,5 @@
 mod broad_solver;
+mod constraint;
 mod contact;
 mod hash;
 mod narrow_solver;

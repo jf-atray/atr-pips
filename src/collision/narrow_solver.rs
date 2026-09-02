@@ -4,6 +4,7 @@ use glam::{Quat, Vec3};
 
 use crate::addition::{Addition, Pips, Polypile, ScriptsMap, SignalsMap, Solver, Tables as AdditionTables};
 use crate::assets::SpriteEntry;
+use crate::collision::constraint::solve_contacts;
 use crate::collision::CollisionAdd;
 use crate::ecs::core::CoreAdd;
 use crate::ecs::gather::impls::gather_ref;
@@ -74,6 +75,18 @@ impl NarrowPhaseSolver {
         }
 
         self.cache.evict_untouched();
+
+        let core = &mut pips.tables.core;
+        let Some(physics) = PhysicsAdd::tables(&mut pips.tables.pile) else { return };
+        solve_contacts(
+            &mut self.cache,
+            &pips.ids,
+            &physics.inv_masses,
+            &physics.inv_inertias,
+            &mut core.motions,
+            &mut core.xforms,
+            8,
+        );
     }
 
     fn update_pair(

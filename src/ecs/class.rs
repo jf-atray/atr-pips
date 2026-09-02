@@ -40,6 +40,17 @@ impl<T, K> Class<T, K> {
         Some(&mut col.vec[id.row_idx])
     }
 
+    pub(super) fn get_two_rows_mut(&mut self, a: &ClassRowPtr, b: &ClassRowPtr) -> Option<(&mut T, &mut T)> {
+        if a.class_id == b.class_id {
+            let col = self.data.get_mut(a.class_id)?;
+            let [row_a, row_b] = col.vec.get_disjoint_mut([a.row_idx, b.row_idx]).ok()?;
+            Some((row_a, row_b))
+        } else {
+            let [col_a, col_b] = self.data.get_disjoint_mut([a.class_id, b.class_id])?;
+            Some((&mut col_a.vec[a.row_idx], &mut col_b.vec[b.row_idx]))
+        }
+    }
+
     pub(super) unsafe fn get_row_unchecked(&self, id: &ClassRowPtr) -> Option<&T> {
         let col = self.data.get(id.class_id)?;
         let row = unsafe { col.get_unchecked(id.row_idx) };

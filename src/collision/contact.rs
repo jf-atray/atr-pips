@@ -50,6 +50,10 @@ impl ContactCache {
         &self.pairs
     }
 
+    pub fn pairs_mut(&mut self) -> &mut [ContactPair] {
+        &mut self.pairs
+    }
+
     pub fn find(&self, key: (PipId, PipId)) -> Result<usize, usize> {
         self.pairs.binary_search_by_key(&key, |p| p.key())
     }
