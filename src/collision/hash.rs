@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use glam::Vec3;
 use slotmap::Key;
 
 use crate::ecs::PipId;
@@ -99,16 +98,5 @@ impl CandidatePairs {
 
     pub fn len(&self) -> usize {
         self.pairs.len()
-    }
-}
-
-impl SpatialHash {
-    pub fn cell_extent(&self, aabb: &Aabb) -> Vec3 {
-        let inv = 1.0 / self.cell_size;
-        Vec3::new(
-            (aabb.max.x * inv).floor() as f32 - (aabb.min.x * inv).floor() as f32 + 1.0,
-            (aabb.max.y * inv).floor() as f32 - (aabb.min.y * inv).floor() as f32 + 1.0,
-            (aabb.max.z * inv).floor() as f32 - (aabb.min.z * inv).floor() as f32 + 1.0,
-        )
     }
 }

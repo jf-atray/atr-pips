@@ -7,7 +7,6 @@ use crate::ecs::core::CoreAdd;
 use crate::ecs::gather::impls::gather_ref;
 use crate::input::Input;
 use crate::spacial::aabb::Aabb;
-use crate::spacial::motion::MotionKind;
 
 #[derive(Debug)]
 pub struct BroadPhaseSolver;
@@ -34,7 +33,7 @@ impl BroadPhaseSolver {
         };
 
         Self::update_aabbs(&mut pips.tables.core, &mut pips.tables.pile);
-        Self::rebuild_hash(&mut pips.pip_ids, &mut pips.tables.core, &mut pips.tables.pile, &mut broad_signals.hash);
+        Self::rebuild_hash(&mut pips.pip_ids, &mut pips.tables.pile, &mut broad_signals.hash);
         Self::generate_pairs(&pips.ids, &pips.tables.pile, &broad_signals.hash, &mut broad_signals.pairs);
     }
 
@@ -45,8 +44,8 @@ impl BroadPhaseSolver {
         let Some(broad) = CollisionAdd::tables(pile) else { return };
 
         crate::query!(
-            [MotionKind::Active; &mut core.motions, (); &mut core.xforms, (); &mut core.brushes, (); &mut broad.aabbs],
-            |_, xform, brush, aabb| {
+            [&mut core.xforms, &mut core.brushes, &mut broad.aabbs],
+            |xform, brush, aabb| {
                 let extent = brush.scale * 0.5;
                 *aabb = Aabb::from_center_extent(xform.xyz, extent);
             }
@@ -55,7 +54,6 @@ impl BroadPhaseSolver {
 
     fn rebuild_hash(
         mut pip_ids: &mut crate::ecs::class::Class<crate::ecs::PipId>,
-        core: &mut <CoreAdd as Addition>::Tables,
         pile: &mut Polypile<dyn AdditionTables>,
         hash: &mut crate::collision::SpatialHash,
     ) {
@@ -63,8 +61,8 @@ impl BroadPhaseSolver {
         hash.clear();
 
         crate::query!(
-            [MotionKind::Active; &mut core.motions, (); &mut broad.aabbs, (); &mut pip_ids],
-            |_, aabb, pip_id| {
+            [&mut broad.aabbs, &mut pip_ids],
+            |aabb, pip_id| {
                 hash.insert(*pip_id, aabb);
             }
         );

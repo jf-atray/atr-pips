@@ -19,8 +19,6 @@ use crate::collision::CollisionAdd;
 use crate::physics::PhysicsAdd;
 use crate::physics::data::material::Material;
 use crate::spacial::aabb::Aabb;
-use crate::query;
-use crate::spacial::boundary::Boundary;
 use crate::spacial::motion::{Motion, MotionKind};
 use crate::spacial::transform::Transform;
 
@@ -46,15 +44,23 @@ impl ColorSolver {
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
         let core = &mut pips.tables.core;
-        query!([(); &mut core.brushes, MotionKind::Active; &core.motions], |brush, motion| {
-            let v = motion.vel;
-            brush.color = Vec4::new(
-                (v.x + 1.0) * 0.5,
-                (v.y + 1.0) * 0.5,
-                0.0,
-                1.0,
-            );
-        });
+        for (class_id, motion_col) in core.motions.data.iter() {
+            let Some(brush_col) = core.brushes.data.get_mut(class_id) else { continue };
+            for i in 0..motion_col.len() {
+                let brush = &mut brush_col[i];
+                if motion_col.key == MotionKind::Sleeping {
+                    brush.color = Vec4::ONE;
+                } else if motion_col.key == MotionKind::Active {
+                    let v = motion_col[i].vel;
+                    brush.color = Vec4::new(
+                        (v.x + 1.0) * 0.5,
+                        (v.y + 1.0) * 0.5,
+                        0.0,
+                        1.0,
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -63,9 +69,7 @@ const ROWS: usize = 64;
 const SQUARE_COUNT: usize = COLUMNS * ROWS;
 const PIXELS_PER_UNIT: f32 = 1.0;
 const ZOOM: f32 = 125.0;
-const RESTITUTION: f32 = 0.95;
 const BOUNDARY_HALF: f32 = 35.0;
-const BOUNDARY_Z: f32 = 1.0;
 
 #[derive(Debug)]
 pub struct TestScene {
@@ -143,11 +147,6 @@ fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
         signals.enabled = true;
     }
 
-    ctx.domain.signals.core.boundary = Boundary {
-        min: Vec3::new(-BOUNDARY_HALF, -BOUNDARY_HALF, -BOUNDARY_Z),
-        max: Vec3::new(BOUNDARY_HALF, BOUNDARY_HALF, BOUNDARY_Z),
-        restitution: RESTITUTION,
-    };
     ctx.domain.signals.core.drag = 0.1;
 
     let (canvas_id, material) = make_canvas(ctx);
@@ -191,6 +190,9 @@ fn make_canvas(ctx: &mut SceneContext) -> (CanvasId, MaterialId) {
 
 fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: MaterialId) -> Option<PipId> {
     let mut first = None;
+
+    spawn_walls(ctx, canvas_id, material);
+
     for i in 0..SQUARE_COUNT {
         let x = (i % COLUMNS) as f32 - (COLUMNS / 2) as f32;
         let y = (i / COLUMNS) as f32 - (ROWS / 2) as f32;
@@ -224,6 +226,39 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
         }
     }
     first
+}
+
+fn spawn_walls(ctx: &mut SceneContext, canvas_id: CanvasId, material: MaterialId) {
+    let thickness = 2.0;
+    let half = BOUNDARY_HALF;
+    let walls = [
+        (Vec3::new(0.0, -half - thickness * 0.5, 0.0), Vec3::new(half * 2.0 + thickness * 2.0, thickness, 1.0)),
+        (Vec3::new(0.0, half + thickness * 0.5, 0.0), Vec3::new(half * 2.0 + thickness * 2.0, thickness, 1.0)),
+        (Vec3::new(-half - thickness * 0.5, 0.0, 0.0), Vec3::new(thickness, half * 2.0, 1.0)),
+        (Vec3::new(half + thickness * 0.5, 0.0, 0.0), Vec3::new(thickness, half * 2.0, 1.0)),
+    ];
+
+    for (pos, scale) in walls {
+        let transform = Transform { xyz: pos, rot: glam::Quat::IDENTITY };
+        let mut brush = Brush::new(canvas_id, material);
+        brush.scale = scale;
+        brush.color = Vec4::new(0.3, 0.3, 0.3, 1.0);
+        let aabb = Aabb::from_center_extent(transform.xyz, brush.scale * 0.5);
+
+        ctx.domain.make(|scope: &mut Scope| {
+            scope
+                .core
+                .with(transform, brush, (Motion::default(), MotionKind::Static));
+            scope
+                .view::<PhysicsAdd>()
+                .expect("PhysicsAdd must be present")
+                .with(0.0, 0.0, Vec3::ZERO, Material { friction: 0.5, restitution: 0.3 });
+            scope
+                .view::<CollisionAdd>()
+                .expect("CollisionAdd must be present")
+                .with(aabb);
+        });
+    }
 }
 
 crate::addition! {

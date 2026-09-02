@@ -68,9 +68,13 @@ impl ContactCache {
         &mut self.pairs[index]
     }
 
-    pub fn insert(&mut self, index: usize, pair: ContactPair) -> &mut ContactPair {
-        self.pairs.insert(index, pair);
-        &mut self.pairs[index]
+    pub fn push(&mut self, pair: ContactPair) {
+        self.pairs.push(pair);
+    }
+
+    pub fn sort(&mut self) {
+        self.pairs.sort_by_key(|p| p.key());
+        self.pairs.dedup_by_key(|p| p.key());
     }
 
     pub fn evict_untouched(&mut self) {

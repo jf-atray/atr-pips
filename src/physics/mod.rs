@@ -1,5 +1,4 @@
 pub mod data;
-pub mod solver;
 mod gravity;
 
 use crate::addition;
@@ -10,7 +9,6 @@ use crate::physics::data::inertia::InvInertia;
 use crate::physics::data::mass::InvMass;
 use crate::physics::data::material::Material;
 use crate::physics::gravity::Gravity;
-use crate::physics::solver::PhysicsSolver;
 
 addition! {
     #[derive(Debug)]
@@ -21,7 +19,7 @@ addition! {
             impulses: Class<Impulse> = Class::new(GrowthStrategy::quart_kib::<Impulse>()),
             materials: Class<Material> = Class::new(GrowthStrategy::quart_kib::<Material>()),
         },
-        solvers: { physics_solver: PhysicsSolver = PhysicsSolver },
+        solvers: {},
         scripts: {},
         signals: { gravity: Gravity = Gravity::default() },
     }

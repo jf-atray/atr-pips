@@ -1,20 +1,24 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use glam::{Quat, Vec3};
 
 use crate::addition::{Addition, Pips, Polypile, ScriptsMap, SignalsMap, Solver, Tables as AdditionTables};
 use crate::assets::SpriteEntry;
-use crate::collision::constraint::solve_contacts;
+use crate::collision::constraint::{solve_contacts, cross_scalar, world_offset_a, world_offset_b};
 use crate::collision::CollisionAdd;
 use crate::ecs::core::CoreAdd;
 use crate::ecs::gather::impls::gather_ref;
 use crate::ecs::PipId;
+use crate::ecs::scope::Scope;
 use crate::gather::impls::gather_pair_ref;
 use crate::input::Input;
 use crate::collision::contact::{ContactCache, ContactPair, ManifoldPoint};
 use crate::collision::obb::{clip, sat, world_to_local, ClipPoint, Obb};
 use crate::physics::data::material::Material;
 use crate::physics::PhysicsAdd;
+use crate::spacial::motion::MotionKind;
+
+const SLEEP_THRESHOLD: f32 = 0.4;
 
 #[derive(Debug)]
 pub struct NarrowPhaseSolver {
@@ -37,7 +41,7 @@ impl NarrowPhaseSolver {
     #[allow(clippy::unused_self, reason = "cache is on self")]
     pub fn update(
         &mut self,
-        _dt: f32,
+        dt: f32,
         pips: &mut Pips,
         _scripts: &mut ScriptsMap,
         signals: &mut SignalsMap,
@@ -70,14 +74,20 @@ impl NarrowPhaseSolver {
             let key = (a, b);
             match self.cache.find(key) {
                 Ok(index) => Self::update_pair(&mut self.cache, index, clip_points, &result, normal, friction, restitution, pos_a, rot_a, pos_b, rot_b),
-                Err(index) => Self::insert_pair(&mut self.cache, index, a, b, clip_points, &result, normal, friction, restitution, pos_a, rot_a, pos_b, rot_b),
+                Err(_) => Self::push_pair(&mut self.cache, a, b, clip_points, &result, normal, friction, restitution, pos_a, rot_a, pos_b, rot_b),
             }
         }
 
+        self.cache.sort();
         self.cache.evict_untouched();
+
+        Self::wake_sleeping_contacts(&self.cache, pips);
 
         let core = &mut pips.tables.core;
         let Some(physics) = PhysicsAdd::tables(&mut pips.tables.pile) else { return };
+        let Some(physics_signals) = PhysicsAdd::signals_ref(signals) else { return };
+        let gravity = physics_signals.gravity.accel * dt;
+        let drag = signals.core.drag;
         solve_contacts(
             &mut self.cache,
             &pips.ids,
@@ -85,8 +95,119 @@ impl NarrowPhaseSolver {
             &physics.inv_inertias,
             &mut core.motions,
             &mut core.xforms,
+            gravity,
+            drag,
             8,
+            8,
+            dt,
         );
+
+        self.sleep_quiet_bodies(pips);
+    }
+
+    fn sleep_quiet_bodies(&self, pips: &mut Pips) {
+        let disturbed = self.disturbed_bodies(&pips.ids, &pips.tables.core);
+
+        let mut to_sleep: Vec<PipId> = Vec::new();
+        {
+            let core = &pips.tables.core;
+            let pip_ids = &pips.pip_ids;
+            for (class_id, col) in core.motions.data.iter() {
+                if col.key != MotionKind::Active {
+                    continue;
+                }
+                let Some(pip_col) = pip_ids.data.get(class_id) else { continue };
+                for (row_idx, motion) in col.iter().enumerate() {
+                    if motion.vel.length() >= SLEEP_THRESHOLD {
+                        continue;
+                    }
+                    if motion.ang_vel.abs() >= SLEEP_THRESHOLD {
+                        continue;
+                    }
+                    let Some(&pip) = pip_col.get(row_idx) else { continue };
+                    if disturbed.contains(&pip) {
+                        continue;
+                    }
+                    to_sleep.push(pip);
+                }
+            }
+        }
+
+        for pip in to_sleep {
+            pips.move_pip(pip, |scope: &mut Scope| {
+                if let Some((_m, k)) = &mut scope.core.motions {
+                    *k = MotionKind::Sleeping;
+                }
+            });
+        }
+    }
+
+    fn disturbed_bodies(
+        &self,
+        ids: &crate::addition::Ids,
+        core: &<CoreAdd as Addition>::Tables,
+    ) -> HashSet<PipId> {
+        let mut disturbed: HashSet<PipId> = HashSet::new();
+        let motions = &core.motions;
+        let xforms = &core.xforms;
+
+        for pair in self.cache.pairs() {
+            let kind_a = motion_kind(ids, motions, pair.body_a);
+            let kind_b = motion_kind(ids, motions, pair.body_b);
+            if kind_a != MotionKind::Active && kind_b != MotionKind::Active {
+                continue;
+            }
+
+            let Some(motion_a) = gather_ref(ids, motions, pair.body_a) else { continue };
+            let Some(xform_a) = gather_ref(ids, xforms, pair.body_a) else { continue };
+            let Some(motion_b) = gather_ref(ids, motions, pair.body_b) else { continue };
+            let Some(xform_b) = gather_ref(ids, xforms, pair.body_b) else { continue };
+
+            let pos_a = xform_a.xyz;
+            let pos_b = xform_b.xyz;
+            let rot_a = xform_a.rot;
+            let rot_b = xform_b.rot;
+
+            for j in 0..pair.point_count as usize {
+                let point = &pair.points[j];
+                let r_a = world_offset_a(point, pos_a, rot_a);
+                let r_b = world_offset_b(point, pos_b, rot_b);
+
+                let vel_a = motion_a.vel + cross_scalar(motion_a.ang_vel, r_a);
+                let vel_b = motion_b.vel + cross_scalar(motion_b.ang_vel, r_b);
+                let rel_vel = vel_b - vel_a;
+
+                if rel_vel.length() > SLEEP_THRESHOLD {
+                    disturbed.insert(pair.body_a);
+                    disturbed.insert(pair.body_b);
+                }
+            }
+        }
+
+        disturbed
+    }
+
+    fn wake_sleeping_contacts(cache: &ContactCache, pips: &mut Pips) {
+        let mut to_wake: Vec<PipId> = Vec::new();
+        {
+            let motions = &pips.tables.core.motions;
+            for pair in cache.pairs() {
+                let kind_a = motion_kind(&pips.ids, motions, pair.body_a);
+                let kind_b = motion_kind(&pips.ids, motions, pair.body_b);
+                if kind_a == MotionKind::Active && kind_b == MotionKind::Sleeping {
+                    to_wake.push(pair.body_b);
+                } else if kind_a == MotionKind::Sleeping && kind_b == MotionKind::Active {
+                    to_wake.push(pair.body_a);
+                }
+            }
+        }
+        for pip in to_wake {
+            pips.move_pip(pip, |scope: &mut crate::ecs::scope::Scope| {
+                if let Some((_m, k)) = &mut scope.core.motions {
+                    *k = MotionKind::Active;
+                }
+            });
+        }
     }
 
     fn update_pair(
@@ -143,9 +264,8 @@ impl NarrowPhaseSolver {
         pair.point_count = count as u8;
     }
 
-    fn insert_pair(
+    fn push_pair(
         cache: &mut ContactCache,
-        index: usize,
         a: PipId,
         b: PipId,
         clip_points: [Option<ClipPoint>; 2],
@@ -180,7 +300,7 @@ impl NarrowPhaseSolver {
             count += 1;
         }
 
-        cache.insert(index, ContactPair {
+        cache.push(ContactPair {
             body_a: a,
             body_b: b,
             normal,
@@ -208,5 +328,15 @@ impl NarrowPhaseSolver {
 
 fn make_contact_id(ref_on_a: bool, ref_edge: usize, inc_edge: usize, inc_vertex: usize) -> u16 {
     ((ref_on_a as u16) << 12) | ((ref_edge as u16) << 8) | ((inc_edge as u16) << 4) | (inc_vertex as u16)
+}
+
+fn motion_kind(
+    ids: &crate::addition::Ids,
+    motions: &crate::ecs::class::Class<crate::spacial::motion::Motion, MotionKind>,
+    pip: PipId,
+) -> MotionKind {
+    let Some(ptr) = ids.get(pip) else { return MotionKind::Static };
+    let Some(col) = motions.data.get(ptr.class_id) else { return MotionKind::Static };
+    col.key
 }
 

@@ -1,4 +1,3 @@
 pub mod camera;
 pub mod game;
-pub mod motion;
 pub mod scene;
