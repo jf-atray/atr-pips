@@ -169,6 +169,7 @@ impl App {
 
         #[allow(clippy::cast_precision_loss)]
         let aspect = windowing.width as f32 / windowing.height as f32;
+        game.domain.signals.core.window_size = glam::Vec2::new(windowing.width as f32, windowing.height as f32);
         game.update(elapsed, aspect, gpu, &mut self.bump);
 
         if let Some(mut frame) = gpu.begin_frame() {

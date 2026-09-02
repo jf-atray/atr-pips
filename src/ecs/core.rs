@@ -17,6 +17,8 @@ addition! {
         scripts: {},
         signals: {
             drag: f32 = 0.0,
+            window_size: glam::Vec2 = glam::Vec2::ZERO,
+            mouse_world: glam::Vec2 = glam::Vec2::ZERO,
         },
     }
 }

@@ -16,6 +16,7 @@ use crate::ecs::{CanvasId, MaterialId, PipId};
 use crate::gamescope::camera::{CameraMode, PanSource, ZoomSource};
 use crate::input::{AxisConfig, Input};
 use crate::collision::CollisionAdd;
+use crate::interaction::{Clickable, InteractionAdd};
 use crate::physics::PhysicsAdd;
 use crate::physics::data::material::Material;
 use crate::spacial::aabb::Aabb;
@@ -25,13 +26,15 @@ use crate::spacial::transform::Transform;
 use super::{Scene, SceneContext};
 
 #[derive(Debug)]
-pub struct ColorSolver;
+pub struct ColorSolver {
+    button_pip: Option<PipId>,
+}
 
 impl Solver for ColorSolver {}
 
 impl ColorSolver {
     pub fn new() -> Self {
-        Self
+        Self { button_pip: None }
     }
 
     pub fn update(
@@ -39,10 +42,16 @@ impl ColorSolver {
         _dt: f32,
         pips: &mut Pips,
         _scripts: &mut ScriptsMap,
-        _signals: &mut SignalsMap,
+        signals: &mut SignalsMap,
         _input: &mut Input,
         _asset_registry: &HashMap<String, SpriteEntry>,
     ) {
+        let pick_result = InteractionAdd::signals_ref(signals)
+            .map(|s| s.pick_result)
+            .unwrap_or_default();
+
+        let button_clicked = pick_result.clicked == self.button_pip;
+
         let core = &mut pips.tables.core;
         for (class_id, motion_col) in core.motions.data.iter() {
             let Some(brush_col) = core.brushes.data.get_mut(class_id) else { continue };
@@ -58,6 +67,22 @@ impl ColorSolver {
                         0.0,
                         1.0,
                     );
+                }
+            }
+        }
+
+        if let Some(button) = self.button_pip {
+            if let Some(brush) = crate::ecs::gather::impls::gather_mut(
+                &pips.ids,
+                &mut pips.tables.core.brushes,
+                button,
+            ) {
+                if button_clicked {
+                    brush.color = Vec4::new(0.0, 1.0, 0.0, 1.0);
+                } else if pick_result.hovered == Some(button) {
+                    brush.color = Vec4::new(0.6, 0.6, 0.2, 1.0);
+                } else {
+                    brush.color = Vec4::new(0.8, 0.2, 0.2, 1.0);
                 }
             }
         }
@@ -122,6 +147,9 @@ fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
         .add::<CollisionAdd>()
         .expect("CollisionAdd must be available");
     ctx.domain
+        .add::<InteractionAdd>()
+        .expect("InteractionAdd must be available");
+    ctx.domain
         .add::<TestAdd>()
         .expect("TestAdd must be available");
     ctx.camera.zoom = ZOOM;
@@ -151,6 +179,11 @@ fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
 
     let (canvas_id, material) = make_canvas(ctx);
     test.track_target = spawn_squares(ctx, canvas_id, material);
+
+    let button = spawn_button(ctx, canvas_id, material);
+    if let Some(view) = ctx.domain.get::<TestAdd>() {
+        view.solvers.color.button_pip = Some(button);
+    }
 }
 
 fn make_canvas(ctx: &mut SceneContext) -> (CanvasId, MaterialId) {
@@ -259,6 +292,29 @@ fn spawn_walls(ctx: &mut SceneContext, canvas_id: CanvasId, material: MaterialId
                 .with(aabb);
         });
     }
+}
+
+fn spawn_button(ctx: &mut SceneContext, canvas_id: CanvasId, material: MaterialId) -> PipId {
+    let transform = Transform {
+        xyz: Vec3::new(0.0, BOUNDARY_HALF - 3.0, 0.0),
+        rot: glam::Quat::IDENTITY,
+    };
+    let mut brush = Brush::new(canvas_id, material);
+    brush.scale = Vec3::new(6.0, 2.0, 1.0);
+    brush.color = Vec4::new(0.8, 0.2, 0.2, 1.0);
+    let clickable = Clickable {
+        half_extent: Vec2::new(3.0, 1.0),
+    };
+
+    ctx.domain.make(|scope: &mut Scope| {
+        scope
+            .core
+            .with(transform, brush, (Motion::default(), MotionKind::Static));
+        scope
+            .view::<InteractionAdd>()
+            .expect("InteractionAdd must be present")
+            .with(clickable);
+    })
 }
 
 crate::addition! {

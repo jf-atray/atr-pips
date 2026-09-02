@@ -24,6 +24,7 @@ mod diagnostics;
 mod gamescope;
 mod gpuscope;
 mod input;
+mod interaction;
 mod libscope;
 mod physics;
 mod query;

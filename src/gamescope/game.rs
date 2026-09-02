@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use bumpalo::Bump;
 use winit::keyboard::KeyCode;
+use winit::event::MouseButton;
 
 use crate::assets::SpriteEntry;
 use crate::gamescope::camera::{CameraDirector, CameraMode};
@@ -39,6 +40,10 @@ impl Game {
             "camera_zoom",
             AxisConfig::new(vec![KeyCode::KeyQ], vec![KeyCode::KeyE]),
         );
+        input.add_axis(
+            "click",
+            AxisConfig::new(vec![], vec![]).with_mouse(vec![MouseButton::Left], vec![]),
+        );
 
         Self {
             domain: ExampleDomain::default(),
@@ -72,6 +77,20 @@ impl Game {
             game_action: &mut game_action,
         };
         self.scene.update(&mut ctx);
+
+        let win = self.domain.signals.core.window_size;
+        let mouse_px = self.input.mouse.pos;
+        let ndc_x = (mouse_px.x / win.x) * 2.0 - 1.0;
+        let ndc_y = 1.0 - (mouse_px.y / win.y) * 2.0;
+        let (view_w, view_h) = if aspect >= 1.0 {
+            (self.camera.zoom, self.camera.zoom / aspect)
+        } else {
+            (self.camera.zoom * aspect, self.camera.zoom)
+        };
+        self.domain.signals.core.mouse_world = glam::Vec2::new(
+            self.camera.pos.x + ndc_x * view_w * 0.5,
+            self.camera.pos.y + ndc_y * view_h * 0.5,
+        );
 
         self.domain
             .update_solvers(dt, &mut self.input, &self.asset_registry);
