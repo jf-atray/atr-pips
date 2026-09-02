@@ -33,4 +33,8 @@ pub trait Addition: Sized + 'static {
         let pile = map.as_mut();
         pile.get_mut::<Self, Self::Signals>()
     }
+    fn signals_ref<T: AsRef<Polypile<dyn Signals>>>(map: &T) -> Option<&Self::Signals> {
+        let pile = map.as_ref();
+        pile.get::<Self, Self::Signals>()
+    }
 }

@@ -15,8 +15,9 @@ use crate::ecs::scope::Scope;
 use crate::ecs::{CanvasId, MaterialId, PipId};
 use crate::gamescope::camera::{CameraMode, PanSource, ZoomSource};
 use crate::input::{AxisConfig, Input};
-use crate::broadphase::BroadPhaseAdd;
+use crate::collision::CollisionAdd;
 use crate::physics::PhysicsAdd;
+use crate::physics::data::material::Material;
 use crate::spacial::aabb::Aabb;
 use crate::query;
 use crate::spacial::boundary::Boundary;
@@ -114,8 +115,8 @@ fn setup(ctx: &mut SceneContext, test: &mut TestScene) {
         .add::<PhysicsAdd>()
         .expect("PhysicsAdd must be available");
     ctx.domain
-        .add::<BroadPhaseAdd>()
-        .expect("BroadPhaseAdd must be available");
+        .add::<CollisionAdd>()
+        .expect("CollisionAdd must be available");
     ctx.domain
         .add::<TestAdd>()
         .expect("TestAdd must be available");
@@ -211,10 +212,10 @@ fn spawn_squares(ctx: &mut SceneContext, canvas_id: CanvasId, material: Material
             scope
                 .view::<PhysicsAdd>()
                 .expect("PhysicsAdd must be present")
-                .with(1.0, Vec3::ZERO);
+                .with(1.0, Vec3::ZERO, Material { friction: 0.5, restitution: 0.3 });
             scope
-                .view::<BroadPhaseAdd>()
-                .expect("BroadPhaseAdd must be present")
+                .view::<CollisionAdd>()
+                .expect("CollisionAdd must be present")
                 .with(aabb);
         });
 
